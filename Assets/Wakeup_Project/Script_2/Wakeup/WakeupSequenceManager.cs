@@ -1,0 +1,199 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Playables;
+using UnityEngine.SceneManagement;
+using TMPro;
+using TheLastCompact.Core;
+
+namespace TheLastCompact.Wakeup
+{
+    public class WakeupSequenceManager : MonoBehaviour
+    {
+        [Header("References")]
+        public WakeupDialogueUI dialogueUI;
+        public WakeupDialogueData dialogueData;
+        public PlayableDirector timeline;
+
+        private int currentNodeIndex = 0;
+        private bool isWaitingForInput = false;
+        private AudioSource audioSource; // 音频组件
+
+        private void Start()
+        {
+            // 初始化音频组件
+            audioSource = GetComponent<AudioSource>();
+            if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
+
+            // 确保 Global Managers 存在 (Bootstrap 检查)
+            if (GlobalMentalState.Instance == null)
+            {
+                Debug.LogWarning("GlobalMentalState missing! Please start from Bootstrap scene.");
+                // 测试用：可能需要生成一个假的或直接返回
+            }
+
+            // 锁定光标
+            CursorService.Unlock();
+
+            StartCoroutine(StartSequence());
+        }
+
+        private IEnumerator StartSequence()
+        {
+            Debug.Log("[WakeupSequence] 开始序列...");
+            // 初始黑屏等待
+            yield return new WaitForSeconds(1.0f);
+
+            // UI 淡入
+            if (dialogueUI != null) dialogueUI.FadeIn(1.0f);
+            yield return new WaitForSeconds(1.0f);
+
+            // 开始对话
+            if (dialogueData != null && dialogueData.nodes.Count > 0)
+            {
+                Debug.Log($"[WakeupSequence] 开始对话，节点数: {dialogueData.nodes.Count}");
+                ShowNode(0);
+            }
+            else
+            {
+                Debug.LogWarning("[WakeupSequence] 没有分配 Dialogue Data！直接结束序列。");
+                EndSequence();
+            }
+        }
+
+        private void ShowNode(int index)
+        {
+            Debug.Log($"[WakeupSequence] 显示节点索引: {index}");
+            if (index < 0 || index >= dialogueData.nodes.Count)
+            {
+                Debug.LogWarning("[WakeupSequence] 索引越界，结束序列。");
+                EndSequence();
+                return;
+            }
+
+            currentNodeIndex = index;
+            DialogueNode node = dialogueData.nodes[index];
+
+            // 播放配音
+            if (audioSource != null)
+            {
+                audioSource.Stop(); // 停止上一句
+                if (node.voiceover != null)
+                {
+                    audioSource.PlayOneShot(node.voiceover);
+                }
+            }
+
+            // 先显示文本（即使是结束节点也要显示）
+            dialogueUI.ShowLine(node.speakerName, node.dialogueText); 
+
+            if (node.choices != null && node.choices.Count > 0)
+            {
+                string[] choiceTexts = new string[node.choices.Count];
+                for (int i = 0; i < node.choices.Count; i++)
+                {
+                    choiceTexts[i] = node.choices[i].choiceText;
+                }
+                
+                dialogueUI.ShowChoices(choiceTexts);
+                // 重要：订阅有效的选择
+                dialogueUI.OnChoiceSelected = (idx) => OnChoiceSelected(idx);
+                isWaitingForInput = false;
+            }
+            else
+            {
+                // 没有选项，等待点击推进
+                isWaitingForInput = true;
+                dialogueUI.ShowChoices(new string[0]); // 隐藏选项
+            }
+        }
+
+        private void Update()
+        {
+            if (isWaitingForInput && (Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.Space)))
+            {
+                DialogueNode currentNode = dialogueData.nodes[currentNodeIndex];
+                
+                // 如果当前节点是结束节点，点击后结束序列
+                if (currentNode.isEndNode)
+                {
+                    EndSequence();
+                    return;
+                }
+                
+                // 否则线性推进到下一个节点
+                ShowNode(currentNodeIndex + 1);
+            }
+        }
+
+        private void OnChoiceSelected(int choiceIndex)
+        {
+            DialogueNode node = dialogueData.nodes[currentNodeIndex];
+            if (choiceIndex >= 0 && choiceIndex < node.choices.Count)
+            {
+                // 如果当前节点是结束节点，选择后结束序列
+                if (node.isEndNode)
+                {
+                    EndSequence();
+                    return;
+                }
+                
+                int nextIndex = node.choices[choiceIndex].nextNodeIndex;
+                ShowNode(nextIndex);
+            }
+        }
+
+        private void EndSequence()
+        {
+            if (audioSource != null) audioSource.Stop(); // 停止说话
+
+            // 2. 对话 UI 淡出
+            dialogueUI.FadeOut(1.0f);
+
+            // 3. 启动 Timeline
+            if (timeline != null)
+            {
+                timeline.Play();
+                // Timeline 应该通过信号发射器或监听其结束的脚本来处理最终过渡。
+                // 但现在，我们可以使用协程来等待它。
+                StartCoroutine(WaitForTimelineAndExploration(timeline.duration));
+            }
+            else
+            {
+                Debug.LogWarning("No Timeline assigned! Starting Exploration immediately.");
+                // 开启探索模式（只解锁玩家移动，不开启 Mental UI）
+                StartExploration();
+            }
+        }
+
+        private IEnumerator WaitForTimelineAndExploration(double duration)
+        {
+            yield return new WaitForSeconds((float)duration);
+            StartExploration();
+        }
+
+        private void StartExploration()
+        {
+            Debug.Log("[Wakeup] 进入自由探索模式。等待玩家阅读信件。");
+            
+            // 找到玩家并解锁控制
+            // 注意：因为场景里可能没有 UniversalPlayer (如果直接从 Wakeup 启动且没有生成)，
+            // 但正常流程下应该有。
+            UniversalPlayer player = FindAnyObjectByType<UniversalPlayer>();
+            if (player != null)
+            {
+                player.EnableControl();
+                
+                // 确保鼠标锁定 (以便 FPS 控制)
+                CursorService.Lock();
+            }
+            else
+            {
+                Debug.LogError("找不到 UniversalPlayer！无法进入探索模式。");
+            }
+
+            // 注意：此时不要调用 GlobalUIManager.EnableGameplay()
+            // 那个由 WakeupLetter 触发
+        }
+    }
+}

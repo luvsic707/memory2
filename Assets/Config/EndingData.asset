@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 444bd5f5414094c148efad475efe44e6, type: 3}
+  m_Name: EndingData
+  m_EditorClassIdentifier: 
+  stableEnding:
+    title: Stable Ending
+    description: 'Dora''s memory core has maintained remarkable integrity.
+
+
+      Perhaps
+      in this cold digital world, there is still a trace of warmth worth preserving.'
+    debugLabel: "\u7ED3\u6784\u7A33\u56FA"
+  unstableEnding:
+    title: Unstable Ending
+    description: 'The memory data remains intact, but irreversible fractures have
+      appeared in the core structure.
+
+
+      Will she still recognize who you are?'
+    debugLabel: "\u7ED3\u6784\u9707\u8361"
+  collapseEnding:
+    title: Collapse Ending
+    description: 'Entropy levels critical. System collapse.
+
+
+      Everything has
+      dissolved into the void of data noise.'
+    debugLabel: "\u7ED3\u6784\u5D29\u584C"

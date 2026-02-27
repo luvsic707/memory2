@@ -1,0 +1,88 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aef66bd4a86dd4fd5821b5623b378ed2, type: 3}
+  m_Name: IntroDialogue
+  m_EditorClassIdentifier: 
+  nodes:
+  - speakerName: God
+    dialogueText: "\"Rise and shine, kid! Express Delivery\u2014we deliver, no matter
+      the distance. Ring... Ring... Your order is up!\""
+    choices:
+    - choiceText: "Who\u2019s talking? My head feels like it\u2019s about to explode."
+      nextNodeIndex: 1
+    - choiceText: Just five more minutes... let me sleep, just a little longer.
+      nextNodeIndex: 1
+    isEndNode: 0
+    delayBeforeNext: 0
+    voiceover: {fileID: 8300000, guid: 6c54ca39068c3457f89f1d16d2bc9608, type: 3}
+  - speakerName: God
+    dialogueText: Oh, I bet you want to sleep. You used those little bottles and
+      those little pills to bleach your brain until it was a blank sheet of paper.
+      You did it, you magnificent bastard. You even forgot you hit the jackpot.
+    choices:
+    - choiceText: "I\u2019ve got the worst luck in the world. Since when do I 'hit
+        the jackpot'?"
+      nextNodeIndex: 2
+    - choiceText: Yeah, thanks a lot. What kind of 'prize' are we talking about here?
+      nextNodeIndex: 2
+    isEndNode: 0
+    delayBeforeNext: 0
+    voiceover: {fileID: 8300000, guid: c5d6e2961a1f4451fba014854636cdbc, type: 3}
+  - speakerName: God
+    dialogueText: '"Your application... we received it. Your request for a line of
+      credit. Not many people get a shot at this, you know."'
+    choices:
+    - choiceText: "Credit? I don\u2019t do loans. My credit cards were maxed out
+        and cancelled years ago."
+      nextNodeIndex: 3
+    - choiceText: "If you're here to collect, I can spare a few dirty coins and that\u2019s
+        it."
+      nextNodeIndex: 3
+    isEndNode: 0
+    delayBeforeNext: 0
+    voiceover: {fileID: 8300000, guid: 6c8e113bce6784b8aa3709779c408aa5, type: 3}
+  - speakerName: God
+    dialogueText: '"You put up what was left of your ''property'' as collateral,
+      mortal. Before that six-day chemical bender, you were on your knees begging
+      the heavens for a miracle. Did you think a little amnesia would cancel the
+      promise?"'
+    choices:
+    - choiceText: "Who the hell do you think you\u2019re talking to?"
+      nextNodeIndex: 4
+    - choiceText: Hang on... after all that yapping, who even are you?
+      nextNodeIndex: 4
+    isEndNode: 0
+    delayBeforeNext: 0
+    voiceover: {fileID: 8300000, guid: 457d908b2a94d4e18a675477602b1629, type: 3}
+  - speakerName: God
+    dialogueText: "\"The wish will be granted. The opportunity is right in front
+      of you. But remember\u2014God doesn't default. Once a debt is incurred, it
+      must be paid.\"\n"
+    choices:
+    - choiceText: "I\u2019m not doing this. This is insane. I don\u2019t even know
+        what I\u2019m supposed to be doing."
+      nextNodeIndex: 5
+    - choiceText: "I have no idea what I borrowed this for, but it feels... important.
+        I\u2019ll give it a shot."
+      nextNodeIndex: 5
+    isEndNode: 1
+    delayBeforeNext: 0
+    voiceover: {fileID: 8300000, guid: 958ece0e55cb34d339fd7d8ee5f137df, type: 3}
+  - speakerName: God
+    dialogueText: "\"It\u2019s out of your hands now. The contract is in effect.
+      Good luck, little debtor. Try not to forget who you owe.\""
+    choices:
+    - choiceText: Heh... yeah, sure. Fine.
+      nextNodeIndex: 0
+    isEndNode: 1
+    delayBeforeNext: 0
+    voiceover: {fileID: 8300000, guid: f41fbefaed5cb4078a9ecbd8789c1752, type: 3}
