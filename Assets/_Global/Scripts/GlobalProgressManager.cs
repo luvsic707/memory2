@@ -108,25 +108,32 @@ namespace TheLastCompact.Core
 
         private IEnumerator DoSceneTransition(string targetScene)
         {
-            // 如果 ScreenFader 存在，先淡出再加载；否则直接加载
+            // 1. 淡出到黑屏，等待完全变黑
             if (ScreenFader.Instance != null)
             {
-                bool done = false;
-                ScreenFader.Instance.FadeOutAndIn(
-                    onBlack: () => done = true,
-                    fadeOutTime: 0.5f,
-                    holdFrames: 2,
-                    fadeInTime: 0f   // 淡入交给新场景自己处理
-                );
-
-                // 等到完全黑屏
-                yield return new WaitUntil(() => done);
+                ScreenFader.Instance.FadeToBlack(0.5f);
+                yield return new WaitUntil(() => ScreenFader.Instance.IsFullyBlack);
             }
 
-            // 异步加载，不阻塞主线程
+            // 2. 黑屏中开始异步加载（不立即激活，避免画面闪烁）
             AsyncOperation op = SceneManager.LoadSceneAsync(targetScene);
+            op.allowSceneActivation = false;
+
+            // 3. 等待加载完成（Unity 异步加载在 0.9 停下来等待激活）
+            yield return new WaitUntil(() => op.progress >= 0.9f);
+
+            // 4. 激活场景
             op.allowSceneActivation = true;
-            yield return op;
+
+            // 5. 等两帧让新场景初始化（Awake/Start 执行）
+            yield return null;
+            yield return null;
+
+            // 6. 从黑淡入，展示新场景
+            if (ScreenFader.Instance != null)
+            {
+                ScreenFader.Instance.FadeFromBlack(0.6f);
+            }
         }
 
         // --- 记忆收集逻辑 ---
