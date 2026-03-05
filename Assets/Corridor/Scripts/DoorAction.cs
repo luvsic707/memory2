@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using TheLastCompact.Core;
 
 public class DoorAction : MonoBehaviour, IInteractable
 {
@@ -24,18 +25,23 @@ public class DoorAction : MonoBehaviour, IInteractable
         }
     }
 
-    // Q 键交互已统一由 UniversalPlayer 射线 + IInteractable 处理
-    // OnTriggerEnter/Exit 保留用于未来的交互提示 UI
-
-    // OnTriggerEnter/Exit 已移除：交互由 UniversalPlayer 射线 + IInteractable 统一处理
-
-    // 这个方法就是 Action 的具体实现
     public void ExecutePortal()
     {
         if (string.IsNullOrEmpty(targetScene)) return;
-        
-        // 可以在这里加入转场特效的逻辑
-        Debug.Log("Action 执行中：加载场景 " + targetScene);
-        SceneManager.LoadScene(targetScene);
+
+        Debug.Log("[DoorAction] 请求场景切换 → " + targetScene);
+
+        // 事件驱动：交给 GlobalProgressManager 统一处理
+        // 它负责 ScreenFader 淡入淡出 + 异步加载，避免主线程卡顿
+        if (GlobalProgressManager.Instance != null)
+        {
+            GlobalProgressManager.Instance.RequestSceneTransition(targetScene);
+        }
+        else
+        {
+            // Fallback：单独测试场景时直接加载
+            Debug.LogWarning("[DoorAction] GlobalProgressManager 不存在，使用直接加载（仅测试用）");
+            SceneManager.LoadScene(targetScene);
+        }
     }
 }

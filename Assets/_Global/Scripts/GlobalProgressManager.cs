@@ -1,5 +1,7 @@
 using System;
+using System.Collections;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using TheLastCompact.Core;
 
 namespace TheLastCompact.Core
@@ -16,6 +18,7 @@ namespace TheLastCompact.Core
         public event Action<PhaseCompletedPayload> OnPhaseACompleted;
         public event Action<PhaseCompletedPayload> OnAllPhasesCompleted;
         public event Action<DoorSequencePayload> OnDoorSequenceFinished;
+        public event Action<SceneTransitionPayload> OnSceneTransitionRequested;
 
         [Header("Debug Controls")]
         [Tooltip("点击以模拟第一阶段结束")]
@@ -81,6 +84,49 @@ namespace TheLastCompact.Core
                 DoorsOpened = 0,
                 DoorsClosed = currentMemoryCount
             });
+        }
+
+        /// <summary>
+        /// 场景切换入口（事件驱动）
+        /// 由 DoorAction 等调用，统一走 ScreenFader + 异步加载，避免主线程卡顿
+        /// </summary>
+        public void RequestSceneTransition(string targetScene)
+        {
+            if (string.IsNullOrEmpty(targetScene)) return;
+
+            var payload = new SceneTransitionPayload
+            {
+                TargetScene  = targetScene,
+                SourceScene  = SceneManager.GetActiveScene().name
+            };
+
+            Debug.Log($"<color=cyan>[Progress] Scene transition requested: {payload}</color>");
+            OnSceneTransitionRequested?.Invoke(payload);
+
+            StartCoroutine(DoSceneTransition(targetScene));
+        }
+
+        private IEnumerator DoSceneTransition(string targetScene)
+        {
+            // 如果 ScreenFader 存在，先淡出再加载；否则直接加载
+            if (ScreenFader.Instance != null)
+            {
+                bool done = false;
+                ScreenFader.Instance.FadeOutAndIn(
+                    onBlack: () => done = true,
+                    fadeOutTime: 0.5f,
+                    holdFrames: 2,
+                    fadeInTime: 0f   // 淡入交给新场景自己处理
+                );
+
+                // 等到完全黑屏
+                yield return new WaitUntil(() => done);
+            }
+
+            // 异步加载，不阻塞主线程
+            AsyncOperation op = SceneManager.LoadSceneAsync(targetScene);
+            op.allowSceneActivation = true;
+            yield return op;
         }
 
         // --- 记忆收集逻辑 ---

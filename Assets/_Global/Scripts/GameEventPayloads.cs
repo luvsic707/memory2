@@ -35,4 +35,14 @@ namespace TheLastCompact.Core
         public override string ToString()
             => $"[DoorSeq] Opened:{DoorsOpened} Closed:{DoorsClosed}";
     }
+
+    /// <summary>场景切换请求载荷</summary>
+    public struct SceneTransitionPayload
+    {
+        public string TargetScene;
+        public string SourceScene;
+
+        public override string ToString()
+            => $"[Transition] {SourceScene} → {TargetScene}";
+    }
 }
