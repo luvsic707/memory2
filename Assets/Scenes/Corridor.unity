@@ -1741,13 +1741,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   groupA_Colliders:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 1663176350}
+  - {fileID: 1663176348}
+  - {fileID: 540866205}
   groupB_Colliders:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 901510123}
+  - {fileID: 1613051773}
+  - {fileID: 1837598288}
 --- !u!4 &1456004219
 Transform:
   m_ObjectHideFlags: 0
