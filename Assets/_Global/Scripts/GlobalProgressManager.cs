@@ -108,32 +108,47 @@ namespace TheLastCompact.Core
 
         private IEnumerator DoSceneTransition(string targetScene)
         {
-            // 1. 淡出到黑屏，等待完全变黑
+            Debug.Log("<color=cyan>[PERF] ======= Scene Transition Trace Start =======</color>");
+            float startTime = Time.realtimeSinceStartup;
+            float t = startTime;
+
+            // 1. Fade Out
             if (ScreenFader.Instance != null)
             {
-                ScreenFader.Instance.FadeToBlack(0.5f);
+                ScreenFader.Instance.FadeToBlack(0.1f);
                 yield return new WaitUntil(() => ScreenFader.Instance.IsFullyBlack);
+                Debug.Log($"[PERF] 1. Fade Out Done: {Time.realtimeSinceStartup - t:F4}s");
             }
+            t = Time.realtimeSinceStartup;
 
-            // 2. 黑屏中开始异步加载（不立即激活，避免画面闪烁）
+            // 2. Async Loading (Background)
             AsyncOperation op = SceneManager.LoadSceneAsync(targetScene);
             op.allowSceneActivation = false;
+            while (op.progress < 0.9f)
+            {
+                yield return null;
+            }
+            Debug.Log($"[PERF] 2. Background Load Done (op.progress >= 0.9): {Time.realtimeSinceStartup - t:F4}s");
+            t = Time.realtimeSinceStartup;
 
-            // 3. 等待加载完成（Unity 异步加载在 0.9 停下来等待激活）
-            yield return new WaitUntil(() => op.progress >= 0.9f);
-
-            // 4. 激活场景
+            // 3. CRITICAL: Scene Activation (The "Stutter" Point)
+            // This is where Unity merges the new scene into the game, re-binds textures, and builds the physics world.
             op.allowSceneActivation = true;
+            yield return null; // Wait one frame for activation to complete
+            Debug.Log($"<color=red>[PERF] 3. Scene Activation (Main Thread Freeze): {Time.realtimeSinceStartup - t:F4}s</color>");
+            t = Time.realtimeSinceStartup;
 
-            // 5. 等两帧让新场景初始化（Awake/Start 执行）
-            yield return null;
-            yield return null;
+            // 4. Initialization (Awake/Start/First Render)
+            yield return new WaitForSecondsRealtime(0.05f); 
+            Debug.Log($"[PERF] 4. Awake/Start & First Frame Render: {Time.realtimeSinceStartup - t:F4}s");
 
-            // 6. 从黑淡入，展示新场景
+            // 5. Fade In
             if (ScreenFader.Instance != null)
             {
-                ScreenFader.Instance.FadeFromBlack(0.6f);
+                ScreenFader.Instance.FadeFromBlack(0.1f);
             }
+            
+            Debug.Log($"<color=cyan>[PERF] ======= Total Time: {Time.realtimeSinceStartup - startTime:F4}s =======</color>");
         }
 
         // --- 记忆收集逻辑 ---
