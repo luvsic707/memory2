@@ -527,6 +527,10 @@ PrefabInstance:
       propertyPath: targetScene
       value: Archive_room
       objectReference: {fileID: 0}
+    - target: {fileID: 2159556644418381934, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
     - target: {fileID: 2385854927149415793, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
       propertyPath: m_Name
       value: Door_PhaseA_3
@@ -786,6 +790,10 @@ PrefabInstance:
       propertyPath: targetScene
       value: Corridor_room4
       objectReference: {fileID: 0}
+    - target: {fileID: 9027964660410499478, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -1745,6 +1753,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2159556644418381934, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
     - target: {fileID: 2385854927149415793, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
       propertyPath: m_Name
       value: Door_PhaseB_2
@@ -1879,6 +1891,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2159556644418381934, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
     - target: {fileID: 2385854927149415793, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
       propertyPath: m_Name
       value: Door_PhaseA_2
@@ -1899,6 +1915,10 @@ PrefabInstance:
       propertyPath: targetScene
       value: Corridor_room1
       objectReference: {fileID: 0}
+    - target: {fileID: 9027964660410499478, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -2125,6 +2145,10 @@ PrefabInstance:
       propertyPath: targetScene
       value: Archive_room
       objectReference: {fileID: 0}
+    - target: {fileID: 9027964660410499478, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
