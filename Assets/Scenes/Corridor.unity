@@ -197,11 +197,6 @@ MonoBehaviour:
   - nightmare
   - grimy
   - abandoned hospital
---- !u!64 &57231388 stripped
-MeshCollider:
-  m_CorrespondingSourceObject: {fileID: 5529450941061808138, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
-  m_PrefabInstance: {fileID: 1613051771}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &166316045
 GameObject:
   m_ObjectHideFlags: 0
@@ -530,7 +525,7 @@ PrefabInstance:
     - target: {fileID: 2159556644418381934, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
       propertyPath: m_Mesh
       value: 
-      objectReference: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+      objectReference: {fileID: 5461320835613783329, guid: b0c5c07afa16bb34e906196a29abb158, type: 3}
     - target: {fileID: 2385854927149415793, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
       propertyPath: m_Name
       value: Door_PhaseA_3
@@ -551,16 +546,41 @@ PrefabInstance:
       propertyPath: targetScene
       value: Corridor_room3
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 5529450941061808138, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 2385854927149415793, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 540866205}
   m_SourcePrefab: {fileID: 100100000, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
---- !u!64 &541907678 stripped
-MeshCollider:
-  m_CorrespondingSourceObject: {fileID: 5529450941061808138, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
-  m_PrefabInstance: {fileID: 1663176346}
+--- !u!1 &540866204 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2385854927149415793, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
+  m_PrefabInstance: {fileID: 540866203}
   m_PrefabAsset: {fileID: 0}
+--- !u!65 &540866205
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 540866204}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.010161797, y: 0.0033994582, z: 0.020000005}
+  m_Center: {x: -0.000000007450581, y: 0, z: 0}
 --- !u!1001 &826374343
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -778,9 +798,17 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2963878266092311822, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 5461320835613783329, guid: b20dd81646e1942cdb885a2f38362030, type: 3}
     - target: {fileID: 4732664454308893833, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
       propertyPath: m_Name
       value: Door_PhaseB_1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4732664454308893833, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5043386445178269193, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
       propertyPath: m_Name
@@ -793,14 +821,18 @@ PrefabInstance:
     - target: {fileID: 9027964660410499478, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
       propertyPath: m_Mesh
       value: 
-      objectReference: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
-    m_RemovedComponents: []
+      objectReference: {fileID: 5461320835613783329, guid: b0c5c07afa16bb34e906196a29abb158, type: 3}
+    m_RemovedComponents:
+    - {fileID: 8853777733480413197, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 1568876295659552785, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
       insertIndex: 3
       addedObject: {fileID: 901510121}
+    - targetCorrespondingSourceObject: {fileID: 4732664454308893833, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 901510123}
   m_SourcePrefab: {fileID: 100100000, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
 --- !u!1 &901510120 stripped
 GameObject:
@@ -821,6 +853,32 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   targetScene: archive_room
   isLocked: 0
+--- !u!1 &901510122 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 4732664454308893833, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
+  m_PrefabInstance: {fileID: 901510119}
+  m_PrefabAsset: {fileID: 0}
+--- !u!65 &901510123
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 901510122}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.010161801, y: 0.003399463, z: 0.020000005}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1001 &995187513
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1683,13 +1741,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   groupA_Colliders:
-  - {fileID: 1663176347}
-  - {fileID: 541907678}
-  - {fileID: 1790296960}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
   groupB_Colliders:
-  - {fileID: 1965217124}
-  - {fileID: 57231388}
-  - {fileID: 2102526524}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
 --- !u!4 &1456004219
 Transform:
   m_ObjectHideFlags: 0
@@ -1756,10 +1814,14 @@ PrefabInstance:
     - target: {fileID: 2159556644418381934, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
       propertyPath: m_Mesh
       value: 
-      objectReference: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+      objectReference: {fileID: 5461320835613783329, guid: b0c5c07afa16bb34e906196a29abb158, type: 3}
     - target: {fileID: 2385854927149415793, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
       propertyPath: m_Name
       value: Door_PhaseB_2
+      objectReference: {fileID: 0}
+    - target: {fileID: 2385854927149415793, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4732664454308893833, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
       propertyPath: m_IsActive
@@ -1769,6 +1831,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Corridor_Segment (2)
       objectReference: {fileID: 0}
+    - target: {fileID: 5529450941061808138, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 6031507068087238761, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
       propertyPath: isLocked
       value: 0
@@ -1777,11 +1843,41 @@ PrefabInstance:
       propertyPath: targetScene
       value: Corridor_room5
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 5529450941061808138, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 2385854927149415793, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1613051773}
   m_SourcePrefab: {fileID: 100100000, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
+--- !u!1 &1613051772 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2385854927149415793, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
+  m_PrefabInstance: {fileID: 1613051771}
+  m_PrefabAsset: {fileID: 0}
+--- !u!65 &1613051773
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1613051772}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.010161797, y: 0.0033994582, z: 0.020000005}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1001 &1618253681
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1894,7 +1990,7 @@ PrefabInstance:
     - target: {fileID: 2159556644418381934, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
       propertyPath: m_Mesh
       value: 
-      objectReference: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+      objectReference: {fileID: 5461320835613783329, guid: b0c5c07afa16bb34e906196a29abb158, type: 3}
     - target: {fileID: 2385854927149415793, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
       propertyPath: m_Name
       value: Door_PhaseA_2
@@ -1918,20 +2014,49 @@ PrefabInstance:
     - target: {fileID: 9027964660410499478, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
       propertyPath: m_Mesh
       value: 
-      objectReference: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
-    m_RemovedComponents: []
+      objectReference: {fileID: 5461320835613783329, guid: b0c5c07afa16bb34e906196a29abb158, type: 3}
+    m_RemovedComponents:
+    - {fileID: 5529450941061808138, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
+    - {fileID: 8853777733480413197, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 4732664454308893833, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1663176349}
+    - targetCorrespondingSourceObject: {fileID: 4732664454308893833, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1663176350}
+    - targetCorrespondingSourceObject: {fileID: 2385854927149415793, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1663176348}
   m_SourcePrefab: {fileID: 100100000, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
---- !u!64 &1663176347 stripped
-MeshCollider:
-  m_CorrespondingSourceObject: {fileID: 8853777733480413197, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
+--- !u!1 &1663176347 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2385854927149415793, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
   m_PrefabInstance: {fileID: 1663176346}
   m_PrefabAsset: {fileID: 0}
+--- !u!65 &1663176348
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1663176347}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.010161797, y: 0.0033994582, z: 0.020000005}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &1663176349
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1946,6 +2071,27 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   targetScene: Corridor_room1
   isLocked: 0
+--- !u!65 &1663176350
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1342375115}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.010161801, y: 0.003399463, z: 0.020000005}
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &1719037222
 GameObject:
   m_ObjectHideFlags: 0
@@ -2076,11 +2222,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1.0000001, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
---- !u!64 &1790296960 stripped
-MeshCollider:
-  m_CorrespondingSourceObject: {fileID: 5529450941061808138, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
-  m_PrefabInstance: {fileID: 540866203}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &1837598286
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2137,6 +2278,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Door_PhaseB_3
       objectReference: {fileID: 0}
+    - target: {fileID: 4732664454308893833, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 5043386445178269193, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
       propertyPath: m_Name
       value: Corridor_Segment (5)
@@ -2148,22 +2293,42 @@ PrefabInstance:
     - target: {fileID: 9027964660410499478, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
       propertyPath: m_Mesh
       value: 
-      objectReference: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
-    m_RemovedComponents: []
+      objectReference: {fileID: 5461320835613783329, guid: b0c5c07afa16bb34e906196a29abb158, type: 3}
+    m_RemovedComponents:
+    - {fileID: 8853777733480413197, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 4732664454308893833, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1837598288}
   m_SourcePrefab: {fileID: 100100000, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
---- !u!64 &1965217124 stripped
-MeshCollider:
-  m_CorrespondingSourceObject: {fileID: 8853777733480413197, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
-  m_PrefabInstance: {fileID: 901510119}
-  m_PrefabAsset: {fileID: 0}
---- !u!64 &2102526524 stripped
-MeshCollider:
-  m_CorrespondingSourceObject: {fileID: 8853777733480413197, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
+--- !u!1 &1837598287 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 4732664454308893833, guid: b6a8ef86d8af042aaa755e0f02ab63fb, type: 3}
   m_PrefabInstance: {fileID: 1837598286}
   m_PrefabAsset: {fileID: 0}
+--- !u!65 &1837598288
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1837598287}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 0.010161801, y: 0.003399463, z: 0.020000005}
+  m_Center: {x: -0.0000000037252903, y: 0, z: 0}
 --- !u!1001 &686815416313715322
 PrefabInstance:
   m_ObjectHideFlags: 0

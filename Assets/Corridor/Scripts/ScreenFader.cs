@@ -49,6 +49,23 @@ namespace TheLastCompact.Core
         /// </summary>
         public bool IsFading { get; private set; }
 
+        /// <summary>
+        /// 当前是否已完全变黑（alpha >= 0.99）
+        /// </summary>
+        public bool IsFullyBlack => _fadeImage != null && _fadeImage.color.a >= 0.99f;
+
+        /// <summary>
+        /// 单独淡出到黑（不自动淡入）
+        /// </summary>
+        public void FadeToBlack(float duration = 0.4f)
+            => StartCoroutine(Fade(0f, 1f, duration));
+
+        /// <summary>
+        /// 单独从黑淡入（前提是已经变黑）
+        /// </summary>
+        public void FadeFromBlack(float duration = 0.6f)
+            => StartCoroutine(Fade(1f, 0f, duration));
+
         // ── 内部实现 ───────────────────────────
 
         private void CreateFadeUI()
