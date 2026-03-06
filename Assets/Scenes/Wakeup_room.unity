@@ -2101,6 +2101,10 @@ PrefabInstance:
       propertyPath: m_ConstrainProportionsScale
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 4099006070553931220, guid: 958279e9e41f84c859490639be916535, type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 4571811839000508402, guid: 958279e9e41f84c859490639be916535, type: 3}
       propertyPath: m_LocalPosition.y
       value: 0.369
@@ -2110,14 +2114,27 @@ PrefabInstance:
       value: player (1)
       objectReference: {fileID: 0}
     - target: {fileID: 5994884461846386187, guid: 958279e9e41f84c859490639be916535, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5994884461846386187, guid: 958279e9e41f84c859490639be916535, type: 3}
       propertyPath: m_TagString
       value: Player
+      objectReference: {fileID: 0}
+    - target: {fileID: 7319082522065878125, guid: 958279e9e41f84c859490639be916535, type: 3}
+      propertyPath: m_Enabled
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7319082522065878125, guid: 958279e9e41f84c859490639be916535, type: 3}
       propertyPath: balanceConfig
       value: 
       objectReference: {fileID: 11400000, guid: 146adf38c502c44f7adb1b219e787dc8, type: 2}
-    m_RemovedComponents: []
+    - target: {fileID: 8464700721429197073, guid: 958279e9e41f84c859490639be916535, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    m_RemovedComponents:
+    - {fileID: 4612956176775009112, guid: 958279e9e41f84c859490639be916535, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
