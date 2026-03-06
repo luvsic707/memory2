@@ -101,9 +101,9 @@ namespace TheLastCompact.Core
             };
 
             Debug.Log($"<color=cyan>[Progress] Scene transition requested: {payload}</color>");
-            OnSceneTransitionRequested?.Invoke(payload);
-
-            StartCoroutine(DoSceneTransition(targetScene));
+            //OnSceneTransitionRequested?.Invoke(payload);
+            SceneManager.LoadScene(targetScene);
+            //StartCoroutine(DoSceneTransition(targetScene));
         }
 
         private IEnumerator DoSceneTransition(string targetScene)
