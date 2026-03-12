@@ -24,7 +24,10 @@ namespace TheLastCompact.Core
 
         public void Interact()
         {
+            Debug.Log("我的interact走进来了");
+            Debug.Log($"<color=yellow>[PERF] MemoryItem1 '{memoryID}' Collect() called at {Time.realtimeSinceStartup:F3}s</color>");
             Collect();
+            Debug.Log($"<color=yellow>[PERF] MemoryItem2 '{memoryID}' Collect() called at {Time.realtimeSinceStartup:F3}s</color>");
         }
 
         void Start()

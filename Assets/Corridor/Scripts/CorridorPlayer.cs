@@ -25,6 +25,7 @@ public class UniversalPlayer : MonoBehaviour
 
     private bool canControl = false;
     private InteractHighlight _currentHighlight;
+    private int isInteracting = 0;
 
     void Awake() 
     {
@@ -147,6 +148,8 @@ public class UniversalPlayer : MonoBehaviour
             // 2. Q 键交互
             if (interactable != null && Input.GetKeyDown(KeyCode.Q))
             {
+                isInteracting++;
+                Debug.Log("isInteracting: " + isInteracting);
                 Debug.Log($"<color=green>Player:</color> 交互目标: {hit.collider.name}");
                 interactable.Interact();
             }
