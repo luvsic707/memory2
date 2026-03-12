@@ -108,7 +108,7 @@ public class GlobalMentalState : MonoBehaviour
         _logTimer += Time.deltaTime;
         if (_logTimer >= 1.0f)
         {
-            Debug.Log($"[MentalState] Entropy: {Model.AccumulatedDebt:F1} / {Model.EntropyThreshold:F0} | Psyche: {Model.Psyche:F1} | Total Debt: {Model.TotalDebt:F1}");
+//            Debug.Log($"[MentalState] Entropy: {Model.AccumulatedDebt:F1} / {Model.EntropyThreshold:F0} | Psyche: {Model.Psyche:F1} | Total Debt: {Model.TotalDebt:F1}");
             _logTimer = 0f;
         }
     }
