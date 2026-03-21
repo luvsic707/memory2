@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 64dca4b77c3c4be4ba7b3c098c94f11d
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 195804
+  packageName: Simple Planar Reflection
+  packageVersion: 1.0
+  assetPath: Assets/PlanarReflection/Misc/BallControl.cs
+  uploadId: 434662

@@ -109,6 +109,7 @@ namespace TheLastCompact.Core
         private IEnumerator DoSceneTransition(string targetScene)
         {
             Debug.Log("<color=cyan>[PERF] ======= Scene Transition Trace Start =======</color>");
+    
             float startTime = Time.realtimeSinceStartup;
             float t = startTime;
 

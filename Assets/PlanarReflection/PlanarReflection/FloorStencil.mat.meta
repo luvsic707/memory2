@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 06a564659d0b9f5499009dece8bb0e26
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 195804
+  packageName: Simple Planar Reflection
+  packageVersion: 1.0
+  assetPath: Assets/PlanarReflection/PlanarReflection/FloorStencil.mat
+  uploadId: 434662

@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: c26e4914ec2d328418b3c87b3a8d9ae3
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 195804
+  packageName: Simple Planar Reflection
+  packageVersion: 1.0
+  assetPath: Assets/PlanarReflection/Misc/Text/TextMaterial.mat
+  uploadId: 434662

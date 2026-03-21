@@ -1,0 +1,20 @@
+fileFormatVersion: 2
+guid: cf158a9a16b7f8d45a6fc4f7a0f1de17
+AssetOrigin:
+  serializedVersion: 1
+  productId: 195804
+  packageName: Simple Planar Reflection
+  packageVersion: 1.0
+  assetPath: Assets/PlanarReflection/PlanarReflection/PlanarReflectionManager.cs
+  uploadId: 434662
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - reflectionPlane: {instanceID: 0}
+  - floorMaterial: {fileID: 2100000, guid: 727286c5d70a0441c9316d0f28d6e9a4, type: 2}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

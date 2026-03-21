@@ -1,0 +1,29 @@
+fileFormatVersion: 2
+guid: cc22107b1c4f22a4788b4711d4784eb5
+TrueTypeFontImporter:
+  externalObjects: {}
+  serializedVersion: 4
+  fontSize: 16
+  forceTextureCase: -2
+  characterSpacing: 0
+  characterPadding: 1
+  includeFontData: 1
+  fontName: Caveat
+  fontNames:
+  - Caveat
+  fallbackFontReferences: []
+  customCharacters: 
+  fontRenderingMode: 0
+  ascentCalculationMode: 1
+  useLegacyBoundsCalculation: 0
+  shouldRoundAdvanceValue: 1
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 195804
+  packageName: Simple Planar Reflection
+  packageVersion: 1.0
+  assetPath: Assets/PlanarReflection/Misc/Text/Caveat-VariableFont_wght.ttf
+  uploadId: 434662
