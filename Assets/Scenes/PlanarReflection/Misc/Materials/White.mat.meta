@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 8ea4d121b18d6e44c822836d548d0ddd
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 195804
+  packageName: Simple Planar Reflection
+  packageVersion: 1.0
+  assetPath: Assets/PlanarReflection/Misc/Materials/White.mat
+  uploadId: 434662

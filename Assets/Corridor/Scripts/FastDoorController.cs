@@ -32,12 +32,19 @@ namespace TheLastCompact.Core
         private bool _isVisible;
         private Coroutine _activeCoroutine;
 
+        private void InitIfNeeded()
+        {
+            if (_renderers != null) return;
+            
+            _renderers = GetComponentsInChildren<Renderer>(true);
+            _colliders = GetComponentsInChildren<Collider>(true);
+            
+            Debug.Log($"[FastDoor] 缓存完成 | Renderers: {_renderers.Length}, Colliders: {_colliders.Length}");
+        }
+
         void Awake()
         {
-            _renderers = GetComponentsInChildren<Renderer>(true);
-            _colliders  = GetComponentsInChildren<Collider>(true);
-
-            Debug.Log($"[FastDoor] 缓存完成 | Renderers: {_renderers.Length}, Colliders: {_colliders.Length}");
+            InitIfNeeded();
 
             if (startHidden)
             {
@@ -57,8 +64,15 @@ namespace TheLastCompact.Core
         /// </summary>
         public void Show()
         {
+            InitIfNeeded();
             if (_isVisible) return;
             _isVisible = true;
+
+            // 如果原本父物体因为没打勾而处于隐藏状态，帮它激活一下
+            if (!gameObject.activeSelf)
+            {
+                gameObject.SetActive(true);
+            }
 
             // 渲染器：立即全部开启（无性能问题）
             SetRenderersEnabled(true);

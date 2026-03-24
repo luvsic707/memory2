@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: cb4a9b3cf1c3fef44812a2cb9e83c35e
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 195804
+  packageName: Simple Planar Reflection
+  packageVersion: 1.0
+  assetPath: Assets/PlanarReflection/Misc/Materials/Black.mat
+  uploadId: 434662

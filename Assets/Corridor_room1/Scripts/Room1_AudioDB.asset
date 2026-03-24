@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 0}
+  m_Name: Room1_AudioDB
+  m_EditorClassIdentifier: Assembly-CSharp:TheLastCompact.Narration:NarrationDatabase
+  groups:
+  - groupName: Act_One
+    entries:
+    - id: act_one_voice
+      audioClip: {fileID: 8300000, guid: a583788bd33bb4478b3baaaf8d6ae7d7, type: 3}
+      subtitleText: 
+      subtitleDuration: 0
+      delayBefore: 0
+      conditions: []
+      priority: 0
+      playOnce: 0
+  - groupName: Act_Two
+    entries:
+    - id: act_two_voice
+      audioClip: {fileID: 8300000, guid: a7c48364d1f7444c3a9966af02517fdc, type: 3}
+      subtitleText: 
+      subtitleDuration: 0
+      delayBefore: 0
+      conditions: []
+      priority: 0
+      playOnce: 0
+  - groupName: Act_Three
+    entries:
+    - id: act_three_voice
+      audioClip: {fileID: 8300000, guid: 17d5de905600549068961ed39065f2a6, type: 3}
+      subtitleText: 
+      subtitleDuration: 0
+      delayBefore: 0
+      conditions: []
+      priority: 0
+      playOnce: 0

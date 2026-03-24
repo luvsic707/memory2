@@ -29,8 +29,15 @@ public class InteractHighlight : MonoBehaviour
 
     void Awake()
     {
-        _renderers = GetComponentsInChildren<Renderer>();
-        _propBlock = new MaterialPropertyBlock();
+        InitIfNeeded();
+    }
+
+    private void InitIfNeeded()
+    {
+        if (_renderers == null)
+            _renderers = GetComponentsInChildren<Renderer>();
+        if (_propBlock == null)
+            _propBlock = new MaterialPropertyBlock();
     }
 
     /// <summary>
@@ -51,6 +58,8 @@ public class InteractHighlight : MonoBehaviour
 
     void Update()
     {
+        InitIfNeeded();
+
         // 平滑过渡
         float target = _isHighlighted ? glowIntensity : 0f;
         _currentIntensity = Mathf.Lerp(_currentIntensity, target, Time.deltaTime * fadeSpeed);

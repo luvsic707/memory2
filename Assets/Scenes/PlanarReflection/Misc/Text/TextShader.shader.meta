@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 3163afe5969ef984cb1dc5b1f39e2ab4
+ShaderImporter:
+  externalObjects: {}
+  defaultTextures: []
+  nonModifiableTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 195804
+  packageName: Simple Planar Reflection
+  packageVersion: 1.0
+  assetPath: Assets/PlanarReflection/Misc/Text/TextShader.shader
+  uploadId: 434662

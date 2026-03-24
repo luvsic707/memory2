@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: fe18367f23ec4564dadf61a4e70494a3
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 195804
+  packageName: Simple Planar Reflection
+  packageVersion: 1.0
+  assetPath: Assets/PlanarReflection/Misc/Materials/Ceiling.mat
+  uploadId: 434662

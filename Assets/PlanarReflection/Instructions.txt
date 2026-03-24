@@ -1,8 +1,0 @@
-1) Attach the PlanarReflectionManager class to your main camera object
-2) Associate your floor object with the ReflectionPlane variable
-3) Associate the the provided FloorMaterial material with the FloorMaterial variable
-4) Assign an appropriate base texture to the FloorStencil material (an example is provided for you)
-5) Assign the FloorStencil material to your floor object
-6) Press play!
-
-For queries or feedback, please email Ben on ben@persephoneschair.com
