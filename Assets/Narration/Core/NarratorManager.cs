@@ -49,6 +49,9 @@ public class NarratorManager : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(transform.root.gameObject);
 
+        // 订阅旁白事件总线
+        NarrationAnnouncer.OnNarrationRequested += PlayGroup;
+
         // 自动创建 AudioSource (如果没在 Inspector 里指定)
         if (narrationAudio == null)
         {
@@ -59,6 +62,11 @@ public class NarratorManager : MonoBehaviour
 
         // 初始隐藏字幕
         if (subtitlePanel != null) subtitlePanel.SetActive(false);
+    }
+
+    void OnDestroy()
+    {
+        NarrationAnnouncer.OnNarrationRequested -= PlayGroup;
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -162,9 +170,28 @@ public class NarratorManager : MonoBehaviour
     // 内部逻辑
     // ═══════════════════════════════════════════════════════════════
 
+    private NarrationEntry _lastEnqueuedEntry = null;
+    private float _lastEnqueueTime = -999f;
+
     private void EnqueueNarration(NarrationEntry entry)
     {
+        // 终极防抖 (Debounce)：防止非 playOnce 的重复触发（0.5秒内完全相同的要求直接过滤）
+        if (entry == _lastEnqueuedEntry && (Time.unscaledTime - _lastEnqueueTime) < 0.5f)
+        {
+            return;
+        }
+
+        _lastEnqueuedEntry = entry;
+        _lastEnqueueTime = Time.unscaledTime;
+
         _queue.Enqueue(entry);
+
+        // 防止极短时间内被重复触发（例如主角身上的多个碰撞体同时进 Trigger）
+        // 一旦排队，立刻标记为已播放（如果是只播一次的话）
+        if (entry.playOnce)
+        {
+            _playedNarrationIds.Add(entry.id);
+        }
 
         if (!_isPlaying)
         {
@@ -178,14 +205,14 @@ public class NarratorManager : MonoBehaviour
 
         while (_queue.Count > 0)
         {
-            // 冷却检查
+            var entry = _queue.Dequeue();
+
+            // 冷却检查 (放在这里是为了防止第一个就等待，只有上一个播完才冷却)
             float elapsed = Time.unscaledTime - _lastPlayTime;
-            if (elapsed < cooldownBetweenNarrations)
+            if (_lastPlayTime > -999f && elapsed < cooldownBetweenNarrations)
             {
                 yield return new WaitForSecondsRealtime(cooldownBetweenNarrations - elapsed);
             }
-
-            var entry = _queue.Dequeue();
 
             // 播放前延迟
             if (entry.delayBefore > 0f)
@@ -201,14 +228,14 @@ public class NarratorManager : MonoBehaviour
                 Debug.Log($"[Narrator] 播放旁白: {entry.id} ({entry.audioClip.name})");
             }
 
+            // 通知外部：旁白已开始（Shader、动画等可响应此事件）
+            NarrationAnnouncer.NotifyStarted(entry.id);
+
             // 显示字幕
             if (!string.IsNullOrEmpty(entry.subtitleText))
             {
                 ShowSubtitle(entry.subtitleText);
             }
-
-            // 标记为已播放
-            _playedNarrationIds.Add(entry.id);
 
             // 等待播放完毕
             float waitTime = entry.audioClip != null
@@ -219,6 +246,9 @@ public class NarratorManager : MonoBehaviour
 
             // 隐藏字幕
             HideSubtitle();
+
+            // 通知外部：旁白已结束
+            NarrationAnnouncer.NotifyEnded(entry.id);
 
             _lastPlayTime = Time.unscaledTime;
         }

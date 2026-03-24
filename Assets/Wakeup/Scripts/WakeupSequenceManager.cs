@@ -44,11 +44,17 @@ namespace TheLastCompact.Wakeup
             // 初始黑屏等待
             yield return new WaitForSeconds(1.0f);
 
+            // 在淡入之前，提前把第一句话的文字塞进去，防止淡入时看到默认的假文本闪烁！
+            if (dialogueData != null && dialogueData.nodes.Count > 0 && dialogueUI != null)
+            {
+                dialogueUI.ShowLine(dialogueData.nodes[0].speakerName, dialogueData.nodes[0].dialogueText);
+            }
+
             // UI 淡入
             if (dialogueUI != null) dialogueUI.FadeIn(1.0f);
             yield return new WaitForSeconds(1.0f);
 
-            // 开始对话
+            // 开始对话（正式播放语音和开启交互）
             if (dialogueData != null && dialogueData.nodes.Count > 0)
             {
                 Debug.Log($"[WakeupSequence] 开始对话，节点数: {dialogueData.nodes.Count}");

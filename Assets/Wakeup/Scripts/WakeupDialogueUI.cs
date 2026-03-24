@@ -18,9 +18,13 @@ namespace TheLastCompact.Wakeup
         // 选项被选中时的回调
         public System.Action<int> OnChoiceSelected;
 
+        private Coroutine _fadeCoroutine;
+
         private void Awake()
         {
             if (uiCanvasGroup == null) uiCanvasGroup = GetComponent<CanvasGroup>();
+            // 确保一开始绝对是隐藏的，防止因为在 Editor 里忘了调透明度导致开局闪白
+            if (uiCanvasGroup != null) uiCanvasGroup.alpha = 0;
         }
 
         public void ShowLine(string speaker, string text)
@@ -67,12 +71,16 @@ namespace TheLastCompact.Wakeup
 
         public void FadeIn(float duration)
         {
-            StartCoroutine(FadeCanvasGroup(0, 1, duration));
+            if (_fadeCoroutine != null) StopCoroutine(_fadeCoroutine);
+            float startAlpha = uiCanvasGroup != null ? uiCanvasGroup.alpha : 0f;
+            _fadeCoroutine = StartCoroutine(FadeCanvasGroup(startAlpha, 1f, duration));
         }
 
         public void FadeOut(float duration)
         {
-            StartCoroutine(FadeCanvasGroup(1, 0, duration));
+            if (_fadeCoroutine != null) StopCoroutine(_fadeCoroutine);
+            float startAlpha = uiCanvasGroup != null ? uiCanvasGroup.alpha : 1f;
+            _fadeCoroutine = StartCoroutine(FadeCanvasGroup(startAlpha, 0f, duration));
         }
 
         private IEnumerator FadeCanvasGroup(float start, float end, float duration)
