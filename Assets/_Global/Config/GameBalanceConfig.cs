@@ -28,7 +28,7 @@ namespace TheLastCompact.Core
         public float naturalDecayRate = 0.2f;
 
         [Tooltip("总负债对腐烂速率的加速系数")]
-        public float debtPenaltyCoeff = 0.03f;
+        public float debtPenaltyCoeff = 0.015f;
 
         [Tooltip("累积熵上限 = 阈值 × 此系数")]
         public float debtCapMultiplier = 1.2f;

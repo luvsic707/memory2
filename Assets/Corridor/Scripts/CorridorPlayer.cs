@@ -23,14 +23,34 @@ public class UniversalPlayer : MonoBehaviour
     [Tooltip("拖入 GameBalance 资产")]
     [SerializeField] private GameBalanceConfig balanceConfig;
 
+    [Header("音效设置")]
+    [Tooltip("走路时的脚步声音效，每次随机播放一首")]
+    public AudioClip[] footstepSounds;
+    [Tooltip("走动时触发脚步声的频率（秒/步）")]
+    public float stepInterval = 0.6f;
+    [Tooltip("脚步声音量")]
+    [Range(0f, 1f)] public float footstepVolume = 0.5f;
+
     private bool canControl = false;
     private InteractHighlight _currentHighlight;
     private int isInteracting = 0;
+    
+    // 脚步声内部状态
+    private float _stepTimer = 0f;
+    private AudioSource _audioSource;
 
     void Awake() 
     {
         _controller = GetComponent<CharacterController>();
         _cam = GetComponentInChildren<Camera>();
+
+        _audioSource = GetComponent<AudioSource>();
+        if (_audioSource == null)
+        {
+            _audioSource = gameObject.AddComponent<AudioSource>();
+        }
+        _audioSource.playOnAwake = false;
+        _audioSource.spatialBlend = 0f; // 保证走步声一直是饱满的2D
     }
 
     void Start()
@@ -118,6 +138,29 @@ public class UniversalPlayer : MonoBehaviour
         float speedMod = Mathf.Lerp(1f, minSpeed, intensity);
         
         _controller.SimpleMove(dir * moveSpeed * speedMod);
+
+        // 脚步声绝对防御逻辑：坚决只认 WASD 输入！
+        float inputMagnitude = new Vector2(h, v).magnitude;
+        
+        if (_controller.isGrounded && inputMagnitude > 0.1f)
+        {
+            // 如果还没在播放声音，就开始循环播放
+            if (!_audioSource.isPlaying && footstepSounds != null && footstepSounds.Length > 0)
+            {
+                _audioSource.clip = footstepSounds[Random.Range(0, footstepSounds.Length)];
+                _audioSource.loop = true; // 开启循环播放
+                _audioSource.volume = footstepVolume;
+                _audioSource.Play();
+            }
+        }
+        else 
+        {
+            // 只要没按 WASD，或者跳在空中，立刻掐断声音！
+            if (_audioSource.isPlaying)
+            {
+                _audioSource.Pause();
+            }
+        }
     }
 
     void HandleInteraction()

@@ -94,14 +94,15 @@ public class AITextureRequester : MonoBehaviour
         _currentCanvas.transform.SetParent(transform, false);
         
         // 应用偏移、旋转、缩放
-        // 为了保险起见，往 Z 轴正反两个方向都稍微伸出来一点点 (0.01)
-        _currentCanvas.transform.localPosition = new Vector3(0, 0, 0); 
+        // 现在真实读取面板上配置的参数，而不是写死 0
+        _currentCanvas.transform.localPosition = canvasOffset; 
+        
         // 关键修复：图片是倒着的，绕 Z 轴旋转 180 度把它正过来
-        _currentCanvas.transform.localRotation = Quaternion.Euler(0, 0, 180); 
+        _currentCanvas.transform.localRotation = Quaternion.Euler(canvasRotation); 
         
         // 缩放：宽2米，高2米，厚度0.05米（像一块真正的画布板子）
-        // 还要检查父物体是不是缩放是负数？不管了，先给个绝对值
-        _currentCanvas.transform.localScale = new Vector3(2f, 2f, 0.05f);
+        // 还要检查父物体是不是缩放是负数？不管了，读取面板配置
+        _currentCanvas.transform.localScale = new Vector3(canvasScale.x, canvasScale.y, 0.05f);
         
         // 获取新画框的 Renderer
         wallRenderer = _currentCanvas.GetComponent<Renderer>();
@@ -131,6 +132,17 @@ public class AITextureRequester : MonoBehaviour
         Destroy(_currentCanvas.GetComponent<Collider>());
         
         Debug.Log($"[AITextureRequester] 已生成悬浮画框(Cube): {_currentCanvas.name}，位置: {_currentCanvas.transform.position}");
+    }
+
+    // 每一帧都根据 Inspector 的值更新画板，极大方便你运行时实时拖拽调光！
+    void Update()
+    {
+        if (_currentCanvas != null)
+        {
+            _currentCanvas.transform.localPosition = canvasOffset;
+            _currentCanvas.transform.localRotation = Quaternion.Euler(canvasRotation);
+            _currentCanvas.transform.localScale = new Vector3(canvasScale.x, canvasScale.y, 0.05f);
+        }
     }
 
     IEnumerator SlideShowRoutine()
