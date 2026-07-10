@@ -22,6 +22,17 @@ public class PhoneInteractable : MonoBehaviour, IInteractable
     // 实现 IInteractable 接口的属性
     public string InteractHint => interactHint;
 
+    void Awake()
+    {
+        // 自动防御：如果物体上没有 Collider，射线交互将完全无法命中！
+        // 我们在运行时自动为其添加 BoxCollider。
+        if (GetComponent<Collider>() == null)
+        {
+            gameObject.AddComponent<BoxCollider>();
+            Debug.LogWarning($"[Phone] 监测到 '{gameObject.name}' 上没有 Collider！已自动添加 BoxCollider，以确保 Q 键射线检测可以正常工作。");
+        }
+    }
+
     // 实现 IInteractable 接口的方法：当玩家看准手机并按下交互键（如 Q 键射线交互）时触发
     public void Interact()
     {
