@@ -6,19 +6,77 @@ using UnityEngine.SceneManagement;
 // 它会自动检测 GlobalManager 是否存在，如果不存在，就先把 Bootstrap 场景加载进来。
 public class DevPreload : MonoBehaviour
 {
-    void Awake()
+#if UNITY_EDITOR
+    // 当在 Unity 编辑器中按下 Play 时，这个静态方法会自动在加载第一个关卡场景之前执行！
+    // 这样，不管当前打开并运行的是哪个关卡场景，它都会自动且零配置地把 Bootstrap 加载进来。
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    private static void AutoPreloadBootstrap()
     {
-        // 检查全局管理器是否存在
-        // 假设 GlobalUIManager 是挂在 GlobalManager 物体上的核心脚本之一
-        if (GlobalUIManager.Instance == null)
+        string activeSceneName = SceneManager.GetActiveScene().name;
+
+        // 如果是 Bootstrap 或者是主菜单，我们不需要做任何额外的预加载
+        if (activeSceneName == "0_Bootstrap" || activeSceneName == "MainMenu")
         {
-            Debug.LogWarning("检测到直接运行了游戏场景，正在自动加载 Bootstrap...");
-            // 加载 Bootstrap 场景，但是是用 Additive 模式（叠加在当前场景上）
-            // 这样既能保留当前场景，又能把 GlobalManager 带进来
+            return;
+        }
+
+        // 检查 0_Bootstrap 是否已经加载
+        bool isBootstrapLoaded = false;
+        for (int i = 0; i < SceneManager.sceneCount; i++)
+        {
+            if (SceneManager.GetSceneAt(i).name == "0_Bootstrap")
+            {
+                isBootstrapLoaded = true;
+                break;
+            }
+        }
+
+        if (!isBootstrapLoaded)
+        {
+            Debug.LogWarning($"[DevPreload] 检测到直接在编辑器中运行关卡场景 '{activeSceneName}'，正在自动预加载 0_Bootstrap 核心框架...");
+            
+            // 采用 Additive 模式加载 Bootstrap，使其与当前关卡合并
             SceneManager.LoadScene("0_Bootstrap", LoadSceneMode.Additive);
             
-            // 延迟一帧清理 Bootstrap 场景里多余的摄像机和 EventSystem
-            // 因为当前场景（Wakeup）肯定已经有摄像机了，不需要 Bootstrap 的那个
+            // 注册场景加载后的清理逻辑，去除 Bootstrap 中的重复相机/灯光等物体
+            SceneManager.sceneLoaded += OnBootstrapSceneLoaded;
+        }
+    }
+
+    private static void OnBootstrapSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.name == "0_Bootstrap")
+        {
+            SceneManager.sceneLoaded -= OnBootstrapSceneLoaded;
+
+            // 清理 Bootstrap 中多余的摄像机、灯光和 EventSystem，避免与当前关卡场景冲突
+            var roots = scene.GetRootGameObjects();
+            foreach (var go in roots)
+            {
+                if (go.name.Contains("EventSystem"))
+                {
+                    var es = go.GetComponent<UnityEngine.EventSystems.EventSystem>();
+                    if (es != null) es.enabled = false;
+                    Destroy(go);
+                    Debug.Log("[DevPreload] 已自动清理 Bootstrap 中重复的 EventSystem");
+                }
+                else if (go.name.Contains("Camera") || go.name.Contains("Light") || go.name.Contains("Directional Light"))
+                {
+                    Destroy(go);
+                    Debug.Log($"[DevPreload] 已自动清理 Bootstrap 中重复的组件: {go.name}");
+                }
+            }
+        }
+    }
+#endif
+
+    void Awake()
+    {
+        // 兼容原有的挂载式 Awake 逻辑（若静态加载由于特殊原因未触发作为兜底）
+        if (GlobalUIManager.Instance == null)
+        {
+            Debug.LogWarning("[DevPreload] Component Awake: 检测到全局系统未初始化，正在加载 Bootstrap...");
+            SceneManager.LoadScene("0_Bootstrap", LoadSceneMode.Additive);
             StartCoroutine(CleanupBootstrap());
         }
     }
@@ -28,20 +86,14 @@ public class DevPreload : MonoBehaviour
         // 等待一帧，让场景加载完
         yield return null;
 
-        // 卸载 Bootstrap 场景里不需要的 Main Camera (如果有的话)
-        // 注意：GlobalManager 和 UI 系统是 DontDestroyOnLoad 的，不会被卸载
         var bootstrapScene = SceneManager.GetSceneByName("0_Bootstrap");
         if (bootstrapScene.IsValid())
         {
             var roots = bootstrapScene.GetRootGameObjects();
             foreach (var go in roots)
             {
-                // 如果这个物体不是 DontDestroyOnLoad 的（比如 Bootstrap 里的摄像机或者灯光）
-                // 那就干掉它，避免和当前场景冲突
-                // 简单的判断方法：名字包不包含 Camera 或者 EventSystem
                 if (go.name.Contains("EventSystem"))
                 {
-                    // 先禁用 EventSystem 组件，防止正在处理事件时被销毁报错 (Assertion failed)
                     var es = go.GetComponent<UnityEngine.EventSystems.EventSystem>();
                     if (es != null) es.enabled = false;
                     Destroy(go);
