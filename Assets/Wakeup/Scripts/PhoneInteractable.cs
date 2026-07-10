@@ -22,28 +22,18 @@ public class PhoneInteractable : MonoBehaviour, IInteractable
     // 实现 IInteractable 接口的属性
     public string InteractHint => interactHint;
 
-    // 实现 IInteractable 接口的方法：当玩家按下交互键时触发
+    // 实现 IInteractable 接口的方法：当玩家看准手机并按下交互键（如 Q 键射线交互）时触发
     public void Interact()
     {
-        TriggerEvent("按键交互");
+        TriggerEvent();
     }
 
-    // 触发器检测：当玩家身体碰到手机时直接触发
-    private void OnTriggerEnter(Collider other)
-    {
-        // 支持按 Tag 或者名字识别玩家
-        if (other.CompareTag("Player") || other.name.Contains("player") || other.name.Contains("Player"))
-        {
-            TriggerEvent("碰撞接触");
-        }
-    }
-
-    private void TriggerEvent(string triggerSource)
+    private void TriggerEvent()
     {
         if (triggerOnce && _hasTriggered) return;
 
         _hasTriggered = true;
-        Debug.Log($"<color=cyan>[Phone] 玩家通过【{triggerSource}】激活了手机！向全局总线广播事件：{eventId}</color>");
+        Debug.Log($"<color=cyan>[Phone] 玩家通过【Q键射线交互】激活了手机！向全局总线广播事件：{eventId}</color>");
 
         // 核心解耦：直接使用全局事件总线发送事件
         NarrationAnnouncer.TriggerSceneEvent(eventId);
