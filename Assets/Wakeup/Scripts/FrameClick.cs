@@ -31,9 +31,16 @@ public class FrameClick : MonoBehaviour, IInteractable
 
     void Awake()
     {
-        // 自动防御：如果物体上没有 Collider，射线交互将完全无法命中！
-        // 我们在运行时自动为其添加 BoxCollider，保证交互正常运作。
-        if (GetComponent<Collider>() == null)
+        // 自动防御：如果是默认的 MeshCollider (如 Quad 默认自带的)，会存在单面碰撞问题。
+        // 如果玩家从背面看，射线会穿透碰撞体导致无法交互。我们自动将其替换为 BoxCollider 以支持双面碰撞。
+        MeshCollider meshCollider = GetComponent<MeshCollider>();
+        if (meshCollider != null)
+        {
+            Destroy(meshCollider);
+            gameObject.AddComponent<BoxCollider>();
+            Debug.LogWarning($"[FrameClick] 已自动将 '{gameObject.name}' 上的单面 MeshCollider 替换为双面 BoxCollider，防止射线穿透。");
+        }
+        else if (GetComponent<Collider>() == null)
         {
             gameObject.AddComponent<BoxCollider>();
             Debug.LogWarning($"[FrameClick] 检测到 '{gameObject.name}' 上没有 Collider！已自动添加 BoxCollider，以确保 Q 键射线检测可以正常工作。");
