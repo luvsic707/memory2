@@ -15,6 +15,13 @@ namespace TheLastCompact.Wakeup
         public WakeupDialogueData dialogueData;
         public PlayableDirector timeline;
 
+        [Header("Debug / Sequence Toggles")]
+        [Tooltip("是否跳过开场对话（直接进入 Timeline 或自由探索）")]
+        public bool skipDialogue = false;
+        
+        [Tooltip("是否跳过 Timeline 切镜（直接进入自由探索）")]
+        public bool skipTimeline = false;
+
         private int currentNodeIndex = 0;
         private bool isWaitingForInput = false;
         private AudioSource audioSource; // 音频组件
@@ -41,6 +48,14 @@ namespace TheLastCompact.Wakeup
         private IEnumerator StartSequence()
         {
             Debug.Log("[WakeupSequence] 开始序列...");
+
+            if (skipDialogue)
+            {
+                Debug.Log("[WakeupSequence] skipDialogue 已启用，正在跳过对话步骤...");
+                EndSequence();
+                yield break;
+            }
+
             // 初始黑屏等待
             yield return new WaitForSeconds(1.0f);
 
@@ -154,10 +169,10 @@ namespace TheLastCompact.Wakeup
             if (audioSource != null) audioSource.Stop(); // 停止说话
 
             // 2. 对话 UI 淡出
-            dialogueUI.FadeOut(1.0f);
+            if (dialogueUI != null) dialogueUI.FadeOut(1.0f);
 
             // 3. 启动 Timeline
-            if (timeline != null)
+            if (!skipTimeline && timeline != null)
             {
                 timeline.Play();
                 // Timeline 应该通过信号发射器或监听其结束的脚本来处理最终过渡。
@@ -166,7 +181,11 @@ namespace TheLastCompact.Wakeup
             }
             else
             {
-                Debug.LogWarning("No Timeline assigned! Starting Exploration immediately.");
+                if (timeline == null)
+                    Debug.LogWarning("No Timeline assigned! Starting Exploration immediately.");
+                else
+                    Debug.Log("[WakeupSequence] skipTimeline 已启用，跳过 Timeline 切镜，直接进入探索模式。");
+                
                 // 开启探索模式（只解锁玩家移动，不开启 Mental UI）
                 StartExploration();
             }
