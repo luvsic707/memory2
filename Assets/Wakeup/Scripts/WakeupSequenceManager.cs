@@ -168,8 +168,18 @@ namespace TheLastCompact.Wakeup
         {
             if (audioSource != null) audioSource.Stop(); // 停止说话
 
-            // 2. 对话 UI 淡出
-            if (dialogueUI != null) dialogueUI.FadeOut(1.0f);
+            // 2. 对话 UI 淡出（如果是跳过模式则直接禁用物体，防止闪烁和残留）
+            if (dialogueUI != null)
+            {
+                if (skipDialogue)
+                {
+                    dialogueUI.gameObject.SetActive(false);
+                }
+                else
+                {
+                    dialogueUI.FadeOut(1.0f);
+                }
+            }
 
             // 3. 启动 Timeline
             if (!skipTimeline && timeline != null)
