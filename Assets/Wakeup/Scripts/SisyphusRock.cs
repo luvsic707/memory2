@@ -76,7 +76,11 @@ namespace TheLastCompact.Wakeup
             Vector3 pushDirection = (topOfSlope.position - transform.position).normalized;
 
             // 给刚体施加初速度，消除之前向下滚落的分速度，使推动非常灵敏
+#if UNITY_6000_0_OR_NEWER
+            rb.linearVelocity = pushDirection * pushForce;
+#else
             rb.velocity = pushDirection * pushForce;
+#endif
             
             Debug.Log($"[SisyphusRock] 玩家推动了巨石！朝向: {pushDirection}，初速度: {pushForce}");
         }
@@ -101,7 +105,11 @@ namespace TheLastCompact.Wakeup
             // 瞬移坐标并彻底抹除之前的物理速度和自转
             transform.position = resetSpawnPoint.position;
             transform.rotation = resetSpawnPoint.rotation;
+#if UNITY_6000_0_OR_NEWER
+            rb.linearVelocity = Vector3.zero;
+#else
             rb.velocity = Vector3.zero;
+#endif
             rb.angularVelocity = Vector3.zero;
 
             Debug.Log("<color=yellow>[SisyphusRock] 巨石已滚落深渊，已被重置回起点，进入下一轮荒诞循环。</color>");
