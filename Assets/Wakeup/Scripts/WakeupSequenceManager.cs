@@ -29,6 +29,30 @@ namespace TheLastCompact.Wakeup
         private bool isWaitingForInput = false;
         private AudioSource audioSource; // 音频组件
 
+        private void Awake()
+        {
+            // 防御机制：检测并修正可能错误的 Prefab 引用，自动寻找场景中的 Dialogue UI 实例
+#if UNITY_2023_1_OR_NEWER
+            if (dialogueUI == null || !dialogueUI.gameObject.scene.IsValid())
+            {
+                dialogueUI = FindAnyObjectByType<WakeupDialogueUI>(FindObjectsInactive.Include);
+                if (dialogueUI != null)
+                {
+                    Debug.Log($"[WakeupSequence] 成功自动从场景中寻找到并重新绑定 Dialogue UI 实例: {dialogueUI.name}");
+                }
+            }
+#else
+            if (dialogueUI == null || !dialogueUI.gameObject.scene.IsValid())
+            {
+                dialogueUI = FindObjectOfType<WakeupDialogueUI>(true);
+                if (dialogueUI != null)
+                {
+                    Debug.Log($"[WakeupSequence] 成功自动从场景中寻找到并重新绑定 Dialogue UI 实例: {dialogueUI.name}");
+                }
+            }
+#endif
+        }
+
         private void Start()
         {
             // 初始化音频组件
