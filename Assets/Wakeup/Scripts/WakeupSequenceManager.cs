@@ -234,13 +234,22 @@ namespace TheLastCompact.Wakeup
             }
             else
             {
-                if (timeline == null)
-                    Debug.LogWarning("No Timeline assigned! Playing Ape Prologue immediately.");
+                if (skipDialogue)
+                {
+                    if (timeline == null)
+                        Debug.LogWarning("No Timeline assigned! Playing Ape Prologue immediately.");
+                    else
+                        Debug.Log("[WakeupSequence] skipTimeline 已启用，跳过 Timeline，播放猩猩低吼字幕后解锁探索模式。");
+                    
+                    // 播放猩猩低吼和字幕翻译，播完后解锁探索
+                    StartCoroutine(PlayApePrologueAndThenExploration());
+                }
                 else
-                    Debug.Log("[WakeupSequence] skipTimeline 已启用，跳过 Timeline，播放猩猩低吼字幕后解锁探索模式。");
-                
-                // 播放猩猩低吼和字幕翻译，播完后解锁探索
-                StartCoroutine(PlayApePrologueAndThenExploration());
+                {
+                    Debug.Log("[WakeupSequence] skipTimeline 已启用。由于正式对话已播放完毕，直接解锁探索模式。");
+                    // 开启探索模式（只解锁玩家移动，不开启 Mental UI）
+                    StartExploration();
+                }
             }
         }
 
