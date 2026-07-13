@@ -25,6 +25,9 @@ namespace TheLastCompact.Wakeup
         [Tooltip("是否跳过 Timeline 切镜（直接进入自由探索）")]
         public bool skipTimeline = true;
 
+        [Tooltip("是否允许点击屏幕任意位置直接推进对话（忽略选择支按钮）")]
+        public bool clickAnywhereToAdvance = true;
+
         private int currentNodeIndex = 0;
         private bool isWaitingForInput = false;
         private AudioSource audioSource; // 音频组件
@@ -196,7 +199,12 @@ namespace TheLastCompact.Wakeup
             // 先显示文本（即使是结束节点也要显示）
             dialogueUI.ShowLine(node.speakerName, node.dialogueText); 
 
-            if (node.choices != null && node.choices.Count > 0)
+            if (clickAnywhereToAdvance)
+            {
+                isWaitingForInput = true;
+                dialogueUI.ShowChoices(new string[0]); // 隐藏选项按钮，允许任意点击
+            }
+            else if (node.choices != null && node.choices.Count > 0)
             {
                 string[] choiceTexts = new string[node.choices.Count];
                 for (int i = 0; i < node.choices.Count; i++)
@@ -231,7 +239,15 @@ namespace TheLastCompact.Wakeup
                 }
                 
                 // 否则线性推进到下一个节点
-                ShowNode(currentNodeIndex + 1);
+                if (clickAnywhereToAdvance && currentNode.choices != null && currentNode.choices.Count > 0)
+                {
+                    // 默认沿首个选项所指向的节点索引跳转
+                    ShowNode(currentNode.choices[0].nextNodeIndex);
+                }
+                else
+                {
+                    ShowNode(currentNodeIndex + 1);
+                }
             }
         }
 
