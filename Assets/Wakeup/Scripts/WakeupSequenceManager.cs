@@ -20,10 +20,10 @@ namespace TheLastCompact.Wakeup
         public bool useEyeOpeningEffect = true;
 
         [Tooltip("是否跳过开场对话（直接进入 Timeline 或自由探索）")]
-        public bool skipDialogue = false;
+        public bool skipDialogue = true;
         
         [Tooltip("是否跳过 Timeline 切镜（直接进入自由探索）")]
-        public bool skipTimeline = false;
+        public bool skipTimeline = true;
 
         private int currentNodeIndex = 0;
         private bool isWaitingForInput = false;
