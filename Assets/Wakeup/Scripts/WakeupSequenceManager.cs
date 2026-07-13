@@ -14,9 +14,11 @@ namespace TheLastCompact.Wakeup
         public WakeupDialogueUI dialogueUI;
         public WakeupDialogueData dialogueData;
         public PlayableDirector timeline;
-        public EyeOpeningEffect eyeOpeningEffect;
 
         [Header("Debug / Sequence Toggles")]
+        [Tooltip("是否启用开场睁眼动画效果（解耦版本）")]
+        public bool useEyeOpeningEffect = true;
+
         [Tooltip("是否跳过开场对话（直接进入 Timeline 或自由探索）")]
         public bool skipDialogue = false;
         
@@ -50,21 +52,45 @@ namespace TheLastCompact.Wakeup
         {
             Debug.Log("[WakeupSequence] 开始序列...");
 
-            // 1. 优先执行睁眼效果
-            if (eyeOpeningEffect == null)
-            {
-                eyeOpeningEffect = FindAnyObjectByType<EyeOpeningEffect>();
-            }
-
-            if (eyeOpeningEffect != null)
+            // 1. 优先执行由事件驱动的睁眼效果
+            if (useEyeOpeningEffect)
             {
                 bool isEffectDone = false;
-                eyeOpeningEffect.PlayEffect(() => { isEffectDone = true; });
-                yield return new WaitUntil(() => isEffectDone);
+                System.Action<string> onSceneEvent = null;
+                onSceneEvent = (evtId) =>
+                {
+                    if (evtId == "EyeOpeningComplete")
+                    {
+                        isEffectDone = true;
+                    }
+                };
+
+                // 订阅全局事件总线
+                NarrationAnnouncer.OnSceneEventTriggered += onSceneEvent;
+
+                Debug.Log("[WakeupSequence] 广播事件: StartEyeOpening，触发外部睁眼组件进行处理...");
+                NarrationAnnouncer.TriggerSceneEvent("StartEyeOpening");
+
+                // 等待完成，加个超时防御（防止场景中缺失响应器或组件导致流程无限卡死）
+                float timer = 0f;
+                float timeout = 10f; // 10秒超时降级
+                while (!isEffectDone && timer < timeout)
+                {
+                    timer += Time.deltaTime;
+                    yield return null;
+                }
+
+                // 取消订阅
+                NarrationAnnouncer.OnSceneEventTriggered -= onSceneEvent;
+
+                if (timer >= timeout)
+                {
+                    Debug.LogWarning("[WakeupSequence] 睁眼效果等待超时！自动优雅降级，直接开始主流程。");
+                }
             }
             else
             {
-                // 如果没有睁眼动画组件，则使用原版的初始黑屏等待
+                // 如果不使用睁眼效果，则使用原版的初始黑屏等待
                 yield return new WaitForSeconds(1.0f);
             }
 

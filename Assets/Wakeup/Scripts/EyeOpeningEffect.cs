@@ -53,6 +53,28 @@ namespace TheLastCompact.Wakeup
             EnsureVolume();
         }
 
+        private void OnEnable()
+        {
+            NarrationAnnouncer.OnSceneEventTriggered += HandleSceneEvent;
+        }
+
+        private void OnDisable()
+        {
+            NarrationAnnouncer.OnSceneEventTriggered -= HandleSceneEvent;
+        }
+
+        private void HandleSceneEvent(string eventId)
+        {
+            if (eventId == "StartEyeOpening")
+            {
+                PlayEffect(() =>
+                {
+                    Debug.Log("[EyeOpeningEffect] 睁眼动效播放完毕，向全局事件总线广播: EyeOpeningComplete");
+                    NarrationAnnouncer.TriggerSceneEvent("EyeOpeningComplete");
+                });
+            }
+        }
+
         private void InitializeDefaultCurves()
         {
             if (eyelidCurve == null || eyelidCurve.keys.Length == 0)
