@@ -129,7 +129,22 @@ namespace TheLastCompact.Wakeup
             // 确保对话 UI 处于活动状态，防止因为之前被禁用而导致无法启动协程
             if (dialogueUI != null)
             {
+                Debug.Log($"[WakeupSequence] dialogueUI 路径: {GetGameObjectPath(dialogueUI.gameObject)}, activeSelf: {dialogueUI.gameObject.activeSelf}, activeInHierarchy: {dialogueUI.gameObject.activeInHierarchy}");
                 dialogueUI.gameObject.SetActive(true);
+                
+                // 递归激活所有父级，如果父级被禁用了，SetActive(true) 对子级无效！
+                Transform parent = dialogueUI.transform.parent;
+                while (parent != null)
+                {
+                    if (!parent.gameObject.activeSelf)
+                    {
+                        Debug.LogWarning($"[WakeupSequence] 发现父节点被禁用了，自动激活父节点: {GetGameObjectPath(parent.gameObject)}");
+                        parent.gameObject.SetActive(true);
+                    }
+                    parent = parent.parent;
+                }
+
+                Debug.Log($"[WakeupSequence] 激活操作后 - activeSelf: {dialogueUI.gameObject.activeSelf}, activeInHierarchy: {dialogueUI.gameObject.activeInHierarchy}");
             }
 
             // 在淡入之前，提前把第一句话的文字塞进去，防止淡入时看到默认的假文本闪烁！
@@ -350,6 +365,18 @@ namespace TheLastCompact.Wakeup
 
             // 注意：此时不要调用 GlobalUIManager.EnableGameplay()
             // 那个由 WakeupLetter 触发
+        }
+
+        private string GetGameObjectPath(GameObject obj)
+        {
+            string path = obj.name;
+            Transform t = obj.transform;
+            while (t.parent != null)
+            {
+                t = t.parent;
+                path = t.name + "/" + path;
+            }
+            return path;
         }
     }
 }
