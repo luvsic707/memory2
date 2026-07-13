@@ -235,18 +235,57 @@ namespace TheLastCompact.Wakeup
             else
             {
                 if (timeline == null)
-                    Debug.LogWarning("No Timeline assigned! Starting Exploration immediately.");
+                    Debug.LogWarning("No Timeline assigned! Playing Ape Prologue immediately.");
                 else
-                    Debug.Log("[WakeupSequence] skipTimeline 已启用，跳过 Timeline 切镜，直接进入探索模式。");
+                    Debug.Log("[WakeupSequence] skipTimeline 已启用，跳过 Timeline，播放猩猩低吼字幕后解锁探索模式。");
                 
-                // 开启探索模式（只解锁玩家移动，不开启 Mental UI）
-                StartExploration();
+                // 播放猩猩低吼和字幕翻译，播完后解锁探索
+                StartCoroutine(PlayApePrologueAndThenExploration());
             }
         }
 
         private IEnumerator WaitForTimelineAndExploration(double duration)
         {
             yield return new WaitForSeconds((float)duration);
+            StartExploration();
+        }
+
+        private IEnumerator PlayApePrologueAndThenExploration()
+        {
+            bool isPrologueDone = false;
+            System.Action<string> onSceneEvent = null;
+            onSceneEvent = (evtId) =>
+            {
+                if (evtId == "ApePrologueComplete")
+                {
+                    isPrologueDone = true;
+                }
+            };
+
+            // 订阅全局总线事件，监听大猩猩台词播放完毕
+            NarrationAnnouncer.OnSceneEventTriggered += onSceneEvent;
+
+            Debug.Log("[WakeupSequence] 广播事件: StartApePrologue，等待大猩猩发表感言...");
+            NarrationAnnouncer.TriggerSceneEvent("StartApePrologue");
+
+            // 超时防御：设置 15 秒超时，防止没有放置响应器而永远卡死
+            float timer = 0f;
+            float timeout = 15f;
+            while (!isPrologueDone && timer < timeout)
+            {
+                timer += Time.deltaTime;
+                yield return null;
+            }
+
+            // 取消订阅
+            NarrationAnnouncer.OnSceneEventTriggered -= onSceneEvent;
+
+            if (timer >= timeout)
+            {
+                Debug.LogWarning("[WakeupSequence] 大猩猩感言及字幕播放超时！优雅降级直接解锁探索模式。");
+            }
+
+            // 进入自由探索模式
             StartExploration();
         }
 
