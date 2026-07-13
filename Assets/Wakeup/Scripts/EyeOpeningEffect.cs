@@ -36,6 +36,8 @@ namespace TheLastCompact.Wakeup
         private bool _hadDof = false;
         private bool _originalDofActive = false;
         private float _originalDofFocusDistance = 10f;
+        private float _originalGaussianStart = 10f;
+        private float _originalGaussianEnd = 30f;
         private DepthOfField _dofComponent;
 
         // 自动生成的 UI Canvas
@@ -178,7 +180,9 @@ namespace TheLastCompact.Wakeup
                     _hadDof = true;
                     _originalDofActive = _dofComponent.active;
                     _originalDofFocusDistance = _dofComponent.focusDistance.value;
-                    Debug.Log($"[EyeOpeningEffect] 自动绑定了 Volume: {postProcessVolume.name}，并检测到了 DepthOfField 配置。");
+                    _originalGaussianStart = _dofComponent.gaussianStart.value;
+                    _originalGaussianEnd = _dofComponent.gaussianEnd.value;
+                    Debug.Log($"[EyeOpeningEffect] 自动绑定了 Volume: {postProcessVolume.name}，并检测到了 DepthOfField 配置（支持 Gaussian 和 Bokeh 模式）。");
                 }
                 else
                 {
@@ -271,13 +275,27 @@ namespace TheLastCompact.Wakeup
                 blackOverlay.alpha = 1f - clearRatio;
             }
 
-            // 2. 调节景深焦距 (clearRatio = 0 时极度模糊 focus = 0.05m，clearRatio = 1 时清晰 focus = 10m)
+            // 2. 调节景深 (支持 Gaussian 和 Bokeh 两种模式)
             if (_hadDof && _dofComponent != null)
             {
                 _dofComponent.active = true;
-                // 利用对数或平滑插值，让对焦过程有大范围模糊迅速拉清的感觉
-                float focusDistance = Mathf.Lerp(0.05f, 10.0f, clearRatio);
-                _dofComponent.focusDistance.Override(focusDistance);
+
+                if (_dofComponent.mode.value == DepthOfFieldMode.Gaussian)
+                {
+                    // Gaussian 模式：调节 start 和 end 距离来改变模糊范围
+                    // 起始模糊：Start 极近 (如 0.1m)，End 较近 (如 1.0m)
+                    // 彻底清晰：恢复到我们原始的配置（比如 30m / 50m，或者大数值）
+                    float startDist = Mathf.Lerp(0.1f, 30f, clearRatio);
+                    float endDist = Mathf.Lerp(1.0f, 50f, clearRatio);
+                    _dofComponent.gaussianStart.Override(startDist);
+                    _dofComponent.gaussianEnd.Override(endDist);
+                }
+                else
+                {
+                    // Bokeh 模式：调节 Focus Distance
+                    float focusDistance = Mathf.Lerp(0.05f, 10.0f, clearRatio);
+                    _dofComponent.focusDistance.Override(focusDistance);
+                }
             }
         }
 
@@ -287,6 +305,8 @@ namespace TheLastCompact.Wakeup
             {
                 _dofComponent.active = _originalDofActive;
                 _dofComponent.focusDistance.Override(_originalDofFocusDistance);
+                _dofComponent.gaussianStart.Override(_originalGaussianStart);
+                _dofComponent.gaussianEnd.Override(_originalGaussianEnd);
             }
         }
     }
