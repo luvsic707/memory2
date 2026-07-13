@@ -88,8 +88,8 @@ namespace TheLastCompact.Wakeup
                     Vector3 localTargetDir = transform.InverseTransformDirection(targetDir);
 
                     // 计算局部空间下的偏航角 (Yaw) 和俯仰角 (Pitch)
-                    float yaw = Mathf.Atan2(localTargetDir.x, localTargetDir.z) * Mathf.RadDeg;
-                    float pitch = -Mathf.Atan2(localTargetDir.y, Mathf.Sqrt(localTargetDir.x * localTargetDir.x + localTargetDir.z * localTargetDir.z)) * Mathf.RadDeg;
+                    float yaw = Mathf.Atan2(localTargetDir.x, localTargetDir.z) * Mathf.Rad2Deg;
+                    float pitch = -Mathf.Atan2(localTargetDir.y, Mathf.Sqrt(localTargetDir.x * localTargetDir.x + localTargetDir.z * localTargetDir.z)) * Mathf.Rad2Deg;
 
                     // 限制转头角度，防止做出“猫头鹰”式的扭头惊悚效果
                     yaw = Mathf.Clamp(yaw, -maxStareAngle, maxStareAngle);
