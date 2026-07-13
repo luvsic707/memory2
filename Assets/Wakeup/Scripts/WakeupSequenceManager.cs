@@ -14,6 +14,7 @@ namespace TheLastCompact.Wakeup
         public WakeupDialogueUI dialogueUI;
         public WakeupDialogueData dialogueData;
         public PlayableDirector timeline;
+        public EyeOpeningEffect eyeOpeningEffect;
 
         [Header("Debug / Sequence Toggles")]
         [Tooltip("是否跳过开场对话（直接进入 Timeline 或自由探索）")]
@@ -49,15 +50,31 @@ namespace TheLastCompact.Wakeup
         {
             Debug.Log("[WakeupSequence] 开始序列...");
 
+            // 1. 优先执行睁眼效果
+            if (eyeOpeningEffect == null)
+            {
+                eyeOpeningEffect = FindAnyObjectByType<EyeOpeningEffect>();
+            }
+
+            if (eyeOpeningEffect != null)
+            {
+                bool isEffectDone = false;
+                eyeOpeningEffect.PlayEffect(() => { isEffectDone = true; });
+                yield return new WaitUntil(() => isEffectDone);
+            }
+            else
+            {
+                // 如果没有睁眼动画组件，则使用原版的初始黑屏等待
+                yield return new WaitForSeconds(1.0f);
+            }
+
+            // 2. 检查是否跳过开场对话
             if (skipDialogue)
             {
                 Debug.Log("[WakeupSequence] skipDialogue 已启用，正在跳过对话步骤...");
                 EndSequence();
                 yield break;
             }
-
-            // 初始黑屏等待
-            yield return new WaitForSeconds(1.0f);
 
             // 在淡入之前，提前把第一句话的文字塞进去，防止淡入时看到默认的假文本闪烁！
             if (dialogueData != null && dialogueData.nodes.Count > 0 && dialogueUI != null)
