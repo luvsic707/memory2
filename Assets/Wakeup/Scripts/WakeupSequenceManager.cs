@@ -102,6 +102,12 @@ namespace TheLastCompact.Wakeup
                 yield break;
             }
 
+            // 确保对话 UI 处于活动状态，防止因为之前被禁用而导致无法启动协程
+            if (dialogueUI != null)
+            {
+                dialogueUI.gameObject.SetActive(true);
+            }
+
             // 在淡入之前，提前把第一句话的文字塞进去，防止淡入时看到默认的假文本闪烁！
             if (dialogueData != null && dialogueData.nodes.Count > 0 && dialogueUI != null)
             {
