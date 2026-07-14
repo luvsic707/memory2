@@ -110,6 +110,12 @@ public class UniversalPlayer : MonoBehaviour
         Debug.Log("[Player] Control Enabled.");
     }
 
+    public void DisableControl()
+    {
+        canControl = false;
+        Debug.Log("[Player] Control Disabled.");
+    }
+
     void Update()
     {
         // 如果无法控制，或者是暂停状态，都不动

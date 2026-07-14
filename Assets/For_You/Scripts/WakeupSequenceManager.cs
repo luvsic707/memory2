@@ -73,7 +73,7 @@ namespace TheLastCompact.Wakeup
             UniversalPlayer player = FindAnyObjectByType<UniversalPlayer>();
             if (player != null)
             {
-                player.canControl = false;
+                player.DisableControl();
             }
 
             // 锁定光标
