@@ -15,7 +15,20 @@ namespace TheLastCompact.Wakeup
         [Tooltip("为 'For You' 支线配置的有序场景列表（需与 Build Settings 中的场景名称保持一致）")]
         public SceneSequenceConfig sequenceConfig;
 
+        [Header("调试选项")]
+        [Tooltip("是否启用按下 P 键切换至下一关的调试快捷键")]
+        public bool enableDebugShortcut = true;
+
         private int currentIndex = -1; // Awake 时设为 0 并加载首场景
+
+        private void Update()
+        {
+            if (enableDebugShortcut && Input.GetKeyDown(KeyCode.P))
+            {
+                EventBus.RaiseAnnouncement("[Debug] 玩家按下了 P 键，正在手动跳过当前关卡...");
+                EventBus.RaiseSceneComplete();
+            }
+        }
 
         private void Awake()
         {
