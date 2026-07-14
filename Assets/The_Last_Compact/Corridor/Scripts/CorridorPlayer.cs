@@ -91,7 +91,7 @@ public class UniversalPlayer : MonoBehaviour
             }
             else
             {
-                Debug.LogError("严重错误：场景中完全找不到 GlobalMentalState！请确保从 Bootstrap 或 MainMenu 启动游戏。");
+                Debug.LogWarning("提示：未检测到 GlobalMentalState（如果当前运行的是 For You 支线场景或独立测试场景，此提示属于正常现象）。");
             }
         }
     }
