@@ -69,6 +69,13 @@ namespace TheLastCompact.Wakeup
                 // 测试用：可能需要生成一个假的或直接返回
             }
 
+            // 确保开场眨眼和对话期间，玩家无法移动
+            UniversalPlayer player = FindAnyObjectByType<UniversalPlayer>();
+            if (player != null)
+            {
+                player.canControl = false;
+            }
+
             // 锁定光标
             CursorService.Unlock();
 
