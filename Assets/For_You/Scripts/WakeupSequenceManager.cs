@@ -69,17 +69,33 @@ namespace TheLastCompact.Wakeup
                 // 测试用：可能需要生成一个假的或直接返回
             }
 
-            // 确保开场眨眼和对话期间，玩家无法移动
-            UniversalPlayer player = FindAnyObjectByType<UniversalPlayer>();
-            if (player != null)
+            // 只有在 Ape 关卡（场景名包含 "Ape" 或 "Prologue"）时才执行开场睁眼和对话
+            string sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            bool isApeScene = sceneName.Contains("Ape") || sceneName.Contains("Prologue");
+
+            if (isApeScene)
             {
-                player.DisableControl();
+                // 确保开场眨眼和对话期间，玩家无法移动
+                UniversalPlayer player = FindAnyObjectByType<UniversalPlayer>();
+                if (player != null)
+                {
+                    player.DisableControl();
+                }
+
+                // 锁定光标
+                CursorService.Unlock();
+
+                StartCoroutine(StartSequence());
             }
-
-            // 锁定光标
-            CursorService.Unlock();
-
-            StartCoroutine(StartSequence());
+            else
+            {
+                // 非 Ape 场景（如 God, Rock 等）直接解锁探索，跳过睁眼和对话，隐藏对话UI（如果存在）
+                if (dialogueUI != null)
+                {
+                    dialogueUI.gameObject.SetActive(false);
+                }
+                StartExploration();
+            }
         }
 
         private IEnumerator StartSequence()
