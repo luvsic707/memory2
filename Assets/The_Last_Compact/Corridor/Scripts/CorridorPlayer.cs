@@ -116,10 +116,6 @@ public class UniversalPlayer : MonoBehaviour
         if (!canControl) return;
         if (GlobalUIManager.Instance != null && GlobalUIManager.Instance.isPaused) return;
 
-        // 所有数据读取自全局单例，保证跨场景流畅性
-        if (GlobalMentalState.Instance == null) return;
-        if (GlobalMentalState.Instance.Model == null) return;
-
         HandleLook();
         HandleMove();
         HandleInteraction(); // 每帧射线检测 + 高亮 + Q键交互
@@ -133,7 +129,11 @@ public class UniversalPlayer : MonoBehaviour
         Vector3 dir = transform.right * h + transform.forward * v;
 
         // 核心逻辑：从全局模型读取崩坏强度，动态改变移速
-        float intensity = GlobalMentalState.Instance.Model.GlitchIntensity;
+        float intensity = 0f;
+        if (GlobalMentalState.Instance != null && GlobalMentalState.Instance.Model != null)
+        {
+            intensity = GlobalMentalState.Instance.Model.GlitchIntensity;
+        }
         float minSpeed = balanceConfig != null ? balanceConfig.minSpeedRatio : 0.35f;
         float speedMod = Mathf.Lerp(1f, minSpeed, intensity);
         
@@ -220,7 +220,11 @@ public class UniversalPlayer : MonoBehaviour
 
     void HandleVisuals()
     {
-        float intensity = GlobalMentalState.Instance.Model.GlitchIntensity;
+        float intensity = 0f;
+        if (GlobalMentalState.Instance != null && GlobalMentalState.Instance.Model != null)
+        {
+            intensity = GlobalMentalState.Instance.Model.GlitchIntensity;
+        }
         float shakeThresh = balanceConfig != null ? balanceConfig.shakeStartThreshold : 0.4f;
         
         // 随精神熵增产生的视角摇晃反馈
