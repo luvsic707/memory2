@@ -94,19 +94,30 @@ namespace TheLastCompact.Wakeup
             Vector3[] displacedVertices = new Vector3[originalVertices.Length];
             float t = Time.time * timeSpeed;
 
-            // 基于顶点原始法线方向，在高频余弦波下计算法线位移 (Normal Displacement)
+            // 基于顶点原始法线方向，利用阶梯函数 (Step Functions) 与三角波计算硬朗的板块碎裂位移
             for (int i = 0; i < originalVertices.Length; i++)
             {
                 Vector3 v = originalVertices[i];
                 Vector3 n = originalNormals[i];
 
-                // 使用类似噪声的正弦波组合，计算每个顶点的法线方向膨胀/收缩程度
-                float displacement = Mathf.Sin(v.x * waveFrequency + t) * Mathf.Cos(v.z * waveFrequency + t);
-                
-                // 再叠加一层高频颤抖
-                displacement += Mathf.Sin(v.y * waveFrequency * 2f - t * 1.5f) * 0.3f;
+                // 1. 使用三角波 (PingPong) 代替 Sin 弦波，产生锋利的脊线和棱角，而非圆润的波浪
+                float valX = v.x * waveFrequency + t;
+                float valZ = v.z * waveFrequency + t;
+                float triX = Mathf.PingPong(valX, 1.0f) * 2f - 1f;
+                float triZ = Mathf.PingPong(valZ, 1.0f) * 2f - 1f;
+                float rawValue = triX * triZ;
 
-                // 最终位置 = 原位置 + 法线方向 * 颤抖幅度 * 注入的晃动强度 * 整体形变系数
+                // 2. 引入阶梯阈值 (Threshold Step)，将平滑倾斜转为“板块断裂位移”，产生错落的硬面阶梯 (Slabs)
+                float stepValue = 0f;
+                if (rawValue > 0.35f) stepValue = 1.0f;
+                else if (rawValue < -0.35f) stepValue = -1.0f;
+
+                // 3. 叠加高频硬朗抖动 (使用 Sign 阶跃函数消除震荡的平滑过渡)
+                float jitter = Mathf.Sign(Mathf.Sin(v.y * waveFrequency * 3.5f - t * 2f)) * 0.2f;
+
+                float displacement = (stepValue + jitter);
+
+                // 最终位置 = 原位置 + 法线方向 * 崩裂位移 * 注入的强度 * 整体形变系数
                 displacedVertices[i] = v + n * displacement * currentIntensity * fractureScale;
             }
 

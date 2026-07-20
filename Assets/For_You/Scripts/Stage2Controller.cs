@@ -82,7 +82,7 @@ namespace TheLastCompact.Wakeup
                 player = GameObject.FindWithTag("Player");
                 if (player == null)
                 {
-                    var pc = FindObjectOfType<CorridorPlayer>();
+                    var pc = FindObjectOfType<UniversalPlayer>();
                     if (pc != null) player = pc.gameObject;
                 }
             }
