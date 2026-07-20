@@ -176,8 +176,8 @@ public class UniversalPlayer : MonoBehaviour
         
         if (Physics.Raycast(ray, out RaycastHit hit, interactDistance))
         {
-            IInteractable interactable = hit.collider.GetComponent<IInteractable>();
-            InteractHighlight highlight = hit.collider.GetComponent<InteractHighlight>();
+            IInteractable interactable = hit.collider.GetComponentInParent<IInteractable>();
+            InteractHighlight highlight = hit.collider.GetComponentInParent<InteractHighlight>();
 
             // 1. 高亮管理
             if (highlight != null && highlight != _currentHighlight)
