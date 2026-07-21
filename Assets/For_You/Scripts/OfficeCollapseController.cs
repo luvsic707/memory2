@@ -24,11 +24,11 @@ namespace TheLastCompact.Wakeup
         public Transform officeBuilding;
 
         [Header("小物件移动参数")]
-        [Tooltip("每次点击物件朝中心移动的基础距离（米）")]
-        public float movePerClick = 0.4f;
+        [Tooltip("每次点击物件朝最终目标移动的基础距离（米）")]
+        public float movePerClick = 0.15f;
 
         [Tooltip("每次点击物件施加的随机旋转角度范围（度）")]
-        public float rotationPerClick = 8f;
+        public float rotationPerClick = 5f;
 
         [Tooltip("平滑移动速度（每秒）")]
         public float smoothSpeed = 3.5f;
