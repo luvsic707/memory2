@@ -37,6 +37,16 @@ namespace TheLastCompact.Wakeup
         [Tooltip("Office 87 的工位内部净空间尺寸。在这个范围内的空间将被绝对保护。")]
         public Vector3 safeBoxSize = new Vector3(3.2f, 2.8f, 3.2f);
 
+        [Header("伪重力与堆叠效果")]
+        [Tooltip("是否启用伪重力，使侧壁飞行的物品向下落在地面周围")]
+        public bool enableGravity = true;
+
+        [Tooltip("侧壁飞行的物件的下落速度/重力加速度 (m/s)")]
+        public float gravityValue = 3.0f;
+
+        [Tooltip("物品堆叠时的最大随机高度偏差，使碎片堆积更有立体感")]
+        public float maxPileHeight = 1.0f;
+
         // 扁平化存储所有待拆解移动的子物件
         private List<Transform> _allProps = new List<Transform>();
         private List<Vector3> _targetPositions = new List<Vector3>();
@@ -44,6 +54,7 @@ namespace TheLastCompact.Wakeup
         private List<float> _moveMultipliers = new List<float>();
         private List<Vector3> _randomRotDirs = new List<Vector3>();
         private List<Vector3> _propSizes = new List<Vector3>(); // 动态存储每个物体的 Mesh 尺寸
+        private List<float> _pileOffsets = new List<float>();   // 存储每个物品的随机高度偏置，形成层层堆叠感
 
         private Vector3 _center;
         private int _totalClicks = 0;
@@ -112,6 +123,9 @@ namespace TheLastCompact.Wakeup
                     size.z = Mathf.Min(size.z, 4.0f);
 
                     _propSizes.Add(size);
+
+                    // 预先随机堆叠偏置，使落下的碎片高度错落
+                    _pileOffsets.Add(Random.Range(0f, maxPileHeight));
                 }
             }
 
@@ -141,8 +155,8 @@ namespace TheLastCompact.Wakeup
 
                 if (i % 5 == 4) 
                 {
-                    // 天花板顶面覆盖
-                    float ceilingY = _center.y + halfSize.y;
+                    // 天花板顶面覆盖 - 加上堆叠偏置
+                    float ceilingY = _center.y + halfSize.y + _pileOffsets[i];
                     Vector3 toCenterH = new Vector3(_center.x - _allProps[i].position.x, 0f, _center.z - _allProps[i].position.z);
                     float distH = toCenterH.magnitude;
                     float moveAmount = movePerClick * intensity * _moveMultipliers[i];
@@ -150,12 +164,12 @@ namespace TheLastCompact.Wakeup
                     Vector3 nextH = _targetPositions[i] + toCenterH.normalized * Mathf.Min(moveAmount, distH);
                     float nextY = Mathf.MoveTowards(_targetPositions[i].y, ceilingY, moveAmount * 1.5f);
                     
-                    targetPos = ClampToOutsideSafeBox(new Vector3(nextH.x, nextY, nextH.z), currentBox);
+                    targetPos = ClampToAboveCeiling(new Vector3(nextH.x, nextY, nextH.z), currentBox);
                 }
                 else if (i % 5 == 3)
                 {
-                    // 地板底面覆盖
-                    float floorY = _center.y - halfSize.y;
+                    // 地板底面覆盖 - 往下压堆叠偏置
+                    float floorY = _center.y - halfSize.y - _pileOffsets[i];
                     Vector3 toCenterH = new Vector3(_center.x - _allProps[i].position.x, 0f, _center.z - _allProps[i].position.z);
                     float distH = toCenterH.magnitude;
                     float moveAmount = movePerClick * intensity * _moveMultipliers[i];
@@ -163,19 +177,23 @@ namespace TheLastCompact.Wakeup
                     Vector3 nextH = _targetPositions[i] + toCenterH.normalized * Mathf.Min(moveAmount, distH);
                     float nextY = Mathf.MoveTowards(_targetPositions[i].y, floorY, moveAmount * 1.5f);
                     
-                    targetPos = ClampToOutsideSafeBox(new Vector3(nextH.x, nextY, nextH.z), currentBox);
+                    targetPos = ClampToBelowFloor(new Vector3(nextH.x, nextY, nextH.z), currentBox);
                 }
                 else
                 {
                     // 四周侧壁覆盖
-                    Vector3 toCenter = (_center - _allProps[i].position);
-                    float dist = toCenter.magnitude;
-                    if (dist > 0.01f)
+                    // 只向中心进行水平拉扯，垂直方向由重力单独控制（如果启用重力）
+                    Vector3 toCenterH = new Vector3(_center.x - _targetPositions[i].x, 0f, _center.z - _targetPositions[i].z);
+                    float distH = toCenterH.magnitude;
+                    float moveAmount = movePerClick * intensity * _moveMultipliers[i];
+
+                    if (distH > 0.01f)
                     {
-                        float moveAmount = movePerClick * intensity * _moveMultipliers[i];
-                        Vector3 testPos = _targetPositions[i] + toCenter.normalized * Mathf.Min(moveAmount, dist);
-                        targetPos = ClampToOutsideSafeBox(testPos, currentBox);
+                        Vector3 nextH = _targetPositions[i] + toCenterH.normalized * Mathf.Min(moveAmount, distH);
+                        targetPos = new Vector3(nextH.x, _targetPositions[i].y, nextH.z);
                     }
+                    
+                    targetPos = ClampToOutsideSides(targetPos, currentBox);
                 }
 
                 _targetPositions[i] = targetPos;
@@ -187,7 +205,7 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
-        /// 限制坐标在指定安全箱体外部
+        /// 限制坐标在指定安全箱体外部（全部三个维度）
         /// </summary>
         private Vector3 ClampToOutsideSafeBox(Vector3 targetPos, Vector3 boxSize)
         {
@@ -224,6 +242,59 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
+        /// 限制坐标只在安全箱侧壁（X和Z）的外部，允许 Y 轴自由下坠/堆叠，杜绝穿插到房间地板内
+        /// </summary>
+        private Vector3 ClampToOutsideSides(Vector3 targetPos, Vector3 boxSize)
+        {
+            Vector3 localPos = targetPos - _center;
+            Vector3 halfSize = boxSize * 0.5f;
+
+            bool insideXZ = Mathf.Abs(localPos.x) < halfSize.x && Mathf.Abs(localPos.z) < halfSize.z;
+            if (insideXZ)
+            {
+                float dx = halfSize.x - Mathf.Abs(localPos.x);
+                float dz = halfSize.z - Mathf.Abs(localPos.z);
+                if (dx <= dz)
+                {
+                    localPos.x = Mathf.Sign(localPos.x) * halfSize.x;
+                }
+                else
+                {
+                    localPos.z = Mathf.Sign(localPos.z) * halfSize.z;
+                }
+            }
+            return _center + localPos;
+        }
+
+        /// <summary>
+        /// 限制坐标只在安全箱天花板（Y上面）的外部
+        /// </summary>
+        private Vector3 ClampToAboveCeiling(Vector3 targetPos, Vector3 boxSize)
+        {
+            Vector3 localPos = targetPos - _center;
+            Vector3 halfSize = boxSize * 0.5f;
+            if (localPos.y < halfSize.y)
+            {
+                localPos.y = halfSize.y;
+            }
+            return _center + localPos;
+        }
+
+        /// <summary>
+        /// 限制坐标只在安全箱地板（Y下面）的外部
+        /// </summary>
+        private Vector3 ClampToBelowFloor(Vector3 targetPos, Vector3 boxSize)
+        {
+            Vector3 localPos = targetPos - _center;
+            Vector3 halfSize = boxSize * 0.5f;
+            if (localPos.y > -halfSize.y)
+            {
+                localPos.y = -halfSize.y;
+            }
+            return _center + localPos;
+        }
+
+        /// <summary>
         /// 根据点击次数返回当前阶段强度系数（1.0 = 正常, 3.0 = 激烈）
         /// </summary>
         private float GetIntensity()
@@ -234,12 +305,41 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
-        /// 持续平滑地将所有细碎物体移向目标位置和旋转
+        /// 持续平滑地将所有细碎物体移向目标位置和旋转，并处理侧壁重力下落
         /// </summary>
         private IEnumerator SmoothMoveLoop()
         {
             while (true)
             {
+                if (enableGravity && _totalClicks > 0)
+                {
+                    float dt = Time.deltaTime;
+                    for (int i = 0; i < _allProps.Count; i++)
+                    {
+                        if (_allProps[i] == null) continue;
+
+                        // 只对四周侧壁的物件进行重力处理（天花板和地板物体按它们自己的覆盖逻辑）
+                        if (i % 5 != 4 && i % 5 != 3)
+                        {
+                            Vector3 currentBox = safeBoxSize + _propSizes[i];
+                            // 地面高度：工位底部Y + 物品自己半径 + 随机堆叠偏差
+                            float groundY = _center.y - (safeBoxSize.y * 0.5f) + (_propSizes[i].y * 0.5f) + _pileOffsets[i];
+
+                            if (_targetPositions[i].y > groundY)
+                            {
+                                Vector3 pos = _targetPositions[i];
+                                pos.y -= gravityValue * dt;
+                                if (pos.y < groundY)
+                                {
+                                    pos.y = groundY;
+                                }
+                                // 下坠时保持侧壁防穿插约束
+                                _targetPositions[i] = ClampToOutsideSides(pos, currentBox);
+                            }
+                        }
+                    }
+                }
+
                 for (int i = 0; i < _allProps.Count; i++)
                 {
                     if (_allProps[i] == null) continue;
