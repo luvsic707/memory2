@@ -46,6 +46,11 @@ namespace TheLastCompact.Wakeup
         public float t = 0f; // 参数位置 [0 .. 4π]
         private float velocity = 0f; // 当前滚动速度
 
+        /// <summary>
+        /// 莫比乌斯环第一圈完成标志位（当 t 超过 2π 时触发，即走上面/反面的分界线，开启拉镜头）
+        /// </summary>
+        public bool HasCompletedFirstLap { get; private set; } = false;
+
         private void Start()
         {
             // 自动寻找莫比乌斯环
@@ -86,6 +91,13 @@ namespace TheLastCompact.Wakeup
             t += deltaT;
             float maxT = 4f * Mathf.PI;
             t = (t % maxT + maxT) % maxT;
+
+            // 检查是否完成了第一圈 (2π)
+            if (!HasCompletedFirstLap && t >= 2f * Mathf.PI)
+            {
+                HasCompletedFirstLap = true;
+                Debug.Log("[BallOnMobius] 球体已越过 2π 界限，翻转至反面。莫比乌斯显现触发开启！");
+            }
 
             // 4. 参数化位置解算与 4π 周期翻转
             float uMod = t % (2f * Mathf.PI);
