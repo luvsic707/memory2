@@ -177,7 +177,36 @@ namespace TheLastCompact.Wakeup
                 distorter.currentIntensity = currentShakeIntensity;
             }
 
-            // 5. 监测玩家是否跌落深渊
+            // 5. 模拟倾斜导致的玩家向边缘滑落 (由于 CharacterController 默认不继承平台物理倾斜，我们需要手动进行受力推挤)
+            if (player != null && currentShakeIntensity > 0.15f)
+            {
+                Vector3 playerPos = player.transform.position;
+                Vector3 pushDirection = playerPos - islandBasePosition;
+                pushDirection.y = 0f; // 仅在水平面推动
+
+                if (pushDirection.sqrMagnitude < 0.01f)
+                {
+                    pushDirection = player.transform.forward; // 默认防零向量
+                }
+                pushDirection.Normalize();
+
+                // 滑落速度随着晃动值呈二次方递增，晃动越剧烈，滑出越快
+                float slideSpeed = currentShakeIntensity * currentShakeIntensity * 7.5f;
+
+                CharacterController cc = player.GetComponent<CharacterController>();
+                if (cc == null) cc = player.GetComponentInChildren<CharacterController>();
+
+                if (cc != null)
+                {
+                    cc.Move(pushDirection * slideSpeed * Time.deltaTime);
+                }
+                else
+                {
+                    player.transform.position += pushDirection * slideSpeed * Time.deltaTime;
+                }
+            }
+
+            // 6. 监测玩家是否跌落深渊
             if (player != null)
             {
                 if (player.transform.position.y < (islandBaseY - fallThresholdDistance))

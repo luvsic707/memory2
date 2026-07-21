@@ -4,28 +4,26 @@ namespace TheLastCompact.Wakeup
 {
     /// <summary>
     /// 石台网格表面受力崩裂形变组件 (Stage 2)
-    /// 1. 在 Start 时复制 Mesh 的顶点和法线数据作为基础模板。
-    /// 2. 支持编辑器下自动开启模型 Read/Write 可读写属性。
-    /// 3. 根据 Stage2Controller 传入的当前晃动强度 (distortionFactor)，在 Update 中直接修改网格顶点：
-    ///    - 顶点沿法线方向做正弦/余弦位移，实现表面的隆起、粗糙和撕裂起伏（崩裂感）。
+    /// 1. 将网格转化为 Faceted Flat Shading（扁平着色/低多边形风格），打破共享顶点，实现绝对锋利的石质切面。
+    /// 2. 在 Update 中，顶点沿着独立法线方向发生阶梯位移，配合法线重构，呈现硬朗错落的石头碎裂视觉。
     /// </summary>
     public class RockFractureDistorter : MonoBehaviour
     {
         [Header("崩裂变形参数")]
         [Tooltip("变形强度系数，值越大隆起越明显")]
-        public float fractureScale = 0.5f;
+        public float fractureScale = 0.4f;
 
         [Tooltip("表面波纹频率（数值越大起伏越密集）")]
-        public float waveFrequency = 6f;
+        public float waveFrequency = 5f;
 
-        [Tooltip("表面抖动时间变化速度")]
-        public float timeSpeed = 15f;
+        [Tooltip("表面抖动时间速度")]
+        public float timeSpeed = 12f;
 
-        [Tooltip("是否在变形时重新计算法线（开启后光影会随崩裂实时变化，但高精度模型可能会影响帧率）")]
-        public bool recalculateNormals = false;
+        [Tooltip("必须开启重算法线以呈现硬面折角阴影")]
+        public bool recalculateNormals = true;
 
         [HideInInspector]
-        public float currentIntensity = 0f; // 由 Stage2Controller 实时注入的晃动强度 (0.0 到 1.0+)
+        public float currentIntensity = 0f; // 由 Stage2Controller 实时注入的晃动强度
 
         private MeshFilter mf;
         private Mesh targetMesh;
@@ -43,7 +41,7 @@ namespace TheLastCompact.Wakeup
             }
 
 #if UNITY_EDITOR
-            // 智能辅助：在编辑器中运行且模型不可读写时，自动开启
+            // 自动激活可读写
             string assetPath = UnityEditor.AssetDatabase.GetAssetPath(mf.sharedMesh);
             if (!string.IsNullOrEmpty(assetPath))
             {
@@ -52,7 +50,7 @@ namespace TheLastCompact.Wakeup
                 {
                     mi.isReadable = true;
                     mi.SaveAndReimport();
-                    Debug.Log($"<color=green>[RockFracture] 自动成功为石台模型 '{mf.sharedMesh.name}' 开启了 'Read/Write' 读写选项！</color>");
+                    Debug.Log($"[RockFracture] 自动为石台模型 '{mf.sharedMesh.name}' 开启了 'Read/Write' 读写选项！");
                 }
             }
 #endif
@@ -63,17 +61,14 @@ namespace TheLastCompact.Wakeup
                 return;
             }
 
-            // 拷贝网格以防污染原始资产文件
+            // 复制网格以保护原始资产
             targetMesh = Instantiate(mf.sharedMesh);
+
+            // 核心：分裂共享顶点以实现 100% 扁平硬朗的 Faceted Shading 面效果！
+            MakeMeshFaceted(targetMesh);
+
             originalVertices = targetMesh.vertices;
             originalNormals = targetMesh.normals;
-
-            // 确保有法线信息，否则无法进行法线方向的位移
-            if (originalNormals == null || originalNormals.Length != originalVertices.Length)
-            {
-                targetMesh.RecalculateNormals();
-                originalNormals = targetMesh.normals;
-            }
 
             mf.mesh = targetMesh;
 
@@ -87,6 +82,28 @@ namespace TheLastCompact.Wakeup
             isValid = true;
         }
 
+        /// <summary>
+        /// 复制并分离共享的顶点，使每个三角面拥有独立的顶点和法线，呈现硬边低模效果
+        /// </summary>
+        private void MakeMeshFaceted(Mesh mesh)
+        {
+            Vector3[] oldVertices = mesh.vertices;
+            int[] oldTriangles = mesh.triangles;
+            Vector3[] newVertices = new Vector3[oldTriangles.Length];
+            int[] newTriangles = new int[oldTriangles.Length];
+
+            for (int i = 0; i < oldTriangles.Length; i++)
+            {
+                newVertices[i] = oldVertices[oldTriangles[i]];
+                newTriangles[i] = i;
+            }
+
+            mesh.vertices = newVertices;
+            mesh.triangles = newTriangles;
+            mesh.RecalculateBounds();
+            mesh.RecalculateNormals();
+        }
+
         private void Update()
         {
             if (!isValid || currentIntensity <= 0.01f) return;
@@ -94,30 +111,29 @@ namespace TheLastCompact.Wakeup
             Vector3[] displacedVertices = new Vector3[originalVertices.Length];
             float t = Time.time * timeSpeed;
 
-            // 基于顶点原始法线方向，利用阶梯函数 (Step Functions) 与三角波计算硬朗的板块碎裂位移
+            // 阶梯式碎裂位移计算
             for (int i = 0; i < originalVertices.Length; i++)
             {
                 Vector3 v = originalVertices[i];
                 Vector3 n = originalNormals[i];
 
-                // 1. 使用三角波 (PingPong) 代替 Sin 弦波，产生锋利的脊线和棱角，而非圆润的波浪
+                // 1. 三角波 PingPong
                 float valX = v.x * waveFrequency + t;
                 float valZ = v.z * waveFrequency + t;
                 float triX = Mathf.PingPong(valX, 1.0f) * 2f - 1f;
                 float triZ = Mathf.PingPong(valZ, 1.0f) * 2f - 1f;
                 float rawValue = triX * triZ;
 
-                // 2. 引入阶梯阈值 (Threshold Step)，将平滑倾斜转为“板块断裂位移”，产生错落的硬面阶梯 (Slabs)
+                // 2. 阶梯断裂阈值 (Slabs)
                 float stepValue = 0f;
                 if (rawValue > 0.35f) stepValue = 1.0f;
                 else if (rawValue < -0.35f) stepValue = -1.0f;
 
-                // 3. 叠加高频硬朗抖动 (使用 Sign 阶跃函数消除震荡的平滑过渡)
-                float jitter = Mathf.Sign(Mathf.Sin(v.y * waveFrequency * 3.5f - t * 2f)) * 0.2f;
+                // 3. 高频 Sign 阶跃抖动
+                float jitter = Mathf.Sign(Mathf.Sin(v.y * waveFrequency * 3f - t * 1.5f)) * 0.15f;
 
                 float displacement = (stepValue + jitter);
 
-                // 最终位置 = 原位置 + 法线方向 * 崩裂位移 * 注入的强度 * 整体形变系数
                 displacedVertices[i] = v + n * displacement * currentIntensity * fractureScale;
             }
 
