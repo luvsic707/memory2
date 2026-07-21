@@ -40,11 +40,14 @@ namespace TheLastCompact.Wakeup
 
         private void OnValidate()
         {
-            // 在编辑器属性改变时实时预览
-            if (Application.isPlaying && mesh != null)
-            {
-                GenerateMobiusMesh();
-            }
+            // 限制参数在安全合理范围内以防生成崩溃
+            if (segmentsU < 10) segmentsU = 10;
+            if (segmentsV < 2) segmentsV = 2;
+            if (radius < 0.1f) radius = 0.1f;
+            if (width < 0.05f) width = 0.05f;
+
+            // 实时在编辑器 Scene 窗口生成网格，即使没点击 Play 也能看见定位！
+            GenerateMobiusMesh();
         }
 
         /// <summary>
@@ -131,9 +134,14 @@ namespace TheLastCompact.Wakeup
             }
             else
             {
-                // 防呆：如果没有配置材质，寻找一个 URP 默认材质或新建一个
-                mr.sharedMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit"));
-                mr.sharedMaterial.color = new Color(0.8f, 0.8f, 0.8f);
+                // 仅当 sharedMaterial 为空时创建新材质，防止在 Editor 模式下疯狂 OnValidate 导致内存泄漏
+                if (mr.sharedMaterial == null)
+                {
+                    Shader urpShader = Shader.Find("Universal Render Pipeline/Lit");
+                    if (urpShader == null) urpShader = Shader.Find("Standard");
+                    mr.sharedMaterial = new Material(urpShader);
+                    mr.sharedMaterial.color = new Color(0.85f, 0.85f, 0.85f);
+                }
             }
         }
 
