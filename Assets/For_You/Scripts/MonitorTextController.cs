@@ -41,6 +41,16 @@ namespace TheLastCompact.Wakeup
         [Tooltip("文字打字机效果速度（字/秒）")]
         public float typeSpeed = 25f;
 
+        [Header("3D 屏幕自适应偏置")]
+        [Tooltip("微调 Canvas 在屏幕上的位置偏置（相对于屏幕 local 空间）")]
+        public Vector3 positionOffset = new Vector3(0f, 0f, 0.02f); // 默认往前方稍微偏出一点，防止跟屏幕 Z-fighting 闪烁
+
+        [Tooltip("微调 Canvas 的旋转偏置（度），用于修正屏幕朝向和镜像反字问题")]
+        public Vector3 rotationOffset = new Vector3(0f, 180f, 0f); // 默认 180 度翻转来解决常见 Mirror 反字
+
+        [Tooltip("是否自动缩放 Canvas 以匹配 Screen Mesh 的边界大小")]
+        public bool autoScaleToScreen = true;
+
         private TextMeshProUGUI _tmp;
         private int _totalClicks = 0;
         private int _lastShownIndex = -1;
@@ -72,9 +82,45 @@ namespace TheLastCompact.Wakeup
         {
             GameObject canvasGO = new GameObject("MonitorCanvas");
             canvasGO.transform.SetParent(glowingScreen, false);
-            canvasGO.transform.localPosition = Vector3.zero;
-            canvasGO.transform.localRotation = Quaternion.identity;
-            canvasGO.transform.localScale = Vector3.one * 0.01f; // 缩放到适合 3D 屏幕的大小
+
+            // 获取 MeshRenderer 边界中心作为实际 3D 屏幕位置
+            Renderer r = glowingScreen.GetComponent<Renderer>();
+            if (r == null) r = glowingScreen.GetComponentInChildren<Renderer>();
+
+            Vector3 worldCenter = (r != null) ? r.bounds.center : glowingScreen.position;
+            Vector3 worldSize = (r != null) ? r.bounds.size : Vector3.zero;
+
+            // 应用位置和 Z-Fighting 偏移（在屏幕 local 空间移动）
+            canvasGO.transform.position = worldCenter + glowingScreen.TransformDirection(positionOffset);
+
+            // 应用世界旋转与微调偏置
+            canvasGO.transform.rotation = glowingScreen.rotation * Quaternion.Euler(rotationOffset);
+
+            // 动态自适应屏幕网格尺寸，计算合理的缩放
+            float w = 0.5f;
+            float h = 0.3f;
+            if (r != null && worldSize.magnitude > 0.01f)
+            {
+                // 屏幕可能朝向 X 或 Z，宽度取二者最大值
+                w = Mathf.Max(worldSize.x, worldSize.z);
+                h = worldSize.y;
+            }
+
+            float scaleX = w / 160f;
+            float scaleY = h / 100f;
+
+            if (autoScaleToScreen)
+            {
+                // 对抗父物体缩放，确保 World Space 尺寸绝对精确
+                Vector3 lossy = glowingScreen.lossyScale;
+                float localScaleX = scaleX / (lossy.x == 0f ? 1f : lossy.x);
+                float localScaleY = scaleY / (lossy.y == 0f ? 1f : lossy.y);
+                canvasGO.transform.localScale = new Vector3(localScaleX, localScaleY, 1f);
+            }
+            else
+            {
+                canvasGO.transform.localScale = Vector3.one * 0.01f;
+            }
 
             Canvas canvas = canvasGO.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
