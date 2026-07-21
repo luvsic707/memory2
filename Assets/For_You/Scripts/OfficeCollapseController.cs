@@ -5,13 +5,13 @@ using UnityEngine;
 namespace TheLastCompact.Wakeup
 {
     /// <summary>
-    /// 细碎办公摆件拆解坍塌控制器 (Stage 4)
+    /// 细碎办公摆件拆解坍塌与尺寸分级防穿插控制器 (Stage 4)
     /// 
-    /// 彻底打破以“整个Office格子间”为单位的平移，而是将外部所有 Office 内的
-    /// 【所有细碎子物件】（隔板墙体、显示器、文件夹、书籍、座椅、垃圾桶、海报）全部彻底拆解。
-    /// 
-    /// 每次点击，成百上千个细碎的小物件将以不同的速度和旋转，独立地飞向并平铺在
-    /// Office (87) 的透明保护箱体表面，最终形成一面由无数办公垃圾和文件拼凑而成的三维包围墙。
+    /// 1. 将外部所有 Office 内的所有细碎物件彻底解构为独立物体进行飞行。
+    /// 2. 【防穿插升级】：针对大型结构件（墙壁、桌子、柜子）和小型物件（文件夹、键盘、显示器、水杯）使用分级安全区。
+    ///    - 大型结构件（体积大）：使用宽大安全区保护（safeBoxSize * 1.8f），让它们停在更靠外的距离，形成外层围墙。
+    ///    - 小型物件（体积小）：使用标准贴身安全区保护（safeBoxSize），允许它们飞得更近，紧密包裹天花板和侧壁。
+    ///    - 结果：工位（Office 87）内部空间完美隔离，绝无穿模，同时外侧被小物件与大隔板密密麻麻地包裹封死。
     /// </summary>
     public class OfficeCollapseController : MonoBehaviour
     {
@@ -32,8 +32,8 @@ namespace TheLastCompact.Wakeup
         [Tooltip("平滑移动速度（每秒）")]
         public float smoothSpeed = 3.5f;
 
-        [Header("安全区尺寸（防止穿入 Office 87 内部）")]
-        [Tooltip("Office 87 的安全保护箱体大小。细碎物件会整齐地贴在这个盒子的表面堆叠（建议宽度设为 3.5m 左右，即可形成贴身包装）")]
+        [Header("安全区尺寸（防穿插核心）")]
+        [Tooltip("Office 87 的标准贴身安全保护箱大小。小型物件会直接贴在它的表面上。")]
         public Vector3 safeBoxSize = new Vector3(3.6f, 3.2f, 3.6f);
 
         // 扁平化存储所有待拆解移动的子物件
@@ -42,6 +42,7 @@ namespace TheLastCompact.Wakeup
         private List<Quaternion> _targetRotations = new List<Quaternion>();
         private List<float> _moveMultipliers = new List<float>();
         private List<Vector3> _randomRotDirs = new List<Vector3>();
+        private List<bool> _isLargeProp = new List<bool>(); // 是否是大型结构件
 
         private Vector3 _center;
         private int _totalClicks = 0;
@@ -78,25 +79,32 @@ namespace TheLastCompact.Wakeup
 
             foreach (Transform officeRoom in officeBuilding)
             {
-                // 遍历格子间内的每一个细碎物件
                 foreach (Transform prop in officeRoom)
                 {
-                    // 过滤掉极其微小或者容易穿帮的节点
                     if (prop.name.ToLower().Contains("carpet")) continue;
 
                     _allProps.Add(prop);
                     _targetPositions.Add(prop.position);
                     _targetRotations.Add(prop.rotation);
 
-                    // 给予每个物体不同的移动速度乘数，产生 staggered（错落有致）的飞行美感
+                    // 错落有致的速度
                     _moveMultipliers.Add(Random.Range(0.6f, 1.4f));
-
-                    // 预分配旋转轴向
                     _randomRotDirs.Add(new Vector3(Random.Range(-1f, 1f), Random.Range(-1f, 1f), Random.Range(-1f, 1f)).normalized);
+
+                    // 判断是否是大型结构件（体积较大，必须挡在更外面）
+                    string pName = prop.name.ToLower();
+                    bool large = pName.Contains("office") || 
+                                 pName.Contains("desk") || 
+                                 pName.Contains("cabinet") || 
+                                 pName.Contains("wall") || 
+                                 pName.Contains("plane") || 
+                                 pName.Contains("cube") || 
+                                 pName.Contains("frame");
+                    _isLargeProp.Add(large);
                 }
             }
 
-            Debug.Log($"[OfficeCollapse] 成功拆解并装配了 {_allProps.Count} 个细碎小物件。它们将独立坍塌！");
+            Debug.Log($"[OfficeCollapse] 已加载 {_allProps.Count} 个解构物件。其中有 {_isLargeProp.FindAll(x => x).Count} 个大型结构件被实施外圈隔离。");
 
             StartCoroutine(SmoothMoveLoop());
         }
@@ -109,19 +117,20 @@ namespace TheLastCompact.Wakeup
             _totalClicks++;
 
             float intensity = GetIntensity();
-            Vector3 halfSize = safeBoxSize * 0.5f;
 
             for (int i = 0; i < _allProps.Count; i++)
             {
                 if (_allProps[i] == null) continue;
 
+                // 根据物体级别分配不同的安全箱大小（大型结构件必须被挡在 1.8 倍半径之外，防止其庞大体积穿模到房内）
+                Vector3 currentBox = _isLargeProp[i] ? safeBoxSize * 1.8f : safeBoxSize;
+                Vector3 halfSize = currentBox * 0.5f;
+
                 Vector3 targetPos = _targetPositions[i];
 
-                // 将所有零散的物体分流堆叠到 5 个不同的箱体表面，防止其重叠在同一个平面
-                Vector3 targetCenter = _center;
                 if (i % 5 == 4) 
                 {
-                    // 分流至天花板顶面
+                    // 天花板顶面覆盖
                     float ceilingY = _center.y + halfSize.y;
                     Vector3 toCenterH = new Vector3(_center.x - _allProps[i].position.x, 0f, _center.z - _allProps[i].position.z);
                     float distH = toCenterH.magnitude;
@@ -130,11 +139,11 @@ namespace TheLastCompact.Wakeup
                     Vector3 nextH = _targetPositions[i] + toCenterH.normalized * Mathf.Min(moveAmount, distH);
                     float nextY = Mathf.MoveTowards(_targetPositions[i].y, ceilingY, moveAmount * 1.5f);
                     
-                    targetPos = ClampToOutsideSafeBox(new Vector3(nextH.x, nextY, nextH.z));
+                    targetPos = ClampToOutsideSafeBox(new Vector3(nextH.x, nextY, nextH.z), currentBox);
                 }
                 else if (i % 5 == 3)
                 {
-                    // 分流至地板底面
+                    // 地板底面覆盖
                     float floorY = _center.y - halfSize.y;
                     Vector3 toCenterH = new Vector3(_center.x - _allProps[i].position.x, 0f, _center.z - _allProps[i].position.z);
                     float distH = toCenterH.magnitude;
@@ -143,36 +152,36 @@ namespace TheLastCompact.Wakeup
                     Vector3 nextH = _targetPositions[i] + toCenterH.normalized * Mathf.Min(moveAmount, distH);
                     float nextY = Mathf.MoveTowards(_targetPositions[i].y, floorY, moveAmount * 1.5f);
                     
-                    targetPos = ClampToOutsideSafeBox(new Vector3(nextH.x, nextY, nextH.z));
+                    targetPos = ClampToOutsideSafeBox(new Vector3(nextH.x, nextY, nextH.z), currentBox);
                 }
                 else
                 {
-                    // 分流至四周壁面（Left, Right, Front, Back）
+                    // 四周侧壁覆盖
                     Vector3 toCenter = (_center - _allProps[i].position);
                     float dist = toCenter.magnitude;
                     if (dist > 0.01f)
                     {
                         float moveAmount = movePerClick * intensity * _moveMultipliers[i];
                         Vector3 testPos = _targetPositions[i] + toCenter.normalized * Mathf.Min(moveAmount, dist);
-                        targetPos = ClampToOutsideSafeBox(testPos);
+                        targetPos = ClampToOutsideSafeBox(testPos, currentBox);
                     }
                 }
 
                 _targetPositions[i] = targetPos;
 
-                // 施加旋转
+                // 旋转
                 Vector3 rotAngles = _randomRotDirs[i] * (rotationPerClick * intensity);
                 _targetRotations[i] = Quaternion.Euler(rotAngles) * _targetRotations[i];
             }
         }
 
         /// <summary>
-        /// 限制坐标在安全箱体外部
+        /// 限制坐标在指定安全箱体外部
         /// </summary>
-        private Vector3 ClampToOutsideSafeBox(Vector3 targetPos)
+        private Vector3 ClampToOutsideSafeBox(Vector3 targetPos, Vector3 boxSize)
         {
             Vector3 localPos = targetPos - _center;
-            Vector3 halfSize = safeBoxSize * 0.5f;
+            Vector3 halfSize = boxSize * 0.5f;
 
             // 检查是否进入了安全箱体内部
             bool isInside = Mathf.Abs(localPos.x) < halfSize.x &&
@@ -231,13 +240,17 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
-        /// 调试用：在 Scene 视图里显示 Office87 的保护箱体区域
+        /// 调试用：在 Scene 视图里显示 Office87 的标准保护箱体区域
         /// </summary>
         private void OnDrawGizmosSelected()
         {
             if (office87 == null) return;
             Gizmos.color = Color.red;
             Gizmos.DrawWireCube(office87.position, safeBoxSize);
+            
+            // 绘制大型结构件的外围阻挡边界
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireCube(office87.position, safeBoxSize * 1.8f);
         }
     }
 }
