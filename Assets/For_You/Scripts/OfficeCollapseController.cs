@@ -93,36 +93,56 @@ namespace TheLastCompact.Wakeup
             _totalClicks++;
 
             float intensity = GetIntensity();
+            Vector3 halfSize = safeBoxSize * 0.5f;
 
             for (int i = 0; i < _allOffices.Count; i++)
             {
                 if (_allOffices[i] == null) continue;
 
-                // 计算每个 office 的目标朝向中心 (通过给部分 office 增加高度偏移，使其从上方/下方包围 Office 87)
-                Vector3 targetCenter = _center;
+                Vector3 targetPos = _targetPositions[i];
+
                 if (i % 5 == 4) 
                 {
-                    // 20% 的办公室目标朝向偏上方，使其最终落在 Office 87 的顶部（天花板）
-                    targetCenter.y += safeBoxSize.y * 1.2f;
+                    // 20% 的办公室贴着天花板高度水平滑行，平铺在顶部
+                    float ceilingY = _center.y + halfSize.y;
+                    
+                    Vector3 toCenterH = new Vector3(_center.x - _allOffices[i].position.x, 0f, _center.z - _allOffices[i].position.z);
+                    float distH = toCenterH.magnitude;
+                    float moveAmount = movePerClick * intensity;
+                    
+                    Vector3 nextH = _targetPositions[i] + toCenterH.normalized * Mathf.Min(moveAmount, distH);
+                    float nextY = Mathf.MoveTowards(_targetPositions[i].y, ceilingY, moveAmount * 1.5f);
+                    
+                    targetPos = ClampToOutsideSafeBox(new Vector3(nextH.x, nextY, nextH.z));
                 }
                 else if (i % 5 == 3)
                 {
-                    // 20% 的办公室目标朝向偏下方，覆盖底部
-                    targetCenter.y -= safeBoxSize.y * 1.0f;
-                }
-
-                Vector3 toCenter = (targetCenter - _allOffices[i].position);
-                float dist = toCenter.magnitude;
-
-                if (dist > 0.01f)
-                {
+                    // 20% 的办公室贴着地板高度水平滑行，平铺在底部
+                    float floorY = _center.y - halfSize.y;
+                    
+                    Vector3 toCenterH = new Vector3(_center.x - _allOffices[i].position.x, 0f, _center.z - _allOffices[i].position.z);
+                    float distH = toCenterH.magnitude;
                     float moveAmount = movePerClick * intensity;
-                    // 先试探性移动
-                    Vector3 testPos = _targetPositions[i] + toCenter.normalized * Mathf.Min(moveAmount, dist);
-
-                    // 限制在安全箱体外面，防止挤入 Office 87 内部空间
-                    _targetPositions[i] = ClampToOutsideSafeBox(testPos);
+                    
+                    Vector3 nextH = _targetPositions[i] + toCenterH.normalized * Mathf.Min(moveAmount, distH);
+                    float nextY = Mathf.MoveTowards(_targetPositions[i].y, floorY, moveAmount * 1.5f);
+                    
+                    targetPos = ClampToOutsideSafeBox(new Vector3(nextH.x, nextY, nextH.z));
                 }
+                else
+                {
+                    // 60% 的办公室沿水平/斜向直接向中心靠拢，贴在四周壁面上
+                    Vector3 toCenter = (_center - _allOffices[i].position);
+                    float dist = toCenter.magnitude;
+                    if (dist > 0.01f)
+                    {
+                        float moveAmount = movePerClick * intensity;
+                        Vector3 testPos = _targetPositions[i] + toCenter.normalized * Mathf.Min(moveAmount, dist);
+                        targetPos = ClampToOutsideSafeBox(testPos);
+                    }
+                }
+
+                _targetPositions[i] = targetPos;
 
                 // 每次点击施加随机旋转扭曲（越后期扭曲越大）
                 Vector3 randomRotation = new Vector3(
