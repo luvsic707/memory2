@@ -132,24 +132,28 @@ namespace TheLastCompact.Wakeup
             {
                 mr.sharedMaterial = material;
             }
-            else
-            {
-                // 仅当 sharedMaterial 为空时创建新材质，防止在 Editor 模式下疯狂 OnValidate 导致内存泄漏
-                if (mr.sharedMaterial == null)
+                // 如果当前没有材质，或者使用的是只读的默认材质，则创建我们专属的双面材质
+                if (mr.sharedMaterial == null || 
+                    mr.sharedMaterial.name.StartsWith("Default") || 
+                    mr.sharedMaterial.name == "Lit" ||
+                    mr.sharedMaterial.name != "Mobius_DoubleSided_Material")
                 {
                     Shader urpShader = Shader.Find("Universal Render Pipeline/Lit");
                     if (urpShader == null) urpShader = Shader.Find("Standard");
+                    
                     Material newMat = new Material(urpShader);
+                    newMat.name = "Mobius_DoubleSided_Material";
                     newMat.color = new Color(0.85f, 0.85f, 0.85f);
 
-                    // 关闭背面裁剪 (Double-Sided)
-                    newMat.SetFloat("_Cull", 0f); // 0 = Off (Double-Sided)
+                    // 彻底关闭背面裁剪 (URP / Built-in 通用双面渲染设置)
+                    newMat.SetFloat("_Cull", 0f);           // 0 = Off (Double-Sided)
+                    newMat.SetFloat("_RenderFace", 2f);     // 2 = Both (URP 面渲染模式)
                     newMat.SetInt("_DoubleSidedEnable", 1);
                     newMat.EnableKeyword("_DOUBLE_SIDED_ON");
 
                     mr.sharedMaterial = newMat;
+                    Debug.Log("[MobiusStrip] 成功自动装配了双面渲染 (Double-Sided) 材质！");
                 }
-            }
         }
 
         /// <summary>
