@@ -18,7 +18,10 @@ namespace TheLastCompact.Wakeup
         [Tooltip("旋转所绕轴向，默认绕 Z 轴旋转 (Vector3.forward)。根据模型制作标准，可修改为 Vector3.up 或 Vector3.right")]
         public Vector3 rotationAxis = Vector3.forward;
 
-        [Tooltip("指针旋转的角速度 (度/秒)。默认 360 度/秒，即一秒转完一整圈")]
+        [Tooltip("每次点击指针旋转的目标角度。秒针为 360 度，分针为 6 度，时针为 0.5 度")]
+        public float anglePerClick = 360f;
+
+        [Tooltip("指针旋转的角速度 (度/秒)。让其在一秒内刚好转完点击度数，建议设置与 anglePerClick 相同的值")]
         public float rotationSpeed = 360f;
 
         // 旋转角度追踪
@@ -46,8 +49,8 @@ namespace TheLastCompact.Wakeup
             // 1. 监测鼠标左键点击（或按Q）交互
             if (Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.Q))
             {
-                // 每次点击，目标旋转度增加 360 度
-                targetAngle += 360f;
+                // 每次点击，目标旋转度增加设定的单次点击角度
+                targetAngle += anglePerClick;
             }
 
             // 2. 平滑插值计算当前旋转度数，朝向目标度数递增
