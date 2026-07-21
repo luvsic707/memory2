@@ -34,8 +34,9 @@ namespace TheLastCompact.Wakeup
         [Tooltip("平滑移动速度（每秒）- 决定移动的动画流畅度")]
         public float smoothSpeed = 3f;
 
-        [Tooltip("最终闭合时各 Office 与 Office87 中心的最近距离（米）- 防止穿插")]
-        public float minDistanceToCenter = 2.5f;
+        [Header("安全区尺寸（防止穿入 Office 87 内部）")]
+        [Tooltip("Office 87 的安全箱体大小 (宽, 高, 深)。其他 Office 坍塌时绝对不能进入此区域内部。")]
+        public Vector3 safeBoxSize = new Vector3(3.2f, 3.2f, 3.2f);
 
         // 各 Office 的目标位置和旋转
         private List<Transform> _allOffices = new List<Transform>();
@@ -82,7 +83,7 @@ namespace TheLastCompact.Wakeup
                 _targetRotations.Add(child.rotation);
             }
 
-            Debug.Log($"[OfficeCollapse] 已收集 {_allOffices.Count} 个 Office，将向 Office (87) 坍塌。");
+            Debug.Log($"[OfficeCollapse] 已收集 {_allOffices.Count} 个 Office，将向 Office (87) 侧包围坍塌。");
 
             StartCoroutine(SmoothMoveLoop());
         }
@@ -104,11 +105,14 @@ namespace TheLastCompact.Wakeup
                 Vector3 toCenter = (_center - _allOffices[i].position);
                 float dist = toCenter.magnitude;
 
-                // 只有距离大于最小距离才继续向内推进
-                if (dist > minDistanceToCenter)
+                if (dist > 0.01f)
                 {
                     float moveAmount = movePerClick * intensity;
-                    _targetPositions[i] += toCenter.normalized * Mathf.Min(moveAmount, dist - minDistanceToCenter);
+                    // 先试探性移动
+                    Vector3 testPos = _targetPositions[i] + toCenter.normalized * Mathf.Min(moveAmount, dist);
+
+                    // 限制在安全箱体外面，防止挤入 Office 87 内部空间
+                    _targetPositions[i] = ClampToOutsideSafeBox(testPos);
                 }
 
                 // 每次点击施加随机旋转扭曲（越后期扭曲越大）
@@ -119,6 +123,43 @@ namespace TheLastCompact.Wakeup
                 );
                 _targetRotations[i] = _allOffices[i].rotation * Quaternion.Euler(randomRotation);
             }
+        }
+
+        /// <summary>
+        /// 限制坐标在安全箱体外部
+        /// </summary>
+        private Vector3 ClampToOutsideSafeBox(Vector3 targetPos)
+        {
+            Vector3 localPos = targetPos - _center;
+            Vector3 halfSize = safeBoxSize * 0.5f;
+
+            // 检查是否进入了安全箱体内部
+            bool isInside = Mathf.Abs(localPos.x) < halfSize.x &&
+                            Mathf.Abs(localPos.y) < halfSize.y &&
+                            Mathf.Abs(localPos.z) < halfSize.z;
+
+            if (isInside)
+            {
+                // 找出距离最近的面，然后推到外部表面
+                float dx = halfSize.x - Mathf.Abs(localPos.x);
+                float dy = halfSize.y - Mathf.Abs(localPos.y);
+                float dz = halfSize.z - Mathf.Abs(localPos.z);
+
+                if (dx <= dy && dx <= dz)
+                {
+                    localPos.x = Mathf.Sign(localPos.x) * halfSize.x;
+                }
+                else if (dy <= dx && dy <= dz)
+                {
+                    localPos.y = Mathf.Sign(localPos.y) * halfSize.y;
+                }
+                else
+                {
+                    localPos.z = Mathf.Sign(localPos.z) * halfSize.z;
+                }
+            }
+
+            return _center + localPos;
         }
 
         /// <summary>
@@ -149,13 +190,13 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
-        /// 调试用：在 Scene 视图里显示 Office87 的中心点
+        /// 调试用：在 Scene 视图里显示 Office87 的保护箱体区域
         /// </summary>
         private void OnDrawGizmosSelected()
         {
             if (office87 == null) return;
             Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(office87.position, minDistanceToCenter);
+            Gizmos.DrawWireCube(office87.position, safeBoxSize);
         }
     }
 }
