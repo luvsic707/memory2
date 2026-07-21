@@ -65,10 +65,16 @@ namespace TheLastCompact.Wakeup
         {
             if (mobiusStrip == null) return;
 
-            // 1. 监测交互：按住鼠标左键（或 Q 键）推动滚球
-            if (Input.GetMouseButton(0) || Input.GetKeyDown(KeyCode.Q))
+            // 1. 监测持续按住交互：按住左键或键盘Q给球体施加持续推力（直接累加速度，不增加行为计数）
+            if (Input.GetMouseButton(0) || Input.GetKey(KeyCode.Q))
             {
-                Push(pushForce * Time.deltaTime);
+                velocity += pushForce * Time.deltaTime;
+            }
+
+            // 2. 监测单次点击交互：在鼠标按下的瞬间，调用一次 Push 接口（这里会增加 1 次持久化统计计数）
+            if (Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.Q))
+            {
+                Push(pushForce * 0.3f); // 点击瞬间给球一个微小的初始冲量，并累计 1 次计数
             }
 
             // 2. 应用摩擦力阻尼

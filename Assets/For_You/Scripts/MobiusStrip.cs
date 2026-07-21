@@ -126,7 +126,7 @@ namespace TheLastCompact.Wakeup
             if (mc == null) mc = gameObject.AddComponent<MeshCollider>();
             mc.sharedMesh = mesh;
 
-            // 5. 设置材质颜色以保证 URP 下的基本可见度
+            // 5. 设置材质双面渲染以保证可见度 (莫比乌斯环为单侧面结构，必须关闭背面裁剪)
             MeshRenderer mr = GetComponent<MeshRenderer>();
             if (material != null)
             {
@@ -139,8 +139,15 @@ namespace TheLastCompact.Wakeup
                 {
                     Shader urpShader = Shader.Find("Universal Render Pipeline/Lit");
                     if (urpShader == null) urpShader = Shader.Find("Standard");
-                    mr.sharedMaterial = new Material(urpShader);
-                    mr.sharedMaterial.color = new Color(0.85f, 0.85f, 0.85f);
+                    Material newMat = new Material(urpShader);
+                    newMat.color = new Color(0.85f, 0.85f, 0.85f);
+
+                    // 关闭背面裁剪 (Double-Sided)
+                    newMat.SetFloat("_Cull", 0f); // 0 = Off (Double-Sided)
+                    newMat.SetInt("_DoubleSidedEnable", 1);
+                    newMat.EnableKeyword("_DOUBLE_SIDED_ON");
+
+                    mr.sharedMaterial = newMat;
                 }
             }
         }
