@@ -35,8 +35,8 @@ namespace TheLastCompact.Wakeup
         public float smoothSpeed = 3f;
 
         [Header("安全区尺寸（防止穿入 Office 87 内部）")]
-        [Tooltip("Office 87 的安全箱体大小 (宽, 高, 深)。其他 Office 坍塌时绝对不能进入此区域内部。")]
-        public Vector3 safeBoxSize = new Vector3(3.2f, 3.2f, 3.2f);
+        [Tooltip("Office 87 的安全箱体大小 (宽, 高, 深)。由于其他 Office 的 Pivot 在中心，该尺寸应为 [Office 87 宽度 + 坍塌物体的宽度]（建议 6.5m 左右以防穿插）。")]
+        public Vector3 safeBoxSize = new Vector3(6.5f, 5.0f, 6.5f);
 
         // 各 Office 的目标位置和旋转
         private List<Transform> _allOffices = new List<Transform>();
