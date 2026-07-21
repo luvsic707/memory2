@@ -55,6 +55,7 @@ namespace TheLastCompact.Wakeup
         private List<Vector3> _randomRotDirs = new List<Vector3>();
         private List<Vector3> _propSizes = new List<Vector3>(); // 动态存储每个物体的 Mesh 尺寸
         private List<float> _pileOffsets = new List<float>();   // 存储每个物品的随机高度偏置，形成层层堆叠感
+        private List<Vector3> _finalRestingPositions = new List<Vector3>(); // 预计算的最终散落停靠终点
 
         private Vector3 _center;
         private int _totalClicks = 0;
@@ -129,7 +130,54 @@ namespace TheLastCompact.Wakeup
                 }
             }
 
-            Debug.Log($"[OfficeCollapse] 已成功解构 {_allProps.Count} 个细碎物件，Mesh 尺寸感应防穿插系统初始化完成。");
+            // 预先计算所有物品的散乱停靠终点，打破完美的中心对称和“笼子”感
+            for (int i = 0; i < _allProps.Count; i++)
+            {
+                Vector3 currentBox = safeBoxSize + _propSizes[i];
+                Vector3 halfSize = currentBox * 0.5f;
+
+                if (i % 5 == 4)
+                {
+                    // 天花板天幕覆盖：水平大范围无规律撒布
+                    float rx = Random.Range(-4.5f, 4.5f);
+                    float rz = Random.Range(-4.5f, 4.5f);
+                    float ry = halfSize.y + _pileOffsets[i];
+                    _finalRestingPositions.Add(_center + new Vector3(rx, ry, rz));
+                }
+                else if (i % 5 == 3)
+                {
+                    // 地板覆盖：水平大范围撒布
+                    float rx = Random.Range(-4.5f, 4.5f);
+                    float rz = Random.Range(-4.5f, 4.5f);
+                    float ry = -halfSize.y - _pileOffsets[i];
+                    _finalRestingPositions.Add(_center + new Vector3(rx, ry, rz));
+                }
+                else
+                {
+                    // 侧壁四周物体：在地面随机撒布（X和Z均在 safeBox 范围外一定距离）
+                    float rx = Random.Range(-6.5f, 6.5f);
+                    float rz = Random.Range(-6.5f, 6.5f);
+
+                    // 强制散落到 X 或 Z 轴边界外，不准扎堆在刚好贴墙的位置
+                    if (Mathf.Abs(rx) < halfSize.x && Mathf.Abs(rz) < halfSize.z)
+                    {
+                        if (Random.value < 0.5f)
+                        {
+                            rx = Mathf.Sign(rx == 0f ? 1f : rx) * (halfSize.x + Random.Range(0.2f, 3.5f));
+                        }
+                        else
+                        {
+                            rz = Mathf.Sign(rz == 0f ? 1f : rz) * (halfSize.z + Random.Range(0.2f, 3.5f));
+                        }
+                    }
+
+                    // 地面高度
+                    float ry = -halfSize.y + (_propSizes[i].y * 0.5f) + _pileOffsets[i];
+                    _finalRestingPositions.Add(_center + new Vector3(rx, ry, rz));
+                }
+            }
+
+            Debug.Log($"[OfficeCollapse] 已成功解构 {_allProps.Count} 个细碎物件，Mesh 尺寸感应与无规律散落终点初始化完成。");
 
             StartCoroutine(SmoothMoveLoop());
         }
@@ -152,44 +200,38 @@ namespace TheLastCompact.Wakeup
                 Vector3 halfSize = currentBox * 0.5f;
 
                 Vector3 targetPos = _targetPositions[i];
+                Vector3 targetDest = _finalRestingPositions[i];
 
                 if (i % 5 == 4) 
                 {
-                    // 天花板顶面覆盖 - 加上堆叠偏置
-                    float ceilingY = _center.y + halfSize.y + _pileOffsets[i];
-                    Vector3 toCenterH = new Vector3(_center.x - _allProps[i].position.x, 0f, _center.z - _allProps[i].position.z);
-                    float distH = toCenterH.magnitude;
+                    // 天花板顶面撒落：直接往预设散乱终点移动，并限制在天花板上方
+                    Vector3 toDest = targetDest - _targetPositions[i];
+                    float dist = toDest.magnitude;
                     float moveAmount = movePerClick * intensity * _moveMultipliers[i];
                     
-                    Vector3 nextH = _targetPositions[i] + toCenterH.normalized * Mathf.Min(moveAmount, distH);
-                    float nextY = Mathf.MoveTowards(_targetPositions[i].y, ceilingY, moveAmount * 1.5f);
-                    
-                    targetPos = ClampToAboveCeiling(new Vector3(nextH.x, nextY, nextH.z), currentBox);
+                    Vector3 next = _targetPositions[i] + toDest.normalized * Mathf.Min(moveAmount, dist);
+                    targetPos = ClampToAboveCeiling(next, currentBox);
                 }
                 else if (i % 5 == 3)
                 {
-                    // 地板底面覆盖 - 往下压堆叠偏置
-                    float floorY = _center.y - halfSize.y - _pileOffsets[i];
-                    Vector3 toCenterH = new Vector3(_center.x - _allProps[i].position.x, 0f, _center.z - _allProps[i].position.z);
-                    float distH = toCenterH.magnitude;
+                    // 地板底面撒落：直接往预设散乱终点移动，并限制在房间地板下方
+                    Vector3 toDest = targetDest - _targetPositions[i];
+                    float dist = toDest.magnitude;
                     float moveAmount = movePerClick * intensity * _moveMultipliers[i];
                     
-                    Vector3 nextH = _targetPositions[i] + toCenterH.normalized * Mathf.Min(moveAmount, distH);
-                    float nextY = Mathf.MoveTowards(_targetPositions[i].y, floorY, moveAmount * 1.5f);
-                    
-                    targetPos = ClampToBelowFloor(new Vector3(nextH.x, nextY, nextH.z), currentBox);
+                    Vector3 next = _targetPositions[i] + toDest.normalized * Mathf.Min(moveAmount, dist);
+                    targetPos = ClampToBelowFloor(next, currentBox);
                 }
                 else
                 {
-                    // 四周侧壁覆盖
-                    // 只向中心进行水平拉扯，垂直方向由重力单独控制（如果启用重力）
-                    Vector3 toCenterH = new Vector3(_center.x - _targetPositions[i].x, 0f, _center.z - _targetPositions[i].z);
-                    float distH = toCenterH.magnitude;
+                    // 四周侧壁撒落物体：只向预设散落终点的水平 X-Z 面移动，高度交由伪重力
+                    Vector3 toDestH = new Vector3(targetDest.x - _targetPositions[i].x, 0f, targetDest.z - _targetPositions[i].z);
+                    float distH = toDestH.magnitude;
                     float moveAmount = movePerClick * intensity * _moveMultipliers[i];
 
                     if (distH > 0.01f)
                     {
-                        Vector3 nextH = _targetPositions[i] + toCenterH.normalized * Mathf.Min(moveAmount, distH);
+                        Vector3 nextH = _targetPositions[i] + toDestH.normalized * Mathf.Min(moveAmount, distH);
                         targetPos = new Vector3(nextH.x, _targetPositions[i].y, nextH.z);
                     }
                     
@@ -318,12 +360,12 @@ namespace TheLastCompact.Wakeup
                     {
                         if (_allProps[i] == null) continue;
 
-                        // 只对四周侧壁的物件进行重力处理（天花板和地板物体按它们自己的覆盖逻辑）
+                        // 只对四周侧壁的物件进行重力处理
                         if (i % 5 != 4 && i % 5 != 3)
                         {
                             Vector3 currentBox = safeBoxSize + _propSizes[i];
-                            // 地面高度：工位底部Y + 物品自己半径 + 随机堆叠偏差
-                            float groundY = _center.y - (safeBoxSize.y * 0.5f) + (_propSizes[i].y * 0.5f) + _pileOffsets[i];
+                            // 终点的地面高度已预先算在 _finalRestingPositions 里
+                            float groundY = _finalRestingPositions[i].y;
 
                             if (_targetPositions[i].y > groundY)
                             {
@@ -351,13 +393,25 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
-        /// 调试用：在 Scene 视图里显示 Office87 的标准保护箱体区域
+        /// 调试用：在 Scene 视图里显示 Office87 的标准保护箱体区域以及散落终点
         /// </summary>
         private void OnDrawGizmosSelected()
         {
             if (office87 == null) return;
             Gizmos.color = Color.red;
             Gizmos.DrawWireCube(office87.position, safeBoxSize);
+
+            // 在编辑模式运行后，显示随机散落终点连线
+            if (Application.isPlaying && _finalRestingPositions != null && _finalRestingPositions.Count == _allProps.Count)
+            {
+                Gizmos.color = new Color(0f, 1f, 1f, 0.4f);
+                for (int i = 0; i < _finalRestingPositions.Count; i++)
+                {
+                    if (_allProps[i] == null) continue;
+                    Gizmos.DrawLine(_allProps[i].position, _finalRestingPositions[i]);
+                    Gizmos.DrawWireSphere(_finalRestingPositions[i], 0.1f);
+                }
+            }
         }
     }
 }
