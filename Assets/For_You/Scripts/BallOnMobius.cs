@@ -41,6 +41,10 @@ namespace TheLastCompact.Wakeup
         [Tooltip("是否翻转法线方向（若球体陷入环带内部，勾选此项以将其翻转到表面）")]
         public bool invertNormal = false;
 
+        [Header("统计配置")]
+        [Tooltip("是否向全局统计中心记录玩家的推动计数？（如果是背景装饰球，请在 Inspector 中取消勾选以防止重复计数）")]
+        public bool trackBehaviorData = true;
+
         // 运动状态参数
         [HideInInspector]
         public float t = 0f; // 参数位置 [0 .. 4π]
@@ -144,8 +148,8 @@ namespace TheLastCompact.Wakeup
         {
             velocity += amount;
 
-            // 记录行为数据
-            if (PlayerBehaviorData.Instance != null)
+            // 仅当开启了统计并且数据中心存在时记录行为数据，防止多球共存时计数倍增
+            if (trackBehaviorData && PlayerBehaviorData.Instance != null)
             {
                 PlayerBehaviorData.Instance.AddPush();
             }
