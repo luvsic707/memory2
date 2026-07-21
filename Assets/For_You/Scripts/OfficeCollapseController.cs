@@ -37,14 +37,8 @@ namespace TheLastCompact.Wakeup
         [Tooltip("Office 87 的工位内部净空间尺寸。在这个范围内的空间将被绝对保护。")]
         public Vector3 safeBoxSize = new Vector3(3.2f, 2.8f, 3.2f);
 
-        [Header("伪重力与堆叠效果")]
-        [Tooltip("是否启用伪重力，使侧壁飞行的物品向下落在地面周围")]
-        public bool enableGravity = true;
-
-        [Tooltip("侧壁飞行的物件的下落速度/重力加速度 (m/s)")]
-        public float gravityValue = 3.0f;
-
-        [Tooltip("物品堆叠时的最大随机高度偏差，使碎片堆积更有立体感")]
+        [Header("乐高外壳覆盖效果")]
+        [Tooltip("物品堆叠时的最大随机高度/厚度偏差，使碎片堆积更有立体感")]
         public float maxPileHeight = 1.0f;
 
         // 扁平化存储所有待拆解移动的子物件
@@ -62,12 +56,9 @@ namespace TheLastCompact.Wakeup
 
         private void Awake()
         {
-            // Unity 序列化防呆：如果该脚本在场景中已经挂载，新添加的字段在反序列化时会变成 0 和 false。
-            // 我们在 Awake 中进行检测，如果检测到全为默认未初始化状态，则强制进行默认值初始化。
-            if (gravityValue == 0f && maxPileHeight == 0f)
+            // Unity 序列化防呆
+            if (maxPileHeight == 0f)
             {
-                enableGravity = true;
-                gravityValue = 3.0f;
                 maxPileHeight = 1.0f;
             }
         }
@@ -142,51 +133,55 @@ namespace TheLastCompact.Wakeup
                 }
             }
 
-            // 预先计算所有物品的散乱停靠终点，打破完美的中心对称和“笼子”感
+            // 预先将所有拆解物品均匀、随机、错落地分发到透明安全盒子的 6 个表面上，像乐高外壳一样覆满它
             for (int i = 0; i < _allProps.Count; i++)
             {
                 Vector3 currentBox = safeBoxSize + _propSizes[i];
                 Vector3 halfSize = currentBox * 0.5f;
 
-                if (i % 5 == 4)
-                {
-                    // 天花板天幕覆盖：水平大范围无规律撒布
-                    float rx = Random.Range(-4.5f, 4.5f);
-                    float rz = Random.Range(-4.5f, 4.5f);
-                    float ry = halfSize.y + _pileOffsets[i];
-                    _finalRestingPositions.Add(_center + new Vector3(rx, ry, rz));
-                }
-                else if (i % 5 == 3)
-                {
-                    // 地板覆盖：水平大范围撒布
-                    float rx = Random.Range(-4.5f, 4.5f);
-                    float rz = Random.Range(-4.5f, 4.5f);
-                    float ry = -halfSize.y - _pileOffsets[i];
-                    _finalRestingPositions.Add(_center + new Vector3(rx, ry, rz));
-                }
-                else
-                {
-                    // 侧壁四周物体：在地面随机撒布（X和Z均在 safeBox 范围外一定距离）
-                    float rx = Random.Range(-6.5f, 6.5f);
-                    float rz = Random.Range(-6.5f, 6.5f);
+                int faceIndex = i % 6;
+                float rx = 0f, ry = 0f, rz = 0f;
 
-                    // 强制散落到 X 或 Z 轴边界外，不准扎堆在刚好贴墙的位置
-                    if (Mathf.Abs(rx) < halfSize.x && Mathf.Abs(rz) < halfSize.z)
-                    {
-                        if (Random.value < 0.5f)
-                        {
-                            rx = Mathf.Sign(rx == 0f ? 1f : rx) * (halfSize.x + Random.Range(0.2f, 3.5f));
-                        }
-                        else
-                        {
-                            rz = Mathf.Sign(rz == 0f ? 1f : rz) * (halfSize.z + Random.Range(0.2f, 3.5f));
-                        }
-                    }
+                switch (faceIndex)
+                {
+                    case 0: // 天花板面 (Top) - 散落覆在天花板上
+                        rx = Random.Range(-halfSize.x, halfSize.x);
+                        rz = Random.Range(-halfSize.z, halfSize.z);
+                        ry = halfSize.y + _pileOffsets[i];
+                        break;
 
-                    // 地面高度
-                    float ry = -halfSize.y + (_propSizes[i].y * 0.5f) + _pileOffsets[i];
-                    _finalRestingPositions.Add(_center + new Vector3(rx, ry, rz));
+                    case 1: // 地板面 (Bottom) - 散落覆在房间地板下
+                        rx = Random.Range(-halfSize.x, halfSize.x);
+                        rz = Random.Range(-halfSize.z, halfSize.z);
+                        ry = -halfSize.y - _pileOffsets[i];
+                        break;
+
+                    case 2: // 左侧壁 (Left Wall, X = -halfSize.x)
+                        rx = -halfSize.x - _pileOffsets[i];
+                        ry = Random.Range(-halfSize.y, halfSize.y);
+                        rz = Random.Range(-halfSize.z, halfSize.z);
+                        break;
+
+                    case 3: // 右侧壁 (Right Wall, X = halfSize.x)
+                        rx = halfSize.x + _pileOffsets[i];
+                        ry = Random.Range(-halfSize.y, halfSize.y);
+                        rz = Random.Range(-halfSize.z, halfSize.z);
+                        break;
+
+                    case 4: // 前侧壁 (Front Wall, Z = halfSize.z)
+                        rx = Random.Range(-halfSize.x, halfSize.x);
+                        ry = Random.Range(-halfSize.y, halfSize.y);
+                        rz = halfSize.z + _pileOffsets[i];
+                        break;
+
+                    case 5: // 后侧壁 (Back Wall, Z = -halfSize.z)
+                        rx = Random.Range(-halfSize.x, halfSize.x);
+                        ry = Random.Range(-halfSize.y, halfSize.y);
+                        rz = -halfSize.z - _pileOffsets[i];
+                        break;
                 }
+
+                _finalRestingPositions.Add(_center + new Vector3(rx, ry, rz));
             }
 
             Debug.Log($"[OfficeCollapse] 已成功解构 {_allProps.Count} 个细碎物件，Mesh 尺寸感应与无规律散落终点初始化完成。");
@@ -209,48 +204,18 @@ namespace TheLastCompact.Wakeup
 
                 // 核心防穿插公式：专属安全阻挡盒 = 内部净空大小 + 该物体实际尺寸
                 Vector3 currentBox = safeBoxSize + _propSizes[i];
-                Vector3 halfSize = currentBox * 0.5f;
 
-                Vector3 targetPos = _targetPositions[i];
                 Vector3 targetDest = _finalRestingPositions[i];
 
-                if (i % 5 == 4) 
-                {
-                    // 天花板顶面撒落：直接往预设散乱终点移动，并限制在天花板上方
-                    Vector3 toDest = targetDest - _targetPositions[i];
-                    float dist = toDest.magnitude;
-                    float moveAmount = movePerClick * intensity * _moveMultipliers[i];
-                    
-                    Vector3 next = _targetPositions[i] + toDest.normalized * Mathf.Min(moveAmount, dist);
-                    targetPos = ClampToAboveCeiling(next, currentBox);
-                }
-                else if (i % 5 == 3)
-                {
-                    // 地板底面撒落：直接往预设散乱终点移动，并限制在房间地板下方
-                    Vector3 toDest = targetDest - _targetPositions[i];
-                    float dist = toDest.magnitude;
-                    float moveAmount = movePerClick * intensity * _moveMultipliers[i];
-                    
-                    Vector3 next = _targetPositions[i] + toDest.normalized * Mathf.Min(moveAmount, dist);
-                    targetPos = ClampToBelowFloor(next, currentBox);
-                }
-                else
-                {
-                    // 四周侧壁撒落物体：只向预设散落终点的水平 X-Z 面移动，高度交由伪重力
-                    Vector3 toDestH = new Vector3(targetDest.x - _targetPositions[i].x, 0f, targetDest.z - _targetPositions[i].z);
-                    float distH = toDestH.magnitude;
-                    float moveAmount = movePerClick * intensity * _moveMultipliers[i];
+                // 直接往预设的 6 个表面散落终点移动（三维空间直行）
+                Vector3 toDest = targetDest - _targetPositions[i];
+                float dist = toDest.magnitude;
+                float moveAmount = movePerClick * intensity * _moveMultipliers[i];
+                
+                Vector3 next = _targetPositions[i] + toDest.normalized * Mathf.Min(moveAmount, dist);
 
-                    if (distH > 0.01f)
-                    {
-                        Vector3 nextH = _targetPositions[i] + toDestH.normalized * Mathf.Min(moveAmount, distH);
-                        targetPos = new Vector3(nextH.x, _targetPositions[i].y, nextH.z);
-                    }
-                    
-                    targetPos = ClampToOutsideSides(targetPos, currentBox);
-                }
-
-                _targetPositions[i] = targetPos;
+                // 使用统一的三维防穿插约束，确保在接触到分配的表面前不会钻进盒子内部
+                _targetPositions[i] = ClampToOutsideSafeBox(next, currentBox);
 
                 // 旋转
                 Vector3 rotAngles = _randomRotDirs[i] * (rotationPerClick * intensity);
@@ -359,41 +324,12 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
-        /// 持续平滑地将所有细碎物体移向目标位置和旋转，并处理侧壁重力下落
+        /// 持续平滑地将所有细碎物体移向目标位置和旋转
         /// </summary>
         private IEnumerator SmoothMoveLoop()
         {
             while (true)
             {
-                if (enableGravity && _totalClicks > 0)
-                {
-                    float dt = Time.deltaTime;
-                    for (int i = 0; i < _allProps.Count; i++)
-                    {
-                        if (_allProps[i] == null) continue;
-
-                        // 只对四周侧壁的物件进行重力处理
-                        if (i % 5 != 4 && i % 5 != 3)
-                        {
-                            Vector3 currentBox = safeBoxSize + _propSizes[i];
-                            // 终点的地面高度已预先算在 _finalRestingPositions 里
-                            float groundY = _finalRestingPositions[i].y;
-
-                            if (_targetPositions[i].y > groundY)
-                            {
-                                Vector3 pos = _targetPositions[i];
-                                pos.y -= gravityValue * dt;
-                                if (pos.y < groundY)
-                                {
-                                    pos.y = groundY;
-                                }
-                                // 下坠时保持侧壁防穿插约束
-                                _targetPositions[i] = ClampToOutsideSides(pos, currentBox);
-                            }
-                        }
-                    }
-                }
-
                 for (int i = 0; i < _allProps.Count; i++)
                 {
                     if (_allProps[i] == null) continue;
