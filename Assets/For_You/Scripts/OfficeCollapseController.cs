@@ -60,6 +60,18 @@ namespace TheLastCompact.Wakeup
         private Vector3 _center;
         private int _totalClicks = 0;
 
+        private void Awake()
+        {
+            // Unity 序列化防呆：如果该脚本在场景中已经挂载，新添加的字段在反序列化时会变成 0 和 false。
+            // 我们在 Awake 中进行检测，如果检测到全为默认未初始化状态，则强制进行默认值初始化。
+            if (gravityValue == 0f && maxPileHeight == 0f)
+            {
+                enableGravity = true;
+                gravityValue = 3.0f;
+                maxPileHeight = 1.0f;
+            }
+        }
+
         private void Start()
         {
             // 获取 Office (87) 中心
