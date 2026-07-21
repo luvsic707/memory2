@@ -88,9 +88,6 @@ namespace TheLastCompact.Wakeup
             StartCoroutine(SmoothMoveLoop());
         }
 
-        /// <summary>
-        /// 由 Stage4Controller 在每次点击时调用
-        /// </summary>
         public void OnClick()
         {
             _totalClicks++;
@@ -101,8 +98,20 @@ namespace TheLastCompact.Wakeup
             {
                 if (_allOffices[i] == null) continue;
 
-                // 计算朝向 Office87 中心的方向
-                Vector3 toCenter = (_center - _allOffices[i].position);
+                // 计算每个 office 的目标朝向中心 (通过给部分 office 增加高度偏移，使其从上方/下方包围 Office 87)
+                Vector3 targetCenter = _center;
+                if (i % 5 == 4) 
+                {
+                    // 20% 的办公室目标朝向偏上方，使其最终落在 Office 87 的顶部（天花板）
+                    targetCenter.y += safeBoxSize.y * 1.2f;
+                }
+                else if (i % 5 == 3)
+                {
+                    // 20% 的办公室目标朝向偏下方，覆盖底部
+                    targetCenter.y -= safeBoxSize.y * 1.0f;
+                }
+
+                Vector3 toCenter = (targetCenter - _allOffices[i].position);
                 float dist = toCenter.magnitude;
 
                 if (dist > 0.01f)
