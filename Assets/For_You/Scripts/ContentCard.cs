@@ -182,18 +182,20 @@ namespace TheLastCompact.Wakeup
             {
                 GameObject headerGo = new GameObject("CardHeader");
                 headerGo.transform.SetParent(transform, false);
-                headerGo.transform.localPosition = new Vector3(0f, 0.36f, -0.02f);
+                headerGo.transform.localPosition = new Vector3(0f, 0.35f, -0.02f);
                 headerGo.transform.localRotation = Quaternion.identity;
 
                 _tmpHeader = headerGo.AddComponent<TextMeshPro>();
                 _tmpHeader.text = categoryTag;
-                _tmpHeader.fontSize = isChoiceCard ? 1.3f : 1.6f;
+                _tmpHeader.enableAutoSizing = true;
+                _tmpHeader.fontSizeMin = 0.2f;
+                _tmpHeader.fontSizeMax = 0.55f;
                 _tmpHeader.alignment = TextAlignmentOptions.Center;
                 _tmpHeader.color = new Color(1f, 1f, 1f, 0.85f);
                 _tmpHeader.fontStyle = FontStyles.Bold;
 
                 RectTransform rtH = _tmpHeader.GetComponent<RectTransform>();
-                rtH.sizeDelta = new Vector2(0.9f, 0.25f);
+                rtH.sizeDelta = new Vector2(0.85f, 0.22f);
             }
 
             // 2. 中央大图标 (如果非空)
@@ -207,12 +209,14 @@ namespace TheLastCompact.Wakeup
 
                 _tmpIcon = iconGo.AddComponent<TextMeshPro>();
                 _tmpIcon.text = cardIcon;
-                _tmpIcon.fontSize = isChoiceCard ? 2.8f : 4.0f;
+                _tmpIcon.enableAutoSizing = true;
+                _tmpIcon.fontSizeMin = 0.5f;
+                _tmpIcon.fontSizeMax = 1.2f;
                 _tmpIcon.alignment = TextAlignmentOptions.Center;
                 _tmpIcon.color = Color.white;
 
                 RectTransform rtI = _tmpIcon.GetComponent<RectTransform>();
-                rtI.sizeDelta = new Vector2(0.9f, 0.4f);
+                rtI.sizeDelta = new Vector2(0.85f, 0.35f);
             }
 
             // 3. 底部 / 主要标题文本
@@ -221,7 +225,7 @@ namespace TheLastCompact.Wakeup
             {
                 GameObject mainGo = new GameObject("CardMainText");
                 mainGo.transform.SetParent(transform, false);
-                float yOffset = !string.IsNullOrEmpty(cardIcon) ? -0.20f : -0.05f;
+                float yOffset = !string.IsNullOrEmpty(cardIcon) ? -0.18f : -0.05f;
                 if (string.IsNullOrEmpty(categoryTag) && string.IsNullOrEmpty(cardIcon)) yOffset = 0f;
 
                 mainGo.transform.localPosition = new Vector3(0f, yOffset, -0.02f);
@@ -229,14 +233,16 @@ namespace TheLastCompact.Wakeup
 
                 _tmpMain = mainGo.AddComponent<TextMeshPro>();
                 _tmpMain.text = mainText;
-                _tmpMain.fontSize = isChoiceCard ? 1.5f : (string.IsNullOrEmpty(cardIcon) ? 2.0f : 1.6f);
+                _tmpMain.enableAutoSizing = true;
+                _tmpMain.fontSizeMin = 0.25f;
+                _tmpMain.fontSizeMax = 0.75f;
                 _tmpMain.alignment = TextAlignmentOptions.Center;
                 _tmpMain.color = Color.white;
                 _tmpMain.enableWordWrapping = true;
                 _tmpMain.fontStyle = FontStyles.Bold;
 
                 RectTransform rtM = _tmpMain.GetComponent<RectTransform>();
-                rtM.sizeDelta = new Vector2(0.85f, 0.65f);
+                rtM.sizeDelta = new Vector2(0.82f, 0.55f);
             }
         }
 
