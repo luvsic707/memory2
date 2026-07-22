@@ -59,6 +59,8 @@ namespace TheLastCompact.Wakeup
         // 回调：通知选择卡被激活
         public System.Action<string> OnChoiceSelected;
 
+        private Vector3 _baseScale;
+
         public void SetBaseScale(Vector3 customBaseScale)
         {
             _baseScale = customBaseScale;
