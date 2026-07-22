@@ -204,18 +204,5 @@ namespace TheLastCompact.Wakeup
             _mpb.SetColor("_BaseColor", tunnelColor);
             _tunnelRenderer.SetPropertyBlock(_mpb);
         }
-
-        private void UpdateStars()
-        {
-            if (_starParticles == null) return;
-
-            // Phase A: 星点明亮。Phase B→C: 星点逐渐消失（被隧道取代）
-            var main = _starParticles.main;
-            float starAlpha = Mathf.Lerp(0.5f, 0f, Mathf.InverseLerp(0.3f, 0.6f, phaseProgress));
-            main.startColor = new Color(0.8f, 0.85f, 1f, starAlpha);
-
-            // 跟随玩家
-            _starParticles.transform.position = _player.position;
-        }
     }
 }
