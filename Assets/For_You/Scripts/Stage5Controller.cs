@@ -62,7 +62,7 @@ namespace TheLastCompact.Wakeup
         [Tooltip("时间自动推进速率（每秒，整体放慢）")]
         public float progressPerSecond = 0.0084f;
 
-        [Header("单曲 BGM + 实时 DSP 滤镜扭曲系统")]
+        [Header("单曲 BGM + 实时 DSP 滤镜 + 嘈杂人声图层")]
         [Tooltip("贯穿全程的单曲 BGM 音轨（留空将自动加载备用音轨）")]
         public AudioClip singleBgmClip;
 
@@ -70,7 +70,6 @@ namespace TheLastCompact.Wakeup
         [Range(0f, 1f)]
         public float bgmVolume = 0.55f;
 
-        [Header("嘈杂人声图层 (Phase 2/3 渐入)")]
         [Tooltip("Phase 2/3 随卡片增多逐渐叠加的嘈杂人声/环境噪音 Audio Clip")]
         public AudioClip crowdNoiseClip;
 
