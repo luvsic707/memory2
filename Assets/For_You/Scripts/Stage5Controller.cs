@@ -203,12 +203,56 @@ namespace TheLastCompact.Wakeup
                 gazePopClip = CreateProceduralPopClip();
             }
 
+            // 如果没有手拖 MP3 文件，算法自动程序化生成 6 秒无缝循环的温润 Ambient Synth 和声 BGM Track
+            if (singleBgmClip == null)
+            {
+                singleBgmClip = CreateProceduralAmbientBgmClip();
+            }
+
             if (singleBgmClip != null)
             {
                 _bgmAudioSource.clip = singleBgmClip;
                 _bgmAudioSource.Play();
                 Debug.Log($"[Stage5] 单曲 BGM 启动播放: {singleBgmClip.name}");
             }
+        }
+
+        private AudioClip CreateProceduralAmbientBgmClip()
+        {
+            int sampleRate = 44100;
+            float duration = 6.0f; // 6秒无缝循环温润 Ambient 氛圈音轨
+            int sampleCount = (int)(sampleRate * duration);
+            float[] samples = new float[sampleCount];
+
+            float[] freqs = { 110f, 164.81f, 220f, 277.18f, 329.63f, 440f }; // A Minor 9 / Ambient Chord
+
+            for (int i = 0; i < sampleCount; i++)
+            {
+                float t = (float)i / sampleRate;
+                float sampleVal = 0f;
+
+                // 柔和 LFO 慢速漫游包络
+                float lfo = 0.85f + 0.15f * Mathf.Sin(2f * Mathf.PI * 0.166f * t);
+
+                for (int f = 0; f < freqs.Length; f++)
+                {
+                    float freq = freqs[f];
+                    float amp = 1f / (f + 1); // 高频渐弱
+                    sampleVal += Mathf.Sin(2f * Mathf.PI * freq * t) * amp;
+                }
+
+                // 边缘无缝淡入淡出（防 Crossfade 爆音）
+                float fadeEnv = 1f;
+                float fadeLen = 0.1f;
+                if (t < fadeLen) fadeEnv = t / fadeLen;
+                else if (t > duration - fadeLen) fadeEnv = (duration - t) / fadeLen;
+
+                samples[i] = sampleVal * 0.12f * lfo * fadeEnv;
+            }
+
+            AudioClip clip = AudioClip.Create("ProceduralAmbientBGM", sampleCount, 1, sampleRate, false);
+            clip.SetData(samples, 0);
+            return clip;
         }
 
         private AudioClip CreateProceduralPopClip()
