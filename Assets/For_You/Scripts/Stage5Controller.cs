@@ -66,11 +66,11 @@ namespace TheLastCompact.Wakeup
         [Range(0f, 1f)]
         public float phaseProgress = 0f;
 
-        [Tooltip("每次注视交互推进的增量")]
-        public float progressPerGaze = 0.008f;
+        [Tooltip("每次注视交互推进的增量（设大方便快速体验）")]
+        public float progressPerGaze = 0.05f;
 
         [Tooltip("时间自动推进速率（每秒）")]
-        public float progressPerSecond = 0.003f;
+        public float progressPerSecond = 0.015f;
 
         [Header("注视检测")]
         [Tooltip("注视射线的最大检测距离")]
@@ -207,6 +207,65 @@ namespace TheLastCompact.Wakeup
 
             // 锁定鼠标
             CursorService.Lock();
+        }
+
+        private void Update()
+        {
+            // 快捷键调试：按数字键 1~5 直接切到对应 Phase
+            if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1))
+            {
+                phaseProgress = 0.05f;
+                Debug.Log("<color=green>[Stage5 调试] 已快捷跳转至 Phase A (解放 - 随机感官)</color>");
+            }
+            else if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2))
+            {
+                phaseProgress = 0.40f;
+                Debug.Log("<color=yellow>[Stage5 调试] 已快捷跳转至 Phase B (沉迷 - 偏好过滤/隧道)</color>");
+            }
+            else if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3))
+            {
+                phaseProgress = 0.75f;
+                Debug.Log("<color=orange>[Stage5 调试] 已快捷跳转至 Phase C 步骤一 (高科技算法诊断)</color>");
+            }
+            else if (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4))
+            {
+                phaseProgress = 0.92f;
+                Debug.Log("<color=red>[Stage5 调试] 已快捷跳转至 Phase C 步骤三 (私密数据核爆/静音)</color>");
+            }
+            else if (Input.GetKeyDown(KeyCode.Alpha5) || Input.GetKeyDown(KeyCode.Keypad5))
+            {
+                phaseProgress = 0.98f;
+                Debug.Log("<color=cyan>[Stage5 调试] 已快捷跳转至 结尾加缪式选择卡片</color>");
+            }
+
+            // 自动推进 phaseProgress
+            if (phaseProgress < 1f)
+            {
+                phaseProgress += progressPerSecond * Time.deltaTime;
+                phaseProgress = Mathf.Clamp01(phaseProgress);
+            }
+
+            // 同步旋钮给子系统
+            if (_spawner != null) _spawner.phaseProgress = phaseProgress;
+            if (_environment != null) _environment.phaseProgress = phaseProgress;
+
+            // 注视射线检测
+            ProcessGaze();
+
+            // 音量平滑过渡
+            AudioListener.volume = Mathf.Lerp(AudioListener.volume, _targetVolume, Time.deltaTime * 3f);
+
+            // 结尾选择
+            if (phaseProgress >= 0.98f && !_endChoiceSpawned)
+            {
+                SpawnEndChoice();
+            }
+
+            // P 键调试跳关
+            if (Input.GetKeyDown(KeyCode.P) && !_isTransitioning)
+            {
+                StartCoroutine(TransitionSequence());
+            }
         }
 
         private void CreateSubsystems()
