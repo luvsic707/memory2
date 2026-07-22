@@ -189,13 +189,12 @@ namespace TheLastCompact.Wakeup
             _sfxAudioSource.volume = gazePopVolume;
             _sfxAudioSource.spatialBlend = 0f;
 
-            // 自动配对音轨资源
+            // 自动配对纯正背景音乐资源（排除旧关卡的旁白人声）
 #if UNITY_EDITOR
-            if (singleBgmClip == null) singleBgmClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/The_Last_Compact/Wakeup/Audio/Archive_Space_1.mp3");
-            if (singleBgmClip == null) singleBgmClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/The_Last_Compact/Wakeup/Audio/Act_One.mp3");
-            if (gazePopClip == null) gazePopClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/The_Last_Compact/Wakeup/Audio/wakeup_1.mp3");
+            if (singleBgmClip == null) singleBgmClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/For_You/Audio/Woods.wav");
 #endif
 
+            // 如果没有指定注视音效，全自动算法生成精美清爽的 80ms 叮音（拒绝人声干扰）
             if (gazePopClip == null)
             {
                 gazePopClip = CreateProceduralPopClip();

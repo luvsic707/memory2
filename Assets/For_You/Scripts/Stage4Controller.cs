@@ -122,9 +122,7 @@ namespace TheLastCompact.Wakeup
             {
 #if UNITY_EDITOR
                 string[] tryPaths = {
-                    "Assets/The_Last_Compact/Wakeup/Audio/Archive_Space_1.mp3",
-                    "Assets/The_Last_Compact/Wakeup/Audio/Act_One.mp3",
-                    "Assets/The_Last_Compact/Wakeup/Audio/Archive_Space_2.mp3"
+                    "Assets/For_You/Audio/Woods.wav"
                 };
                 foreach (var path in tryPaths)
                 {
@@ -134,7 +132,7 @@ namespace TheLastCompact.Wakeup
                         bgmClip = clip;
                         _bgmAudioSource.clip = clip;
                         _bgmAudioSource.Play();
-                        Debug.Log($"[Stage4] 自动配对加载 BGM 成功: {path}");
+                        Debug.Log($"[Stage4] 自动配对加载纯正 BGM 成功: {path}");
                         break;
                     }
                 }
