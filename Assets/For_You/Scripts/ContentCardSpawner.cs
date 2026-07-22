@@ -267,8 +267,8 @@ namespace TheLastCompact.Wakeup
             ContentCard card = cardGo.AddComponent<ContentCard>();
             ConfigureCardContent(card);
 
-            // 5. 漂移速度微调（放慢 30%，漂移更平缓优雅）
-            card.driftSpeed = Mathf.Lerp(0.85f, 1.75f, phaseProgress);
+            // 5. 漂移速度微调（整体再放慢 20%，漂移更加从容平缓）
+            card.driftSpeed = Mathf.Lerp(0.68f, 1.40f, phaseProgress);
 
             _activeCards.Add(card);
             OnCardSpawned?.Invoke(card);
@@ -299,23 +299,23 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
-        /// 旋钮3: 节奏（放慢 30%）
+        /// 旋钮3: 节奏（整体再放慢 20%）
         /// </summary>
         private float CalculateSpawnInterval()
         {
             if (phaseProgress < 0.35f)
             {
                 if (Random.value < 0.12f)
-                    return Random.Range(0.2f, 0.4f);
-                return Random.Range(0.65f, 2.0f);
+                    return Random.Range(0.28f, 0.52f);
+                return Random.Range(0.85f, 2.50f);
             }
             else if (phaseProgress < 0.70f)
             {
-                return 0.85f; // 匀速放慢
+                return 1.08f; // 匀速放慢 20%
             }
             else
             {
-                return 0.58f;
+                return 0.75f;
             }
         }
 

@@ -11,11 +11,11 @@ namespace TheLastCompact.Wakeup
     public class ContentCard : MonoBehaviour
     {
         [Header("运动参数")]
-        [Tooltip("缓慢漂向玩家的基础速度")]
-        public float driftSpeed = 1.5f;
+        [Tooltip("向玩家飞近的速度")]
+        public float driftSpeed = 0.68f; // 放慢 20%，运动更加从容平缓
 
-        [Tooltip("被注视时的吸引加速度")]
-        public float gazeAttractSpeed = 8f;
+        [Tooltip("注视时向玩家靠近的加速倍率")]
+        public float gazeAttractSpeed = 1.2f;
 
         [Tooltip("到达此距离后开始淡出销毁")]
         public float fadeStartDistance = 2.5f;

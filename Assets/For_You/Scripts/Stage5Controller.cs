@@ -51,16 +51,16 @@ namespace TheLastCompact.Wakeup
             Debug.Log("[Stage5] 自动创建 Stage5Controller。");
         }
 
-        [Header("Phase 进度（放慢 30%）")]
+        [Header("Phase 进度（整体再放慢 20%）")]
         [Tooltip("当前阶段进度 0→1，Inspector 中可观测")]
         [Range(0f, 1f)]
         public float phaseProgress = 0f;
 
-        [Tooltip("每次注视交互推进的增量（放慢 30%）")]
-        public float progressPerGaze = 0.035f;
+        [Tooltip("每次注视交互推进的增量（整体放慢）")]
+        public float progressPerGaze = 0.028f;
 
-        [Tooltip("时间自动推进速率（每秒，放慢 30%）")]
-        public float progressPerSecond = 0.0105f;
+        [Tooltip("时间自动推进速率（每秒，整体放慢）")]
+        public float progressPerSecond = 0.0084f;
 
         [Header("单曲 BGM + 实时 DSP 滤镜扭曲系统")]
         [Tooltip("贯穿全程的单曲 BGM 音轨（留空将自动加载备用音轨）")]
@@ -83,7 +83,7 @@ namespace TheLastCompact.Wakeup
         public float gazeRayDistance = 50f;
 
         [Tooltip("持续注视多久算一次交互（秒）")]
-        public float gazeHoldTime = 0.3f;
+        public float gazeHoldTime = 0.35f;
 
         [Header("声音控制")]
         [Tooltip("Phase C 私密数据出现时，全局音量降到此值")]
