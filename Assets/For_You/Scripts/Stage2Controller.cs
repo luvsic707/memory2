@@ -125,36 +125,23 @@ namespace TheLastCompact.Wakeup
 
         private void SetupBGM()
         {
+            // 关掉之前残留的对话旁白系统 NarratorManager
+            if (NarratorManager.Instance != null)
+            {
+                NarratorManager.Instance.StopCurrent();
+                NarratorManager.Instance.gameObject.SetActive(false);
+            }
+
             _bgmAudioSource = gameObject.AddComponent<AudioSource>();
             _bgmAudioSource.loop = loopBgm;
             _bgmAudioSource.volume = bgmVolume;
-            _bgmAudioSource.spatialBlend = 0f; // 2D 环绕背景音
+            _bgmAudioSource.spatialBlend = 0f;
 
             if (bgmClip != null)
             {
                 _bgmAudioSource.clip = bgmClip;
                 _bgmAudioSource.Play();
                 Debug.Log($"[Stage2] 播放指定的 BGM: {bgmClip.name}");
-            }
-            else
-            {
-#if UNITY_EDITOR
-                string[] tryPaths = {
-                    "Assets/For_You/Audio/Woods.wav"
-                };
-                foreach (var path in tryPaths)
-                {
-                    AudioClip clip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(path);
-                    if (clip != null)
-                    {
-                        bgmClip = clip;
-                        _bgmAudioSource.clip = clip;
-                        _bgmAudioSource.Play();
-                        Debug.Log($"[Stage2] 自动配对加载纯正 BGM 成功: {path}");
-                        break;
-                    }
-                }
-#endif
             }
         }
 

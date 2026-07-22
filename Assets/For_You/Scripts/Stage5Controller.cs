@@ -129,7 +129,15 @@ namespace TheLastCompact.Wakeup
 
         private void Start()
         {
-            // 0. 确保场景原有的 UI Canvas 保持显示
+            // 0. 关掉之前游戏关卡残留的旁白对话系统 NarratorManager
+            if (NarratorManager.Instance != null)
+            {
+                NarratorManager.Instance.StopCurrent();
+                NarratorManager.Instance.gameObject.SetActive(false);
+                Debug.Log("[Stage5] 已关闭之前的旁白对话系统 (NarratorManager)。");
+            }
+
+            // 确保场景原有的 UI Canvas 保持显示
             EnsureOldCanvasesVisible();
 
             // 1. 压暗环境
@@ -189,12 +197,7 @@ namespace TheLastCompact.Wakeup
             _sfxAudioSource.volume = gazePopVolume;
             _sfxAudioSource.spatialBlend = 0f;
 
-            // 自动配对纯正背景音乐资源（排除旧关卡的旁白人声）
-#if UNITY_EDITOR
-            if (singleBgmClip == null) singleBgmClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/For_You/Audio/Woods.wav");
-#endif
-
-            // 如果没有指定注视音效，全自动算法生成精美清爽的 80ms 叮音（拒绝人声干扰）
+            // 如果没有指定注视音效，全自动算法生成精美清爽的 80ms 叮音
             if (gazePopClip == null)
             {
                 gazePopClip = CreateProceduralPopClip();
