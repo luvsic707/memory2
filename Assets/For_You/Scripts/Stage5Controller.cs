@@ -8,11 +8,11 @@ namespace TheLastCompact.Wakeup
     /// <summary>
     /// Stage 5 总控制器 — "Feed / 内容流"
     /// 
-    /// 一套系统，四个阶段。用单个 phaseProgress (0→1) 驱动无缝进化：
-    /// Phase 1 (0.00~0.35): 多彩的享受 (Sensory Liberation & Delights) — 轻松明亮 BGM + 愉悦 Pop 注视音效
-    /// Phase 2 (0.35~0.70): 不自觉的强迫成瘾机械行为 (Compulsive Algorithmic Addiction) — 音频变调扭曲、嘈杂叠加
-    /// Phase 3 (0.70~0.96): 数据显形，无处遁形的宿命 (Data Exposed: Inescapable Destiny) — 严肃冷酷，私密数据出场时彻底抽走音量
-    /// Phase 4 (0.96~1.00): 抉择时刻 (Moment of Choice: Stay Here or Challenge Stage 6) — 暂停卡片，清爽呈现
+    /// 单系统 + 四阶段演化 + 单曲底层 BGM 实时 DSP 音频滤镜扭曲系统：
+    /// Phase 1 (0.00~0.35): 多彩的享受 — 干净甜美、无滤镜（Distortion = 0, High Cutoff = 22000Hz, Pitch = 1.0）
+    /// Phase 2 (0.35~0.70): 不自觉的强迫成瘾 — 逐渐调高 Distortion、音速变低变闷，声音开始杂乱扭曲
+    /// Phase 3 (0.70~0.96): 数据显形 — Distortion 拉满 + Low Pass 压暗 + 变调，声音变得可怕、闷、不祥；注视私密数据时彻底抽走音量
+    /// Phase 4 (0.96~1.00): 抉择时刻 — 暂停卡片，清爽呈现
     /// </summary>
     public class Stage5Controller : MonoBehaviour
     {
@@ -62,22 +62,16 @@ namespace TheLastCompact.Wakeup
         [Tooltip("时间自动推进速率（每秒，放慢 30%）")]
         public float progressPerSecond = 0.0105f;
 
-        [Header("Stage 5 三阶段动态 BGM 配置")]
-        [Tooltip("Phase 1 明亮愉悦 BGM 音轨（留空将自动加载备用音轨）")]
-        public AudioClip bgmPhase1Clip;
+        [Header("单曲 BGM + 实时 DSP 滤镜扭曲系统")]
+        [Tooltip("贯穿全程的单曲 BGM 音轨（留空将自动加载备用音轨）")]
+        public AudioClip singleBgmClip;
 
-        [Tooltip("Phase 2 嘈杂成瘾 BGM 音轨（留空将自动加载备用音轨）")]
-        public AudioClip bgmPhase2Clip;
-
-        [Tooltip("Phase 3 严肃冷酷 BGM 音轨（留空将自动加载备用音轨）")]
-        public AudioClip bgmPhase3Clip;
-
-        [Tooltip("BGM 全局音量上限")]
+        [Tooltip("BGM 全局基础音量")]
         [Range(0f, 1f)]
         public float bgmVolume = 0.55f;
 
         [Header("卡片注视与交互音效（香蕉/Pop 愉悦反馈）")]
-        [Tooltip("注视看卡片时的愉悦反馈音效（留空将自动生成高音 Sine 叮音）")]
+        [Tooltip("注视看卡片时的愉悦反馈音效（留空将自动程序化生成 80ms Sine 叮音）")]
         public AudioClip gazePopClip;
 
         [Tooltip("注视音效基础音量")]
@@ -103,9 +97,13 @@ namespace TheLastCompact.Wakeup
         private ContentCardSpawner _spawner;
         private FeedEnvironment _environment;
 
-        // 音频组件
+        // 音频与 DSP 滤镜组件
         private AudioSource _bgmAudioSource;
+        private AudioDistortionFilter _distortionFilter;
+        private AudioLowPassFilter _lowPassFilter;
+        private AudioChorusFilter _chorusFilter;
         private AudioSource _sfxAudioSource;
+
         private int _gazeComboCount = 0;
         private float _lastGazeTime = 0f;
 
@@ -122,7 +120,6 @@ namespace TheLastCompact.Wakeup
         private float _originalVolume = 1f;
         private float _targetVolume = 1f;
         private TMPro.TextMeshProUGUI _phaseStatusText;
-        private int _lastActivePhase = -1; // 记录当前调用的 BGM 阶段
 
         private void Awake()
         {
@@ -156,45 +153,60 @@ namespace TheLastCompact.Wakeup
             // 4. 创建子系统
             CreateSubsystems();
 
-            // 5. 初始化动态音频系统
+            // 5. 初始化单曲 + DSP 动态滤镜音频系统
             SetupAudioSystem();
 
             // 6. 保存原始音量
             _originalVolume = AudioListener.volume;
 
-            Debug.Log("[Stage5] Feed 系统已初始化。Phase 1 开始。");
+            Debug.Log("[Stage5] Feed 系统已初始化。单曲 DSP 动态滤镜扭曲系统已就绪。");
         }
 
         private void SetupAudioSystem()
         {
-            // BGM AudioSource
-            _bgmAudioSource = gameObject.AddComponent<AudioSource>();
+            // 创建 BGM AudioSource
+            GameObject bgmGo = new GameObject("BGM_AudioEngine");
+            bgmGo.transform.SetParent(transform, false);
+
+            _bgmAudioSource = bgmGo.AddComponent<AudioSource>();
             _bgmAudioSource.loop = true;
             _bgmAudioSource.volume = bgmVolume;
             _bgmAudioSource.spatialBlend = 0f;
 
-            // SFX AudioSource
+            // 挂载 DSP 实时音频滤镜组件
+            _distortionFilter = bgmGo.AddComponent<AudioDistortionFilter>();
+            _distortionFilter.distortionLevel = 0.0f; // 初始无失真
+
+            _lowPassFilter = bgmGo.AddComponent<AudioLowPassFilter>();
+            _lowPassFilter.cutoffFrequency = 22000f; // 初始全频段高频通畅
+
+            _chorusFilter = bgmGo.AddComponent<AudioChorusFilter>();
+            _chorusFilter.depth = 0.0f; // 初始无合唱/相位音高抖动
+
+            // 创建 SFX AudioSource
             _sfxAudioSource = gameObject.AddComponent<AudioSource>();
             _sfxAudioSource.loop = false;
             _sfxAudioSource.volume = gazePopVolume;
             _sfxAudioSource.spatialBlend = 0f;
 
-            // 自动配对音轨资源（如果 Inspector 中留空）
+            // 自动配对音轨资源
 #if UNITY_EDITOR
-            if (bgmPhase1Clip == null) bgmPhase1Clip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/The_Last_Compact/Wakeup/Audio/Archive_Space_1.mp3");
-            if (bgmPhase2Clip == null) bgmPhase2Clip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/The_Last_Compact/Wakeup/Audio/Act_Two.mp3");
-            if (bgmPhase3Clip == null) bgmPhase3Clip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/The_Last_Compact/Wakeup/Audio/Archive_Space_3.mp3");
+            if (singleBgmClip == null) singleBgmClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/The_Last_Compact/Wakeup/Audio/Archive_Space_1.mp3");
+            if (singleBgmClip == null) singleBgmClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/The_Last_Compact/Wakeup/Audio/Act_One.mp3");
             if (gazePopClip == null) gazePopClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/The_Last_Compact/Wakeup/Audio/wakeup_1.mp3");
 #endif
 
-            // 如果没有准备好的 gazePopClip，自动程序化生成一个精美的 0.08 秒 Sine 音效
             if (gazePopClip == null)
             {
                 gazePopClip = CreateProceduralPopClip();
             }
 
-            // 播放 Phase 1 BGM
-            PlayPhaseBGM(1);
+            if (singleBgmClip != null)
+            {
+                _bgmAudioSource.clip = singleBgmClip;
+                _bgmAudioSource.Play();
+                Debug.Log($"[Stage5] 单曲 BGM 启动播放: {singleBgmClip.name}");
+            }
         }
 
         private AudioClip CreateProceduralPopClip()
@@ -207,8 +219,8 @@ namespace TheLastCompact.Wakeup
             for (int i = 0; i < sampleCount; i++)
             {
                 float t = (float)i / sampleRate;
-                float freq = Mathf.Lerp(880f, 1320f, t / duration); // 上扬频率
-                float envelope = Mathf.Sin((1f - t / duration) * Mathf.PI * 0.5f); // 渐弱包络
+                float freq = Mathf.Lerp(880f, 1320f, t / duration);
+                float envelope = Mathf.Sin((1f - t / duration) * Mathf.PI * 0.5f);
                 samples[i] = Mathf.Sin(2f * Mathf.PI * freq * t) * envelope * 0.4f;
             }
 
@@ -217,47 +229,47 @@ namespace TheLastCompact.Wakeup
             return clip;
         }
 
-        private void PlayPhaseBGM(int phaseIndex)
-        {
-            if (_lastActivePhase == phaseIndex) return;
-            _lastActivePhase = phaseIndex;
-
-            AudioClip targetClip = phaseIndex == 1 ? bgmPhase1Clip
-                                 : phaseIndex == 2 ? bgmPhase2Clip
-                                 : bgmPhase3Clip;
-
-            if (targetClip != null)
-            {
-                _bgmAudioSource.clip = targetClip;
-                _bgmAudioSource.pitch = 1.0f;
-                _bgmAudioSource.Play();
-                Debug.Log($"[Stage5 Audio] 切换至 Phase {phaseIndex} BGM: {targetClip.name}");
-            }
-        }
-
+        /// <summary>
+        /// 核心：随 phaseProgress (0→1) 实时 Lerp 音频 DSP 滤镜参数
+        /// 完美呈现“同一首歌随阶段逐渐变味、扭曲、深沉”
+        /// </summary>
         private void UpdateAudioDynamics()
         {
             if (_bgmAudioSource == null) return;
 
             if (phaseProgress < 0.35f)
             {
-                // Phase 1: 明亮欢快
-                PlayPhaseBGM(1);
-                _bgmAudioSource.pitch = Mathf.Lerp(_bgmAudioSource.pitch, 1.0f, Time.deltaTime * 2f);
+                // Phase 1 (0.00 ~ 0.35): 干净甜美
+                float t = Mathf.InverseLerp(0f, 0.35f, phaseProgress);
+                _distortionFilter.distortionLevel = 0.0f;
+                _lowPassFilter.cutoffFrequency = 22000f;
+                _chorusFilter.depth = 0.0f;
+                _bgmAudioSource.pitch = Mathf.Lerp(1.0f, 0.98f, t);
             }
             else if (phaseProgress < 0.70f)
             {
-                // Phase 2: 变调扭曲、嘈杂升速
-                PlayPhaseBGM(2);
-                float narrowT = Mathf.InverseLerp(0.35f, 0.70f, phaseProgress);
-                float targetPitch = Mathf.Lerp(1.0f, 0.75f, narrowT); // 音速变低变扭曲
-                _bgmAudioSource.pitch = Mathf.Lerp(_bgmAudioSource.pitch, targetPitch, Time.deltaTime * 1.5f);
+                // Phase 2 (0.35 ~ 0.70): 失真增加、声音变低变嘈杂
+                float t = Mathf.InverseLerp(0.35f, 0.70f, phaseProgress);
+                _distortionFilter.distortionLevel = Mathf.Lerp(0.0f, 0.45f, t); // 渐增失真
+                _lowPassFilter.cutoffFrequency = Mathf.Lerp(22000f, 5500f, t);  // 高频逐渐开始压闷
+                _chorusFilter.depth = Mathf.Lerp(0.0f, 0.35f, t);               // 音高抖动增加
+                _bgmAudioSource.pitch = Mathf.Lerp(0.98f, 0.85f, t);             // 音速变慢变重
+            }
+            else if (phaseProgress < 0.96f)
+            {
+                // Phase 3 (0.70 ~ 0.96): Distortion 拉满 + Low Pass 极重压暗 + 变调恐怖
+                float t = Mathf.InverseLerp(0.70f, 0.96f, phaseProgress);
+                _distortionFilter.distortionLevel = Mathf.Lerp(0.45f, 0.82f, t); // 失真拉满
+                _lowPassFilter.cutoffFrequency = Mathf.Lerp(5500f, 1000f, t);    // 极沉低通压暗
+                _chorusFilter.depth = Mathf.Lerp(0.35f, 0.75f, t);               // 不祥音高漫游
+                _bgmAudioSource.pitch = Mathf.Lerp(0.85f, 0.72f, t);             // 深沉扭曲音速
             }
             else
             {
-                // Phase 3: 严肃冷酷
-                PlayPhaseBGM(3);
-                _bgmAudioSource.pitch = Mathf.Lerp(_bgmAudioSource.pitch, 0.88f, Time.deltaTime * 2f);
+                // Phase 4 (0.96 ~ 1.00): 抉择时刻保持定格
+                _distortionFilter.distortionLevel = 0.4f;
+                _lowPassFilter.cutoffFrequency = 3500f;
+                _bgmAudioSource.pitch = 0.9f;
             }
         }
 
@@ -440,7 +452,7 @@ namespace TheLastCompact.Wakeup
             // 动态更新顶部 Phase 阶段状态栏 HUD
             UpdatePhaseHUD();
 
-            // 动态更新三阶段 BGM 音阶变调与切换
+            // 动态更新单曲 DSP 音频滤镜实时扭曲（随 phaseProgress 0→1 自动 Lerp 参数）
             UpdateAudioDynamics();
 
             // 注视射线检测
