@@ -9,10 +9,10 @@ namespace TheLastCompact.Wakeup
     /// Stage 5 总控制器 — "Feed / 内容流"
     /// 
     /// 一套系统，四个阶段。用单个 phaseProgress (0→1) 驱动无缝进化：
-    /// Phase 1 (0.00~0.35): 多彩的享受 (Sensory Liberation & Delights)
-    /// Phase 2 (0.35~0.70): 不自觉的强迫成瘾机械行为 (Compulsive Algorithmic Addiction)
-    /// Phase 3 (0.70~0.96): 数据显形，无处遁形的宿命 (Data Exposed: Inescapable Destiny)
-    /// Phase 4 (0.96~1.00): 抉择时刻 (Moment of Choice: Stay Here or Challenge Stage 6)
+    /// Phase 1 (0.00~0.35): 多彩的享受 (Sensory Liberation & Delights) — 轻松明亮 BGM + 愉悦 Pop 注视音效
+    /// Phase 2 (0.35~0.70): 不自觉的强迫成瘾机械行为 (Compulsive Algorithmic Addiction) — 音频变调扭曲、嘈杂叠加
+    /// Phase 3 (0.70~0.96): 数据显形，无处遁形的宿命 (Data Exposed: Inescapable Destiny) — 严肃冷酷，私密数据出场时彻底抽走音量
+    /// Phase 4 (0.96~1.00): 抉择时刻 (Moment of Choice: Stay Here or Challenge Stage 6) — 暂停卡片，清爽呈现
     /// </summary>
     public class Stage5Controller : MonoBehaviour
     {
@@ -28,7 +28,7 @@ namespace TheLastCompact.Wakeup
             }
         }
 
-        private static void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, LoadSceneMode mode)
+        private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
             if (scene.name == "5_Contemporary")
             {
@@ -62,6 +62,28 @@ namespace TheLastCompact.Wakeup
         [Tooltip("时间自动推进速率（每秒，放慢 30%）")]
         public float progressPerSecond = 0.0105f;
 
+        [Header("Stage 5 三阶段动态 BGM 配置")]
+        [Tooltip("Phase 1 明亮愉悦 BGM 音轨（留空将自动加载备用音轨）")]
+        public AudioClip bgmPhase1Clip;
+
+        [Tooltip("Phase 2 嘈杂成瘾 BGM 音轨（留空将自动加载备用音轨）")]
+        public AudioClip bgmPhase2Clip;
+
+        [Tooltip("Phase 3 严肃冷酷 BGM 音轨（留空将自动加载备用音轨）")]
+        public AudioClip bgmPhase3Clip;
+
+        [Tooltip("BGM 全局音量上限")]
+        [Range(0f, 1f)]
+        public float bgmVolume = 0.55f;
+
+        [Header("卡片注视与交互音效（香蕉/Pop 愉悦反馈）")]
+        [Tooltip("注视看卡片时的愉悦反馈音效（留空将自动生成高音 Sine 叮音）")]
+        public AudioClip gazePopClip;
+
+        [Tooltip("注视音效基础音量")]
+        [Range(0f, 1f)]
+        public float gazePopVolume = 0.6f;
+
         [Header("注视检测")]
         [Tooltip("注视射线的最大检测距离")]
         public float gazeRayDistance = 50f;
@@ -81,6 +103,12 @@ namespace TheLastCompact.Wakeup
         private ContentCardSpawner _spawner;
         private FeedEnvironment _environment;
 
+        // 音频组件
+        private AudioSource _bgmAudioSource;
+        private AudioSource _sfxAudioSource;
+        private int _gazeComboCount = 0;
+        private float _lastGazeTime = 0f;
+
         // 注视状态
         private ContentCard _currentGazedCard = null;
         private float _gazeTimer = 0f;
@@ -94,6 +122,7 @@ namespace TheLastCompact.Wakeup
         private float _originalVolume = 1f;
         private float _targetVolume = 1f;
         private TMPro.TextMeshProUGUI _phaseStatusText;
+        private int _lastActivePhase = -1; // 记录当前调用的 BGM 阶段
 
         private void Awake()
         {
@@ -127,10 +156,133 @@ namespace TheLastCompact.Wakeup
             // 4. 创建子系统
             CreateSubsystems();
 
-            // 5. 保存原始音量
+            // 5. 初始化动态音频系统
+            SetupAudioSystem();
+
+            // 6. 保存原始音量
             _originalVolume = AudioListener.volume;
 
             Debug.Log("[Stage5] Feed 系统已初始化。Phase 1 开始。");
+        }
+
+        private void SetupAudioSystem()
+        {
+            // BGM AudioSource
+            _bgmAudioSource = gameObject.AddComponent<AudioSource>();
+            _bgmAudioSource.loop = true;
+            _bgmAudioSource.volume = bgmVolume;
+            _bgmAudioSource.spatialBlend = 0f;
+
+            // SFX AudioSource
+            _sfxAudioSource = gameObject.AddComponent<AudioSource>();
+            _sfxAudioSource.loop = false;
+            _sfxAudioSource.volume = gazePopVolume;
+            _sfxAudioSource.spatialBlend = 0f;
+
+            // 自动配对音轨资源（如果 Inspector 中留空）
+#if UNITY_EDITOR
+            if (bgmPhase1Clip == null) bgmPhase1Clip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/The_Last_Compact/Wakeup/Audio/Archive_Space_1.mp3");
+            if (bgmPhase2Clip == null) bgmPhase2Clip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/The_Last_Compact/Wakeup/Audio/Act_Two.mp3");
+            if (bgmPhase3Clip == null) bgmPhase3Clip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/The_Last_Compact/Wakeup/Audio/Archive_Space_3.mp3");
+            if (gazePopClip == null) gazePopClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/The_Last_Compact/Wakeup/Audio/wakeup_1.mp3");
+#endif
+
+            // 如果没有准备好的 gazePopClip，自动程序化生成一个精美的 0.08 秒 Sine 音效
+            if (gazePopClip == null)
+            {
+                gazePopClip = CreateProceduralPopClip();
+            }
+
+            // 播放 Phase 1 BGM
+            PlayPhaseBGM(1);
+        }
+
+        private AudioClip CreateProceduralPopClip()
+        {
+            int sampleRate = 44100;
+            float duration = 0.08f;
+            int sampleCount = (int)(sampleRate * duration);
+            float[] samples = new float[sampleCount];
+
+            for (int i = 0; i < sampleCount; i++)
+            {
+                float t = (float)i / sampleRate;
+                float freq = Mathf.Lerp(880f, 1320f, t / duration); // 上扬频率
+                float envelope = Mathf.Sin((1f - t / duration) * Mathf.PI * 0.5f); // 渐弱包络
+                samples[i] = Mathf.Sin(2f * Mathf.PI * freq * t) * envelope * 0.4f;
+            }
+
+            AudioClip clip = AudioClip.Create("ProceduralPop", sampleCount, 1, sampleRate, false);
+            clip.SetData(samples, 0);
+            return clip;
+        }
+
+        private void PlayPhaseBGM(int phaseIndex)
+        {
+            if (_lastActivePhase == phaseIndex) return;
+            _lastActivePhase = phaseIndex;
+
+            AudioClip targetClip = phaseIndex == 1 ? bgmPhase1Clip
+                                 : phaseIndex == 2 ? bgmPhase2Clip
+                                 : bgmPhase3Clip;
+
+            if (targetClip != null)
+            {
+                _bgmAudioSource.clip = targetClip;
+                _bgmAudioSource.pitch = 1.0f;
+                _bgmAudioSource.Play();
+                Debug.Log($"[Stage5 Audio] 切换至 Phase {phaseIndex} BGM: {targetClip.name}");
+            }
+        }
+
+        private void UpdateAudioDynamics()
+        {
+            if (_bgmAudioSource == null) return;
+
+            if (phaseProgress < 0.35f)
+            {
+                // Phase 1: 明亮欢快
+                PlayPhaseBGM(1);
+                _bgmAudioSource.pitch = Mathf.Lerp(_bgmAudioSource.pitch, 1.0f, Time.deltaTime * 2f);
+            }
+            else if (phaseProgress < 0.70f)
+            {
+                // Phase 2: 变调扭曲、嘈杂升速
+                PlayPhaseBGM(2);
+                float narrowT = Mathf.InverseLerp(0.35f, 0.70f, phaseProgress);
+                float targetPitch = Mathf.Lerp(1.0f, 0.75f, narrowT); // 音速变低变扭曲
+                _bgmAudioSource.pitch = Mathf.Lerp(_bgmAudioSource.pitch, targetPitch, Time.deltaTime * 1.5f);
+            }
+            else
+            {
+                // Phase 3: 严肃冷酷
+                PlayPhaseBGM(3);
+                _bgmAudioSource.pitch = Mathf.Lerp(_bgmAudioSource.pitch, 0.88f, Time.deltaTime * 2f);
+            }
+        }
+
+        public void PlayGazeFeedbackSound()
+        {
+            if (_sfxAudioSource == null) return;
+
+            // 连击 Pitch 升阶算法：1.2 秒内连续看卡片，音调逐步提升
+            if (Time.time - _lastGazeTime < 1.2f)
+            {
+                _gazeComboCount = Mathf.Min(_gazeComboCount + 1, 8);
+            }
+            else
+            {
+                _gazeComboCount = 0;
+            }
+            _lastGazeTime = Time.time;
+
+            float stepPitch = 1.0f + (_gazeComboCount * 0.06f);
+            _sfxAudioSource.pitch = stepPitch;
+
+            if (gazePopClip != null)
+            {
+                _sfxAudioSource.PlayOneShot(gazePopClip, gazePopVolume);
+            }
         }
 
         private void EnsureOldCanvasesVisible()
@@ -288,6 +440,9 @@ namespace TheLastCompact.Wakeup
             // 动态更新顶部 Phase 阶段状态栏 HUD
             UpdatePhaseHUD();
 
+            // 动态更新三阶段 BGM 音阶变调与切换
+            UpdateAudioDynamics();
+
             // 注视射线检测
             ProcessGaze();
 
@@ -347,13 +502,15 @@ namespace TheLastCompact.Wakeup
 
                     _gazeTimer += Time.deltaTime;
 
-                    // 如果是选择卡，降低注视响应所需时间（0.15s 秒触）
                     float requiredGazeTime = card.isChoiceCard ? 0.15f : gazeHoldTime;
 
                     if (_gazeTimer >= requiredGazeTime && !_gazeTriggered)
                     {
                         _gazeTriggered = true;
                         card.OnGazeEnter();
+
+                        // 播放卡片注视音效叠加 (Pitch Stacking)
+                        PlayGazeFeedbackSound();
 
                         phaseProgress += progressPerGaze;
                         phaseProgress = Mathf.Clamp01(phaseProgress);
@@ -385,18 +542,13 @@ namespace TheLastCompact.Wakeup
             _targetVolume = _originalVolume;
         }
 
-        /// <summary>
-        /// 生成 Phase 4 抉择时刻卡片（自动清理场上所有普通卡片并暂停生成器，呈现无遮挡的清爽场景）
-        /// </summary>
         private void SpawnEndChoice()
         {
             _endChoiceSpawned = true;
             Debug.Log("[Stage5] 进入 Phase 4 抉择时刻：暂停卡片推送，清理干扰卡片。");
 
-            // 1. 暂停生成器
             if (_spawner != null) _spawner.enabled = false;
 
-            // 2. 清理场上所有普通 Feed 卡片
             ContentCard[] activeCards = FindObjectsOfType<ContentCard>();
             foreach (var c in activeCards)
             {
@@ -408,7 +560,6 @@ namespace TheLastCompact.Wakeup
             Vector3 fwd = cam.transform.forward;
             Vector3 right = cam.transform.right;
 
-            // 3. 在眼前无遮挡位置生成两张清爽比例合适的选择卡片
             SpawnChoiceCard(
                 cam.transform.position + fwd * 6.0f - right * 1.6f,
                 "[ INFINITE LOOP ]",
@@ -483,7 +634,6 @@ namespace TheLastCompact.Wakeup
                     if (c.isChoiceCard) Destroy(c.gameObject);
                 }
 
-                // 重新启用生成器
                 if (_spawner != null) _spawner.enabled = true;
 
                 phaseProgress = 0.05f;
@@ -507,7 +657,7 @@ namespace TheLastCompact.Wakeup
 #if UNITY_EDITOR
             if (FindAnyObjectByType<SceneTransitionManager>() == null)
             {
-                Debug.LogWarning($"[Stage5] 未检测到 SceneTransitionManager，单关测试模式：直接加载 {nextSceneName}");
+                Debug.LogWarning($"[Stage5Controller] 单关测试模式：直接加载 {nextSceneName}");
                 SceneManager.LoadScene(nextSceneName);
             }
 #endif
