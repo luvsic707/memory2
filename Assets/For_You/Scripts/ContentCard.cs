@@ -5,7 +5,7 @@ namespace TheLastCompact.Wakeup
 {
     /// <summary>
     /// 单张内容卡片的行为控制。
-    /// 负责：漂移运动、注视吸引、愉悦反馈音效、Phase C 声音抽走、视觉呈现。
+    /// 负责：漂移运动、注视吸引、愉悦反馈音效、Phase C 声音抽走、多层富文本视觉呈现。
     /// 由 ContentCardSpawner 生成并配置。
     /// </summary>
     public class ContentCard : MonoBehaviour
@@ -147,23 +147,95 @@ namespace TheLastCompact.Wakeup
             _isBeingGazed = false;
         }
 
-        private void CreateTextLabel()
+        private void CreateInnerCardFrame()
         {
-            GameObject textGo = new GameObject("CardText");
-            textGo.transform.SetParent(transform, false);
-            textGo.transform.localPosition = new Vector3(0f, 0f, -0.02f); // 在 Quad 前方
-            textGo.transform.localRotation = Quaternion.identity; // 默认无旋转，正向向右显示
-            textGo.transform.localScale = Vector3.one * 0.4f;
+            GameObject innerGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            innerGo.name = "InnerFrame";
+            innerGo.transform.SetParent(transform, false);
+            innerGo.transform.localPosition = new Vector3(0f, 0f, 0.005f); // 在外框前一点
+            innerGo.transform.localScale = new Vector3(0.92f, 0.92f, 1f); // 留出 8% 边框
 
-            _tmp = textGo.AddComponent<TextMeshPro>();
-            _tmp.text = cardText;
-            _tmp.fontSize = 5.5f;
-            _tmp.alignment = TextAlignmentOptions.Center;
-            _tmp.color = Color.white;
-            _tmp.enableWordWrapping = true;
+            Collider col = innerGo.GetComponent<Collider>();
+            if (col != null) Destroy(col);
 
-            RectTransform rt = _tmp.GetComponent<RectTransform>();
-            rt.sizeDelta = new Vector2(4f, 3f);
+            _innerFrameRend = innerGo.GetComponent<Renderer>();
+            Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null) shader = Shader.Find("Sprites/Default");
+            if (shader == null) shader = Shader.Find("Unlit/Color");
+            Material innerMat = new Material(shader);
+            _innerFrameRend.material = innerMat;
+
+            // 内部给一个优雅的深冷灰色背景
+            Color innerBg = isPrivateDataCard ? new Color(0.05f, 0.06f, 0.1f, 0.95f) : new Color(0.08f, 0.09f, 0.14f, 0.92f);
+            if (isChoiceCard) innerBg = new Color(0.12f, 0.1f, 0.18f, 0.95f);
+
+            MaterialPropertyBlock mpb = new MaterialPropertyBlock();
+            mpb.SetColor("_BaseColor", innerBg);
+            mpb.SetColor("_Color", innerBg);
+            _innerFrameRend.SetPropertyBlock(mpb);
+        }
+
+        private void BuildRichCardLayout()
+        {
+            // 1. 顶部 Header Category 标签
+            if (!string.IsNullOrEmpty(categoryTag))
+            {
+                GameObject headerGo = new GameObject("CardHeader");
+                headerGo.transform.SetParent(transform, false);
+                headerGo.transform.localPosition = new Vector3(0f, 0.38f, -0.02f);
+                headerGo.transform.localRotation = Quaternion.identity;
+
+                _tmpHeader = headerGo.AddComponent<TextMeshPro>();
+                _tmpHeader.text = categoryTag;
+                _tmpHeader.fontSize = 3.5f;
+                _tmpHeader.alignment = TextAlignmentOptions.Center;
+                _tmpHeader.color = new Color(1f, 1f, 1f, 0.75f);
+                _tmpHeader.fontStyle = FontStyles.Bold;
+
+                RectTransform rtH = _tmpHeader.GetComponent<RectTransform>();
+                rtH.sizeDelta = new Vector2(4.5f, 1f);
+            }
+
+            // 2. 中央大图标 (Emoji / Icon)
+            if (!string.IsNullOrEmpty(cardIcon))
+            {
+                GameObject iconGo = new GameObject("CardIcon");
+                iconGo.transform.SetParent(transform, false);
+                float yOffset = string.IsNullOrEmpty(categoryTag) ? 0.05f : 0.08f;
+                iconGo.transform.localPosition = new Vector3(0f, yOffset, -0.02f);
+                iconGo.transform.localRotation = Quaternion.identity;
+
+                _tmpIcon = iconGo.AddComponent<TextMeshPro>();
+                _tmpIcon.text = cardIcon;
+                _tmpIcon.fontSize = 11f;
+                _tmpIcon.alignment = TextAlignmentOptions.Center;
+                _tmpIcon.color = Color.white;
+
+                RectTransform rtI = _tmpIcon.GetComponent<RectTransform>();
+                rtI.sizeDelta = new Vector2(4.5f, 2.5f);
+            }
+
+            // 3. 底部 / 主要标题文本
+            string mainText = !string.IsNullOrEmpty(cardHeadline) ? cardHeadline : cardText;
+            if (!string.IsNullOrEmpty(mainText))
+            {
+                GameObject mainGo = new GameObject("CardMainText");
+                mainGo.transform.SetParent(transform, false);
+                float yOffset = !string.IsNullOrEmpty(cardIcon) ? -0.26f : 0f;
+                mainGo.transform.localPosition = new Vector3(0f, yOffset, -0.02f);
+                mainGo.transform.localRotation = Quaternion.identity;
+
+                _tmpMain = mainGo.AddComponent<TextMeshPro>();
+                _tmpMain.text = mainText;
+                _tmpMain.fontSize = !string.IsNullOrEmpty(cardIcon) ? 4.2f : 5.5f;
+                _tmpMain.alignment = TextAlignmentOptions.Center;
+                _tmpMain.color = Color.white;
+                _tmpMain.enableWordWrapping = true;
+                _tmpMain.fontStyle = FontStyles.Bold;
+
+                RectTransform rtM = _tmpMain.GetComponent<RectTransform>();
+                rtM.sizeDelta = new Vector2(4.2f, 2.5f);
+            }
         }
 
         private void ApplyColor(Color c)
