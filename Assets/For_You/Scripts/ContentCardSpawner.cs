@@ -60,14 +60,83 @@ namespace TheLastCompact.Wakeup
             "Work-Life Balance: Quiet Quitting 101"
         };
 
-        // Phase A 的无 Emoji 随机文本池
-        private readonly string[] _randomContent = {
-            "DREAM BIG", "INFINITE SCROLL", "NEW FOR YOU", "TRENDING NOW",
-            "YOU MIGHT LIKE THIS", "RECOMMENDED", "JUST FOR YOU", "EXPLORE",
-            "DISCOVER", "VIBES", "AESTHETIC", "MOOD", "SLAY", "ICONIC",
-            "MANIFESTING", "HEALING ENERGY", "SELF CARE", "GROWTH MINDSET",
-            "BLESSED", "ASMR", "SATISFYING", "STORY TIME", "DAILY FEED"
+        // Phase A 4 大热点类型词库 (按照 窥探 / 变好的承诺 / 猎奇震惊 / 轻松的笑 分类)
+        private readonly string[] _phaseA_VoyeurTags = { "[ VOYEUR ]", "[ DAY IN LIFE ]", "[ EXPOSED ]", "[ STORYTIME ]", "[ PRIVATE STORY ]" };
+        private readonly string[] _phaseA_VoyeurHeadlines = {
+            "GRWM: My Unfiltered Morning Routine",
+            "What I Eat In A Day As A Model",
+            "Exposing My Ex's Secret Messages",
+            "Spill The Tea: The Whole Story",
+            "Silent NYC Apartment Tour",
+            "Main Character Energy: Room Reveal",
+            "I Snuck Into A Private Party",
+            "Behind The Scenes: What They Hide"
         };
+
+        private readonly string[] _phaseA_GlowUpTags = { "[ GLOW UP ]", "[ MONK MODE ]", "[ 10X SELF ]", "[ DETOX ]", "[ MINDSET ]" };
+        private readonly string[] _phaseA_GlowUpHeadlines = {
+            "5 AM Club: My Monk Mode Journey",
+            "100 Days Glow Up Transformation",
+            "How I Made $10,000/Mo At 20",
+            "Dopamine Detox: Reclaim Your Focus",
+            "Atomic Habits: 1% Better Everyday",
+            "That Girl Routine: Unlock Full Potential",
+            "Reset Your Life In 7 Days",
+            "Stop Wasting Time: Hard Truths"
+        };
+
+        private readonly string[] _phaseA_ShockTags = { "[ SHOCK NOVELTY ]", "[ UNEXPLAINED ]", "[ BIZARRE ]", "[ 100% REAL ]", "[ DEEP WEB ]" };
+        private readonly string[] _phaseA_ShockHeadlines = {
+            "YOU WON'T BELIEVE WHAT HAPPENED",
+            "Hydraulic Press Vs Rare Gemstone",
+            "Surviving 24 Hours Buried Alive",
+            "Oddly Satisfying Crushing Test",
+            "Found Footage From Abandoned Lab",
+            "Cursed Artifact Mystery Solved",
+            "Destroying A $10,000 Gaming Rig",
+            "Creepypasta Real Life Encounter"
+        };
+
+        private readonly string[] _phaseA_LaughTags = { "[ EASY LAUGHS ]", "[ MEME CENTRAL ]", "[ PET CHAOS ]", "[ RELATABLE ]", "[ SHITPOST ]" };
+        private readonly string[] _phaseA_LaughHeadlines = {
+            "Brainrot Meme Compilation 2026",
+            "Golden Retriever Energy Unleashed",
+            "Try Not To Laugh Challenge",
+            "Wait For The Ending",
+            "Relatable Workplace Fails",
+            "Derpy Cat Reacts To Cucumbers",
+            "Unexpected Plot Twist At The End",
+            "Me Thinking About Life At 3 AM"
+        };
+
+        private void ConfigurePhaseA(ContentCard card)
+        {
+            float hue = Random.Range(0f, 1f);
+            card.cardColor = Color.HSVToRGB(hue, Random.Range(0.7f, 0.95f), Random.Range(0.85f, 1f));
+            card.cardColor = new Color(card.cardColor.r, card.cardColor.g, card.cardColor.b, 0.92f);
+            card.cardIcon = "";
+
+            int categoryIndex = Random.Range(0, 4);
+            switch (categoryIndex)
+            {
+                case 0: // 窥探 (Voyeurism)
+                    card.categoryTag = _phaseA_VoyeurTags[Random.Range(0, _phaseA_VoyeurTags.Length)];
+                    card.cardHeadline = _phaseA_VoyeurHeadlines[Random.Range(0, _phaseA_VoyeurHeadlines.Length)];
+                    break;
+                case 1: // 变好的承诺 (Glow Up / Monk Mode)
+                    card.categoryTag = _phaseA_GlowUpTags[Random.Range(0, _phaseA_GlowUpTags.Length)];
+                    card.cardHeadline = _phaseA_GlowUpHeadlines[Random.Range(0, _phaseA_GlowUpHeadlines.Length)];
+                    break;
+                case 2: // 猎奇/震惊 (Shock Novelty)
+                    card.categoryTag = _phaseA_ShockTags[Random.Range(0, _phaseA_ShockTags.Length)];
+                    card.cardHeadline = _phaseA_ShockHeadlines[Random.Range(0, _phaseA_ShockHeadlines.Length)];
+                    break;
+                case 3: // 轻松的笑 (Easy Laughs / Memes)
+                    card.categoryTag = _phaseA_LaughTags[Random.Range(0, _phaseA_LaughTags.Length)];
+                    card.cardHeadline = _phaseA_LaughHeadlines[Random.Range(0, _phaseA_LaughHeadlines.Length)];
+                    break;
+            }
+        }
 
         // 内部状态
         private Transform _player;
@@ -231,8 +300,6 @@ namespace TheLastCompact.Wakeup
             }
         }
 
-        private static readonly string[] _phaseATags = { "[ FOR YOU ]", "[ DISCOVER ]", "[ VIBES ]", "[ TRENDING ]", "[ POPULAR ]", "[ REEL ]" };
-
         private void ConfigureCardContent(ContentCard card)
         {
             if (phaseProgress < 0.35f)
@@ -247,17 +314,6 @@ namespace TheLastCompact.Wakeup
             {
                 ConfigurePhaseC(card);
             }
-        }
-
-        private void ConfigurePhaseA(ContentCard card)
-        {
-            float hue = Random.Range(0f, 1f);
-            card.cardColor = Color.HSVToRGB(hue, Random.Range(0.7f, 0.95f), Random.Range(0.85f, 1f));
-            card.cardColor = new Color(card.cardColor.r, card.cardColor.g, card.cardColor.b, 0.92f);
-
-            card.categoryTag = _phaseATags[Random.Range(0, _phaseATags.Length)];
-            card.cardIcon = ""; // 移除 Emoji
-            card.cardHeadline = _randomContent[Random.Range(0, _randomContent.Length)];
         }
 
         private void ConfigurePhaseB(ContentCard card)
