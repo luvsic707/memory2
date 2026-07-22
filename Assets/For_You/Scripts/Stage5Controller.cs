@@ -662,9 +662,9 @@ namespace TheLastCompact.Wakeup
             Vector3 fwd = cam.transform.forward;
             Vector3 right = cam.transform.right;
 
-            // 将抉择卡布置在玩家前方近距离（4.5 米处），醒目悬浮在满天卡片之中
+            // 将抉择卡布置在玩家前方（5.2 米处），精美紧凑地浮现在满天卡片之中
             SpawnChoiceCard(
-                cam.transform.position + fwd * 4.5f - right * 1.5f,
+                cam.transform.position + fwd * 5.2f - right * 1.35f,
                 "[ INFINITE LOOP ]",
                 "",
                 "STAY HERE\nKeep Scrolling",
@@ -673,7 +673,7 @@ namespace TheLastCompact.Wakeup
             );
 
             SpawnChoiceCard(
-                cam.transform.position + fwd * 4.5f + right * 1.5f,
+                cam.transform.position + fwd * 5.2f + right * 1.35f,
                 "[ BREAK THE LOOP ]",
                 "",
                 "FACE THE FUTURE\nChallenge Stage 6",
@@ -687,7 +687,10 @@ namespace TheLastCompact.Wakeup
             GameObject cardGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
             cardGo.name = $"ChoiceCard_{action}";
             cardGo.transform.position = pos;
-            cardGo.transform.localScale = new Vector3(2.0f, 2.6f, 1f);
+            
+            // 目标基准尺寸设为小巧精致的 1.3 x 1.7（彻底告别一开始巨大无比的突兀感）
+            Vector3 targetScale = new Vector3(1.3f, 1.7f, 1f);
+            cardGo.transform.localScale = Vector3.zero; // 初始为 0，随后优雅渐变弹展放大
 
             Collider col = cardGo.GetComponent<Collider>();
             if (col != null) Destroy(col);
@@ -703,7 +706,7 @@ namespace TheLastCompact.Wakeup
             if (mat.HasProperty("_SrcBlend")) mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
             if (mat.HasProperty("_DstBlend")) mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
             if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", 0);
-            mat.renderQueue = 3500; // 高于常规卡片，确保在漫天飞舞卡片中醒目可见
+            mat.renderQueue = 3500;
             rend.material = mat;
 
             ContentCard card = cardGo.AddComponent<ContentCard>();
@@ -713,9 +716,10 @@ namespace TheLastCompact.Wakeup
             card.cardColor = color;
             card.isChoiceCard = true;
             card.choiceAction = action;
-            card.driftSpeed = 0.01f; // 抉择卡几乎静止悬浮在玩家面前
+            card.driftSpeed = 0.01f;
             card.gazeAttractSpeed = 1.2f;
             card.maxLifetime = 9999f;
+            card.SetBaseScale(targetScale);
             card.OnChoiceSelected += OnChoiceSelected;
         }
 

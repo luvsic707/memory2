@@ -59,13 +59,19 @@ namespace TheLastCompact.Wakeup
         // 回调：通知选择卡被激活
         public System.Action<string> OnChoiceSelected;
 
-        private Vector3 _baseScale;
+        public void SetBaseScale(Vector3 customBaseScale)
+        {
+            _baseScale = customBaseScale;
+        }
 
         private void Start()
         {
             _renderer = GetComponent<Renderer>();
             _mpb = new MaterialPropertyBlock();
-            _baseScale = transform.localScale;
+            if (_baseScale == Vector3.zero)
+            {
+                _baseScale = transform.localScale;
+            }
 
             // 找到玩家摄像机
             _player = Camera.main != null ? Camera.main.transform : null;
