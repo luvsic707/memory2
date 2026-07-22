@@ -24,61 +24,57 @@ namespace TheLastCompact.Wakeup
         public Vector2 cardSizeRange = new Vector2(0.8f, 2.0f);
 
         [Tooltip("同时存在的最大卡片数")]
-        public int maxCards = 60;
+        public int maxCards = 45; // 稍降低数量，防止过于臃肿
 
-        [Header("Phase B/C 4大偏好推送表")]
+        [Header("Phase B/C 4大偏好推送表（无 Emoji 纯净版）")]
         public string[] themeStrings_Banana = {
-            "10 Ways to Eat More Bananas Today! 🍌",
-            "Why Your Brain CRAVES Potassium & Sugar 🍌",
-            "Return to Monkey: Ultimate Dopamine Guide 🐒",
-            "Top 5 Fresh Banana Smoothie Recipes 🥤",
-            "Instant Gratification: Why Wait? 🍌",
-            "Yellow Dopamine: The Primal Instinct 🍌"
+            "10 Ways to Eat More Bananas Today",
+            "Why Your Brain CRAVES Potassium & Sugar",
+            "Return to Monkey: Ultimate Dopamine Guide",
+            "Top 5 Fresh Banana Smoothie Recipes",
+            "Instant Gratification: Why Wait?",
+            "Yellow Dopamine: The Primal Instinct"
         };
         public string[] themeStrings_Prayer = {
-            "Daily Meditation: Manifesting Abundance ✨",
-            "How to Open Your Third Eye in 5 Mins 🔮",
-            "Signs the Universe is Talking to You ⛩️",
-            "Finding Peace in Suffering & Prayer 🙏",
-            "Cosmic Energy & Divine Guidance ✨",
-            "Spiritual Awakening: Trust the Process 🔮"
+            "Daily Meditation: Manifesting Abundance",
+            "How to Open Your Third Eye in 5 Mins",
+            "Signs the Universe is Talking to You",
+            "Finding Peace in Suffering & Prayer",
+            "Cosmic Energy & Divine Guidance",
+            "Spiritual Awakening: Trust the Process"
         };
         public string[] themeStrings_Push = {
-            "The Sisyphus Mindset: Embrace the Grind 🗿",
-            "Never Stop Pushing: No Pain No Gain 💪",
-            "Why Hard Times Create Strong People ⛰️",
-            "10,000 Hours of Repetition Mastery 🏋️",
-            "The Hill Never Ends: Keep Climbing 🧗",
-            "Pain is Temporary, Glory is Eternal 🗿"
+            "The Sisyphus Mindset: Embrace the Grind",
+            "Never Stop Pushing: No Pain No Gain",
+            "Why Hard Times Create Strong People",
+            "10,000 Hours of Repetition Mastery",
+            "The Hill Never Ends: Keep Climbing",
+            "Pain is Temporary, Glory is Eternal"
         };
         public string[] themeStrings_Work = {
-            "Top 10 Office Slacking & Dodging Hacks 💻",
-            "How to Look Busy When Boss Walks By ☕",
-            "10x Productivity: Typewriter Masterclass ⚡",
-            "Overcoming Workplace Burnout & Fatigue 📊",
-            "Corporate Ladder Survival Guide 💼",
-            "Work-Life Balance: Quiet Quitting 101 ☕"
+            "Top 10 Office Slacking & Dodging Hacks",
+            "How to Look Busy When Boss Walks By",
+            "10x Productivity: Typewriter Masterclass",
+            "Overcoming Workplace Burnout & Fatigue",
+            "Corporate Ladder Survival Guide",
+            "Work-Life Balance: Quiet Quitting 101"
         };
 
-        // Phase A 的随机缤纷文字池
+        // Phase A 的无 Emoji 随机文本池
         private readonly string[] _randomContent = {
-            "✨", "🌈", "🎵", "💫", "🌸", "🎪", "🦋", "🍭",
-            "dream big", "infinite scroll", "new for you", "trending now",
-            "you might like this", "recommended", "just for you", "explore",
-            "discover", "✿", "♡", "☆", "→", "∞", "◇", "△",
-            "vibes", "aesthetic", "mood", "slay", "iconic", "manifesting",
-            "healing energy", "self care", "growth mindset", "blessed",
-            "ASMR", "satisfying", "oddly satisfying", "POV:", "story time",
+            "DREAM BIG", "INFINITE SCROLL", "NEW FOR YOU", "TRENDING NOW",
+            "YOU MIGHT LIKE THIS", "RECOMMENDED", "JUST FOR YOU", "EXPLORE",
+            "DISCOVER", "VIBES", "AESTHETIC", "MOOD", "SLAY", "ICONIC",
+            "MANIFESTING", "HEALING ENERGY", "SELF CARE", "GROWTH MINDSET",
+            "BLESSED", "ASMR", "SATISFYING", "STORY TIME", "DAILY FEED"
         };
 
         // 内部状态
         private Transform _player;
         private float _spawnTimer = 0f;
-        private float _currentInterval = 0.8f;
+        private float _currentInterval = 1.0f;
         private List<ContentCard> _activeCards = new List<ContentCard>();
-        private int _phaseCDataIndex = 0; // Phase C 递进步骤计数
-        private bool _hasShownBanana = false;
-        private bool _hasShownPrivateData = false;
+        private int _phaseCDataIndex = 0;
 
         // 由 Stage5Controller 设置
         [HideInInspector] public float phaseProgress = 0f;
@@ -115,7 +111,7 @@ namespace TheLastCompact.Wakeup
             // 清理已销毁的卡片引用
             _activeCards.RemoveAll(c => c == null);
 
-            // 计算当前节奏间隔
+            // 计算当前节奏间隔（整体节奏放慢 30%）
             _currentInterval = CalculateSpawnInterval();
 
             _spawnTimer += Time.deltaTime;
@@ -126,7 +122,7 @@ namespace TheLastCompact.Wakeup
                 // Phase C 私密数据卡出现时的静默暂停
                 if (phaseProgress > 0.85f && IsPrivateDataMoment())
                 {
-                    _spawnTimer = -2.0f; // 停 2 秒再继续
+                    _spawnTimer = -2.5f; // 停 2.5 秒制造沉寂
                 }
 
                 SpawnCard();
@@ -161,10 +157,9 @@ namespace TheLastCompact.Wakeup
             float size = Random.Range(cardSizeRange.x, cardSizeRange.y);
             cardGo.transform.localScale = Vector3.one * size;
 
-            // 移除碰撞体（我们用射线检测 Renderer bounds）
+            // 碰撞体
             Collider col = cardGo.GetComponent<Collider>();
             if (col != null) Destroy(col);
-            // 添加一个用于射线检测的 BoxCollider
             BoxCollider box = cardGo.AddComponent<BoxCollider>();
             box.isTrigger = true;
 
@@ -172,8 +167,8 @@ namespace TheLastCompact.Wakeup
             Renderer rend = cardGo.GetComponent<Renderer>();
             Shader shader = FindCardShader();
             Material mat = new Material(shader);
-            if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1); // Transparent
-            if (mat.HasProperty("_Blend")) mat.SetFloat("_Blend", 0);   // Alpha
+            if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1);
+            if (mat.HasProperty("_Blend")) mat.SetFloat("_Blend", 0);
             if (mat.HasProperty("_SrcBlend")) mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
             if (mat.HasProperty("_DstBlend")) mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
             if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", 0);
@@ -184,110 +179,89 @@ namespace TheLastCompact.Wakeup
             ContentCard card = cardGo.AddComponent<ContentCard>();
             ConfigureCardContent(card);
 
-            // 5. 漂移速度微调
-            card.driftSpeed = Mathf.Lerp(1.2f, 2.5f, phaseProgress);
+            // 5. 漂移速度微调（放慢 30%，漂移更平缓优雅）
+            card.driftSpeed = Mathf.Lerp(0.85f, 1.75f, phaseProgress);
 
             _activeCards.Add(card);
             OnCardSpawned?.Invoke(card);
         }
 
-        /// <summary>
-        /// 旋钮1: 生成方向。Phase A 球形 → Phase B 前方收窄 → Phase C 贴脸
-        /// </summary>
         private Vector3 CalculateSpawnPosition()
         {
             float radius = Mathf.Lerp(spawnRadius, minSpawnRadius, phaseProgress);
 
             if (phaseProgress < 0.35f)
             {
-                // Phase A: 全球面随机
                 return _player.position + Random.onUnitSphere * radius;
             }
             else if (phaseProgress < 0.70f)
             {
-                // Phase B: 逐渐收窄到前方锥形
                 float narrowT = Mathf.InverseLerp(0.35f, 0.70f, phaseProgress);
                 float maxAngle = Mathf.Lerp(180f, 45f, narrowT);
-
                 Vector3 dir = RandomConeDirection(_player.forward, maxAngle);
                 return _player.position + dir * radius;
             }
             else
             {
-                // Phase C: 前方极窄锥 ±15°
                 float narrowT = Mathf.InverseLerp(0.70f, 1.0f, phaseProgress);
                 float maxAngle = Mathf.Lerp(45f, 12f, narrowT);
-
                 Vector3 dir = RandomConeDirection(_player.forward, maxAngle);
                 return _player.position + dir * radius;
             }
         }
 
         /// <summary>
-        /// 旋钮3: 节奏。Phase A 随机惊喜 → Phase B 机械匀速 → Phase C 紧密+静默
+        /// 旋钮3: 节奏（放慢 30%）
         /// </summary>
         private float CalculateSpawnInterval()
         {
             if (phaseProgress < 0.35f)
             {
-                // Phase A: 随机间隔，偶尔密集涌入
-                if (Random.value < 0.15f)
-                    return Random.Range(0.1f, 0.25f); // 惊喜密集波
-                return Random.Range(0.4f, 1.5f);
+                if (Random.value < 0.12f)
+                    return Random.Range(0.2f, 0.4f);
+                return Random.Range(0.65f, 2.0f);
             }
             else if (phaseProgress < 0.70f)
             {
-                // Phase B: 机械匀速
-                return 0.6f;
+                return 0.85f; // 匀速放慢
             }
             else
             {
-                // Phase C: 更紧密
-                return 0.4f;
+                return 0.58f;
             }
         }
 
-        /// <summary>
-        /// 旋钮2: 内容来源。Phase A 随机缤纷 → Phase B 过滤偏好 → Phase C 私密数据
-        /// </summary>
+        private static readonly string[] _phaseATags = { "[ FOR YOU ]", "[ DISCOVER ]", "[ VIBES ]", "[ TRENDING ]", "[ POPULAR ]", "[ REEL ]" };
+
         private void ConfigureCardContent(ContentCard card)
         {
             if (phaseProgress < 0.35f)
             {
-                // Phase A: 纯随机缤纷
                 ConfigurePhaseA(card);
             }
             else if (phaseProgress < 0.70f)
             {
-                // Phase B: 按数据过滤，但外表仍好看
                 ConfigurePhaseB(card);
             }
             else
             {
-                // Phase C: 私密数据递进
                 ConfigurePhaseC(card);
             }
         }
 
-        private static readonly string[] _phaseATags = { "[ 🔥 FOR YOU ]", "[ ✨ DISCOVER ]", "[ 🌸 VIBES ]", "[ 🍿 TRENDING ]", "[ 💎 POPULAR ]", "[ 🎵 REEL ]" };
-        private static readonly string[] _phaseAIcons = { "✨", "🦄", "🔮", "🌸", "🍩", "🌈", "🎵", "💫", "🎨", "🍭", "🦋", "💖" };
-
         private void ConfigurePhaseA(ContentCard card)
         {
-            // 高饱和度随机彩虹色
             float hue = Random.Range(0f, 1f);
             card.cardColor = Color.HSVToRGB(hue, Random.Range(0.7f, 0.95f), Random.Range(0.85f, 1f));
             card.cardColor = new Color(card.cardColor.r, card.cardColor.g, card.cardColor.b, 0.92f);
 
-            // 富视觉结构
             card.categoryTag = _phaseATags[Random.Range(0, _phaseATags.Length)];
-            card.cardIcon = _phaseAIcons[Random.Range(0, _phaseAIcons.Length)];
+            card.cardIcon = ""; // 移除 Emoji
             card.cardHeadline = _randomContent[Random.Range(0, _randomContent.Length)];
         }
 
         private void ConfigurePhaseB(ContentCard card)
         {
-            // 读取 PlayerBehaviorData，收窄到偏好色系
             int bananas = 0, prayers = 0, pushes = 0, works = 0;
             if (PlayerBehaviorData.Instance != null)
             {
@@ -307,34 +281,34 @@ namespace TheLastCompact.Wakeup
 
             if (max == bananas)
             {
-                card.categoryTag = Random.value < 0.5f ? "[ 🍌 BANANA OBSESSED ]" : "[ 🎯 99.4% ALGORITHM MATCH ]";
+                card.categoryTag = Random.value < 0.5f ? "[ BANANA OBSESSED ]" : "[ 99.4% ALGORITHM MATCH ]";
                 float hue = Mathf.Lerp(Random.Range(0f, 1f), Random.Range(0.12f, 0.16f), narrowT);
                 card.cardColor = Color.HSVToRGB(hue, Random.Range(0.7f, 0.95f), Random.Range(0.9f, 1f));
-                card.cardIcon = Random.value < 0.7f ? "🍌" : "🐒";
+                card.cardIcon = "";
                 card.cardHeadline = themeStrings_Banana[Random.Range(0, themeStrings_Banana.Length)];
             }
             else if (max == prayers)
             {
-                card.categoryTag = Random.value < 0.5f ? "[ 🔮 SPIRITUAL SEEKER ]" : "[ 🎯 98.9% ALGORITHM MATCH ]";
+                card.categoryTag = Random.value < 0.5f ? "[ SPIRITUAL SEEKER ]" : "[ 98.9% ALGORITHM MATCH ]";
                 float hue = Mathf.Lerp(Random.Range(0f, 1f), Random.Range(0.52f, 0.58f), narrowT);
                 card.cardColor = Color.HSVToRGB(hue, Random.Range(0.6f, 0.9f), Random.Range(0.85f, 1f));
-                card.cardIcon = Random.value < 0.7f ? "🧘" : "🔮";
+                card.cardIcon = "";
                 card.cardHeadline = themeStrings_Prayer[Random.Range(0, themeStrings_Prayer.Length)];
             }
             else if (max == pushes)
             {
-                card.categoryTag = Random.value < 0.5f ? "[ 🗿 SISYPHUS HARDCORE ]" : "[ 🎯 99.1% ALGORITHM MATCH ]";
+                card.categoryTag = Random.value < 0.5f ? "[ SISYPHUS HARDCORE ]" : "[ 99.1% ALGORITHM MATCH ]";
                 float hue = Mathf.Lerp(Random.Range(0f, 1f), Random.Range(0.06f, 0.10f), narrowT);
                 card.cardColor = Color.HSVToRGB(hue, Random.Range(0.7f, 0.95f), Random.Range(0.85f, 1f));
-                card.cardIcon = Random.value < 0.7f ? "🗿" : "💪";
+                card.cardIcon = "";
                 card.cardHeadline = themeStrings_Push[Random.Range(0, themeStrings_Push.Length)];
             }
             else
             {
-                card.categoryTag = Random.value < 0.5f ? "[ 💻 WORKAHOLIC COG ]" : "[ 🎯 99.8% ALGORITHM MATCH ]";
+                card.categoryTag = Random.value < 0.5f ? "[ WORKAHOLIC COG ]" : "[ 99.8% ALGORITHM MATCH ]";
                 float hue = Mathf.Lerp(Random.Range(0f, 1f), Random.Range(0.97f, 1.02f) % 1f, narrowT);
                 card.cardColor = Color.HSVToRGB(hue, Random.Range(0.6f, 0.95f), Random.Range(0.85f, 1f));
-                card.cardIcon = Random.value < 0.7f ? "💻" : "⌨️";
+                card.cardIcon = "";
                 card.cardHeadline = themeStrings_Work[Random.Range(0, themeStrings_Work.Length)];
             }
 
@@ -360,9 +334,8 @@ namespace TheLastCompact.Wakeup
 
             if (cProgress < 0.33f)
             {
-                // 步骤1: 推荐标签
-                card.categoryTag = "[ 📡 ALGORITHM EVAL ]";
-                card.cardIcon = "📊";
+                card.categoryTag = "[ ALGORITHM EVAL ]";
+                card.cardIcon = "";
                 int max = Mathf.Max(Mathf.Max(bananas, prayers), Mathf.Max(pushes, works));
                 string[] pool = max == bananas ? themeStrings_Banana
                               : max == prayers ? themeStrings_Prayer
@@ -373,9 +346,8 @@ namespace TheLastCompact.Wakeup
             }
             else if (cProgress < 0.66f)
             {
-                // 步骤2: 行为关联物
-                card.categoryTag = "[ 👁️ BEHAVIOR TRACKED ]";
-                card.cardIcon = "🔍";
+                card.categoryTag = "[ BEHAVIOR TRACKED ]";
+                card.cardIcon = "";
                 string[] behaviorHints = {
                     "A familiar yellow shape...",
                     "That rock you pushed on the hill",
@@ -389,10 +361,9 @@ namespace TheLastCompact.Wakeup
             }
             else
             {
-                // 步骤3: 核爆私密数据
                 _phaseCDataIndex++;
-                card.categoryTag = "[ ⚠️ OBSERVER DATA LOG ]";
-                card.cardIcon = "👁️";
+                card.categoryTag = "[ OBSERVER DATA LOG ]";
+                card.cardIcon = "";
                 string[] privateData = {
                     $"You picked up {bananas} bananas.",
                     $"You prayed {prayers} times.",
@@ -415,9 +386,6 @@ namespace TheLastCompact.Wakeup
             return cProgress > 0.5f && Random.value < 0.3f;
         }
 
-        /// <summary>
-        /// 在朝向 forward 的锥形范围内生成随机方向
-        /// </summary>
         private Vector3 RandomConeDirection(Vector3 forward, float maxAngleDeg)
         {
             float angleRad = maxAngleDeg * Mathf.Deg2Rad;

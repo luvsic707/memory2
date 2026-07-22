@@ -18,9 +18,6 @@ namespace TheLastCompact.Wakeup
     {
         public static Stage5Controller Instance { get; private set; }
 
-        /// <summary>
-        /// 自动引导：当 5_Contemporary 场景加载时，自动创建 Stage5Controller。
-        /// </summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoBootstrap()
         {
@@ -54,16 +51,16 @@ namespace TheLastCompact.Wakeup
             Debug.Log("[Stage5] 自动创建 Stage5Controller。");
         }
 
-        [Header("Phase 进度")]
+        [Header("Phase 进度（放慢 30%）")]
         [Tooltip("当前阶段进度 0→1，Inspector 中可观测")]
         [Range(0f, 1f)]
         public float phaseProgress = 0f;
 
-        [Tooltip("每次注视交互推进的增量")]
-        public float progressPerGaze = 0.05f;
+        [Tooltip("每次注视交互推进的增量（放慢 30%）")]
+        public float progressPerGaze = 0.035f;
 
-        [Tooltip("时间自动推进速率（每秒）")]
-        public float progressPerSecond = 0.015f;
+        [Tooltip("时间自动推进速率（每秒，放慢 30%）")]
+        public float progressPerSecond = 0.0105f;
 
         [Header("注视检测")]
         [Tooltip("注视射线的最大检测距离")]
@@ -250,21 +247,25 @@ namespace TheLastCompact.Wakeup
             if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1))
             {
                 phaseProgress = 0.05f;
+                if (_spawner != null) _spawner.enabled = true;
                 Debug.Log("<color=green>[Stage5 调试] 跳转至 Phase 1 (Sensory Liberation)</color>");
             }
             else if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2))
             {
                 phaseProgress = 0.40f;
+                if (_spawner != null) _spawner.enabled = true;
                 Debug.Log("<color=yellow>[Stage5 调试] 跳转至 Phase 2 (Compulsive Addiction)</color>");
             }
             else if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3))
             {
                 phaseProgress = 0.75f;
+                if (_spawner != null) _spawner.enabled = true;
                 Debug.Log("<color=orange>[Stage5 调试] 跳转至 Phase 3 (Data Exposed)</color>");
             }
             else if (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4))
             {
                 phaseProgress = 0.92f;
+                if (_spawner != null) _spawner.enabled = true;
                 Debug.Log("<color=red>[Stage5 调试] 跳转至 Phase 3 (Private Data Nuclear Log)</color>");
             }
             else if (Input.GetKeyDown(KeyCode.Alpha5) || Input.GetKeyDown(KeyCode.Keypad5))
@@ -382,36 +383,45 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
-        /// 生成 Phase 4 抉择时刻卡片
+        /// 生成 Phase 4 抉择时刻卡片（自动清理场上所有普通卡片并暂停生成器，呈现无遮挡的清爽场景）
         /// </summary>
         private void SpawnEndChoice()
         {
             _endChoiceSpawned = true;
-            Debug.Log("[Stage5] 进入 Phase 4 抉择时刻：留下还是挑战 Stage 6。");
+            Debug.Log("[Stage5] 进入 Phase 4 抉择时刻：暂停卡片推送，清理干扰卡片。");
+
+            // 1. 暂停生成器
+            if (_spawner != null) _spawner.enabled = false;
+
+            // 2. 清理场上所有普通 Feed 卡片
+            ContentCard[] activeCards = FindObjectsOfType<ContentCard>();
+            foreach (var c in activeCards)
+            {
+                if (!c.isChoiceCard) Destroy(c.gameObject);
+            }
 
             Camera cam = Camera.main;
             if (cam == null) return;
             Vector3 fwd = cam.transform.forward;
             Vector3 right = cam.transform.right;
 
-            // "留在这里" 卡片（左侧）
+            // 3. 在眼前无遮挡位置生成两张清爽大尺寸的选择卡片
             SpawnChoiceCard(
-                cam.transform.position + fwd * 7.5f - right * 3.2f,
-                "[ 🌀 INFINITE LOOP ]",
-                "♾️",
-                "Stay Here\nKeep Scrolling",
+                cam.transform.position + fwd * 6.5f - right * 2.4f,
+                "[ INFINITE LOOP ]",
+                "",
+                "STAY HERE\nKeep Scrolling",
                 "stay",
-                new Color(0.3f, 0.7f, 1f, 0.95f)
+                new Color(0.2f, 0.6f, 0.95f, 0.95f)
             );
 
-            // "挑战 Stage 6" 卡片（右侧）
             SpawnChoiceCard(
-                cam.transform.position + fwd * 7.5f + right * 3.2f,
-                "[ 🚪 BREAK THE LOOP ]",
-                "🚀",
-                "Face the Future\nChallenge Stage 6",
+                cam.transform.position + fwd * 6.5f + right * 2.4f,
+                "[ BREAK THE LOOP ]",
+                "",
+                "FACE THE FUTURE\nChallenge Stage 6",
                 "continue",
-                new Color(1f, 0.6f, 0.2f, 0.95f)
+                new Color(1f, 0.55f, 0.15f, 0.95f)
             );
         }
 
@@ -446,8 +456,8 @@ namespace TheLastCompact.Wakeup
             card.cardColor = color;
             card.isChoiceCard = true;
             card.choiceAction = action;
-            card.driftSpeed = 0.1f;
-            card.gazeAttractSpeed = 1.5f;
+            card.driftSpeed = 0.05f;
+            card.gazeAttractSpeed = 1.2f;
             card.maxLifetime = 9999f;
             card.OnChoiceSelected += OnChoiceSelected;
         }
@@ -463,12 +473,16 @@ namespace TheLastCompact.Wakeup
             }
             else if (action == "stay")
             {
-                Debug.Log("[Stage5] 玩家选择留在此地：重置 Feed 循环。");
+                Debug.Log("[Stage5] 玩家选择留在此地：重置 Feed 循环并重新恢复推送。");
                 ContentCard[] cards = FindObjectsOfType<ContentCard>();
                 foreach (var c in cards)
                 {
                     if (c.isChoiceCard) Destroy(c.gameObject);
                 }
+
+                // 重新启用生成器
+                if (_spawner != null) _spawner.enabled = true;
+
                 phaseProgress = 0.05f;
                 _endChoiceSpawned = false;
             }
