@@ -40,6 +40,18 @@ namespace TheLastCompact.Wakeup
         [Tooltip("坠落高度阈值（低于石台初始高度多少米算作坠落）")]
         public float fallThresholdDistance = 8f;
 
+        [Header("BGM 背景音乐")]
+        [Tooltip("Stage 2 背景音乐 AudioClip（如果留空，系统会自动加载备用背景音乐）")]
+        public AudioClip bgmClip;
+
+        [Tooltip("BGM 音量 (0 ~ 1)")]
+        [Range(0f, 1f)]
+        public float bgmVolume = 0.5f;
+
+        [Tooltip("是否循环播放 BGM")]
+        public bool loopBgm = true;
+
+        private AudioSource _bgmAudioSource;
         private float currentShakeIntensity = 0f;
         private float cooldownTimer = 0f;
 
@@ -63,6 +75,9 @@ namespace TheLastCompact.Wakeup
 
         private void Start()
         {
+            // 自动配置 BGM 背景音乐
+            SetupBGM();
+
             // 自动寻找石台
             if (floatingIsland == null)
             {
@@ -105,6 +120,43 @@ namespace TheLastCompact.Wakeup
             else
             {
                 Debug.LogError("[Stage2] 找不到悬浮石台 (floatingIsland)！无法执行晃动效果。");
+            }
+        }
+
+        private void SetupBGM()
+        {
+            _bgmAudioSource = gameObject.AddComponent<AudioSource>();
+            _bgmAudioSource.loop = loopBgm;
+            _bgmAudioSource.volume = bgmVolume;
+            _bgmAudioSource.spatialBlend = 0f; // 2D 环绕背景音
+
+            if (bgmClip != null)
+            {
+                _bgmAudioSource.clip = bgmClip;
+                _bgmAudioSource.Play();
+                Debug.Log($"[Stage2] 播放指定的 BGM: {bgmClip.name}");
+            }
+            else
+            {
+#if UNITY_EDITOR
+                string[] tryPaths = {
+                    "Assets/The_Last_Compact/Wakeup/Audio/Act_Two.mp3",
+                    "Assets/The_Last_Compact/Wakeup/Audio/Archive_Space_2.mp3",
+                    "Assets/The_Last_Compact/Wakeup/Audio/Archive_Space_1.mp3"
+                };
+                foreach (var path in tryPaths)
+                {
+                    AudioClip clip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>(path);
+                    if (clip != null)
+                    {
+                        bgmClip = clip;
+                        _bgmAudioSource.clip = clip;
+                        _bgmAudioSource.Play();
+                        Debug.Log($"[Stage2] 自动配对加载 BGM 成功: {path}");
+                        break;
+                    }
+                }
+#endif
             }
         }
 
