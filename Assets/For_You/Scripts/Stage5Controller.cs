@@ -70,6 +70,14 @@ namespace TheLastCompact.Wakeup
         [Range(0f, 1f)]
         public float bgmVolume = 0.55f;
 
+        [Header("嘈杂人声图层 (Phase 2/3 渐入)")]
+        [Tooltip("Phase 2/3 随卡片增多逐渐叠加的嘈杂人声/环境噪音 Audio Clip")]
+        public AudioClip crowdNoiseClip;
+
+        [Tooltip("嘈杂人声图层最大音量")]
+        [Range(0f, 1f)]
+        public float crowdNoiseVolume = 0.5f;
+
         [Header("卡片注视与交互音效（香蕉/Pop 愉悦反馈）")]
         [Tooltip("注视看卡片时的愉悦反馈音效（留空将自动程序化生成 80ms Sine 叮音）")]
         public AudioClip gazePopClip;
@@ -102,6 +110,8 @@ namespace TheLastCompact.Wakeup
         private AudioDistortionFilter _distortionFilter;
         private AudioLowPassFilter _lowPassFilter;
         private AudioChorusFilter _chorusFilter;
+        private AudioReverbFilter _reverbFilter;
+        private AudioSource _crowdAudioSource;
         private AudioSource _sfxAudioSource;
 
         private int _gazeComboCount = 0;
@@ -181,7 +191,7 @@ namespace TheLastCompact.Wakeup
             _bgmAudioSource.volume = bgmVolume;
             _bgmAudioSource.spatialBlend = 0f;
 
-            // 挂载 DSP 实时音频滤镜组件
+            // 挂载 DSP 实时音频滤镜组件（失真、低通、合唱抖动、大空间混响）
             _distortionFilter = bgmGo.AddComponent<AudioDistortionFilter>();
             _distortionFilter.distortionLevel = 0.0f; // 初始无失真
 
@@ -190,6 +200,25 @@ namespace TheLastCompact.Wakeup
 
             _chorusFilter = bgmGo.AddComponent<AudioChorusFilter>();
             _chorusFilter.depth = 0.0f; // 初始无合唱/相位音高抖动
+
+            _reverbFilter = bgmGo.AddComponent<AudioReverbFilter>();
+            _reverbFilter.reverbPreset = AudioReverbPreset.Off; // 初始无混响
+
+            // 创建 嘈杂人声图层 AudioSource (Phase 2/3 渐入)
+            GameObject crowdGo = new GameObject("CrowdNoise_AudioEngine");
+            crowdGo.transform.SetParent(transform, false);
+
+            _crowdAudioSource = crowdGo.AddComponent<AudioSource>();
+            _crowdAudioSource.loop = true;
+            _crowdAudioSource.volume = 0f; // 初始静音
+            _crowdAudioSource.spatialBlend = 0f;
+
+            if (crowdNoiseClip != null)
+            {
+                _crowdAudioSource.clip = crowdNoiseClip;
+                _crowdAudioSource.Play();
+                Debug.Log($"[Stage5] 嘈杂人声图层已挂载: {crowdNoiseClip.name}");
+            }
 
             // 创建 SFX AudioSource
             _sfxAudioSource = gameObject.AddComponent<AudioSource>();
@@ -276,7 +305,7 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
-        /// 核心：夸张演变的单曲 BGM + DSP 音频滤镜扭曲系统
+        /// 核心：夸张演变的单曲 BGM + DSP 音频滤镜扭曲系统 + 混响 + 嘈杂人声图层
         /// 随 phaseProgress (0→1) 极其显著地渐变，确保肉耳 100% 能听出阶段质变！
         /// </summary>
         private void UpdateAudioDynamics()
@@ -285,30 +314,47 @@ namespace TheLastCompact.Wakeup
 
             if (phaseProgress < 0.35f)
             {
-                // Phase 1 (0.00 ~ 0.35): 干净甜美、全频通透、高保真
+                // Phase 1 (0.00 ~ 0.35): 干净甜美、全频通透、高保真、无混响、无嘈杂人声
                 float t = Mathf.InverseLerp(0f, 0.35f, phaseProgress);
                 _distortionFilter.distortionLevel = 0.0f;
                 _lowPassFilter.cutoffFrequency = 22000f; // 22kHz 全频段通透
                 _chorusFilter.depth = 0.0f;
+                _reverbFilter.reverbPreset = AudioReverbPreset.Off;
                 _bgmAudioSource.pitch = Mathf.Lerp(1.0f, 0.95f, t);
+
+                if (_crowdAudioSource != null) _crowdAudioSource.volume = 0f;
             }
             else if (phaseProgress < 0.70f)
             {
-                // Phase 2 (0.35 ~ 0.70): 显著变闷压高频 + 电音失真 + 降调变重（非常明显的隔墙听歌/成瘾过载听感）
+                // Phase 2 (0.35 ~ 0.70): 显著变闷压高频 + 电音失真 + 混响渐强 + 嘈杂人声渐入
                 float t = Mathf.InverseLerp(0.35f, 0.70f, phaseProgress);
                 _distortionFilter.distortionLevel = Mathf.Lerp(0.05f, 0.65f, t); // 剧烈增加失真颗粒
                 _lowPassFilter.cutoffFrequency = Mathf.Lerp(22000f, 1500f, t);   // 剧烈压低高频 (22kHz ➔ 1.5kHz 极度显眼变闷)
                 _chorusFilter.depth = Mathf.Lerp(0.0f, 0.55f, t);                // 磁带相位偏高抖动
+                _reverbFilter.reverbPreset = AudioReverbPreset.ConcertHall;      // 开启大厅长混响
+                _reverbFilter.decayTime = Mathf.Lerp(1.0f, 3.5f, t);
                 _bgmAudioSource.pitch = Mathf.Lerp(0.95f, 0.80f, t);              // 明显降速降调
+
+                if (_crowdAudioSource != null && crowdNoiseClip != null)
+                {
+                    _crowdAudioSource.volume = Mathf.Lerp(0f, crowdNoiseVolume * 0.7f, t);
+                }
             }
             else if (phaseProgress < 0.96f)
             {
-                // Phase 3 (0.70 ~ 0.96): 极端水下极沉低音脉冲 + 失真拉满 + 慢速恶魔音速
+                // Phase 3 (0.70 ~ 0.96): 极端水下极沉低音脉冲 + 失真拉满 + 极大洞穴混响 + 嘈杂人声声浪冲顶
                 float t = Mathf.InverseLerp(0.70f, 0.96f, phaseProgress);
                 _distortionFilter.distortionLevel = Mathf.Lerp(0.65f, 0.92f, t); // 极限黑化破音
                 _lowPassFilter.cutoffFrequency = Mathf.Lerp(1500f, 380f, t);      // 塌陷至 380Hz (只剩极其恐怖的基音低频嗡嗡声)
                 _chorusFilter.depth = Mathf.Lerp(0.55f, 0.95f, t);               // 诡异音高漫游
+                _reverbFilter.reverbPreset = AudioReverbPreset.Cave;             // 极限洞穴冷酷混响
+                _reverbFilter.decayTime = Mathf.Lerp(3.5f, 6.0f, t);
                 _bgmAudioSource.pitch = Mathf.Lerp(0.80f, 0.60f, t);             // 极沉 0.6x 慢速恶魔音调
+
+                if (_crowdAudioSource != null && crowdNoiseClip != null)
+                {
+                    _crowdAudioSource.volume = Mathf.Lerp(crowdNoiseVolume * 0.7f, crowdNoiseVolume, t);
+                }
             }
             else
             {
@@ -316,7 +362,10 @@ namespace TheLastCompact.Wakeup
                 _distortionFilter.distortionLevel = 0.35f;
                 _lowPassFilter.cutoffFrequency = 2500f;
                 _chorusFilter.depth = 0.2f;
+                _reverbFilter.reverbPreset = AudioReverbPreset.Room;
                 _bgmAudioSource.pitch = 0.88f;
+
+                if (_crowdAudioSource != null) _crowdAudioSource.volume = crowdNoiseVolume * 0.2f;
             }
         }
 
