@@ -405,9 +405,9 @@ namespace TheLastCompact.Wakeup
             Vector3 fwd = cam.transform.forward;
             Vector3 right = cam.transform.right;
 
-            // 3. 在眼前无遮挡位置生成两张清爽大尺寸的选择卡片
+            // 3. 在眼前无遮挡位置生成两张清爽比例合适的选择卡片
             SpawnChoiceCard(
-                cam.transform.position + fwd * 6.5f - right * 2.4f,
+                cam.transform.position + fwd * 6.0f - right * 1.6f,
                 "[ INFINITE LOOP ]",
                 "",
                 "STAY HERE\nKeep Scrolling",
@@ -416,7 +416,7 @@ namespace TheLastCompact.Wakeup
             );
 
             SpawnChoiceCard(
-                cam.transform.position + fwd * 6.5f + right * 2.4f,
+                cam.transform.position + fwd * 6.0f + right * 1.6f,
                 "[ BREAK THE LOOP ]",
                 "",
                 "FACE THE FUTURE\nChallenge Stage 6",
@@ -430,7 +430,7 @@ namespace TheLastCompact.Wakeup
             GameObject cardGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
             cardGo.name = $"ChoiceCard_{action}";
             cardGo.transform.position = pos;
-            cardGo.transform.localScale = new Vector3(3.2f, 4.2f, 1f);
+            cardGo.transform.localScale = new Vector3(2.2f, 2.8f, 1f);
 
             Collider col = cardGo.GetComponent<Collider>();
             if (col != null) Destroy(col);
