@@ -662,9 +662,9 @@ namespace TheLastCompact.Wakeup
             Vector3 fwd = cam.transform.forward;
             Vector3 right = cam.transform.right;
 
-            // 将抉择卡布置在玩家前方（5.2 米处），精美紧凑地浮现在满天卡片之中
+            // 将抉择卡布置在玩家视线正前方偏上位置（5.2米处，抬高0.45米），悬浮于空中，远离地面
             SpawnChoiceCard(
-                cam.transform.position + fwd * 5.2f - right * 1.35f,
+                cam.transform.position + fwd * 5.2f - right * 1.35f + Vector3.up * 0.45f,
                 "[ INFINITE LOOP ]",
                 "",
                 "STAY HERE\nKeep Scrolling",
@@ -673,7 +673,7 @@ namespace TheLastCompact.Wakeup
             );
 
             SpawnChoiceCard(
-                cam.transform.position + fwd * 5.2f + right * 1.35f,
+                cam.transform.position + fwd * 5.2f + right * 1.35f + Vector3.up * 0.45f,
                 "[ BREAK THE LOOP ]",
                 "",
                 "FACE THE FUTURE\nChallenge Stage 6",
