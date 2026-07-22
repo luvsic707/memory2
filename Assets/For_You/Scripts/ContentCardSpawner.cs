@@ -109,6 +109,21 @@ namespace TheLastCompact.Wakeup
             "Me Thinking About Life At 3 AM"
         };
 
+        // 第 5 类：莫名其妙无厘头 Brainrot / 67 热词
+        private readonly string[] _phaseA_BrainrotTags = { "[ BRAINROT 67 ]", "[ SKIBIDI ]", "[ ABSURD 67 ]", "[ RIZZ ]", "[ SIGMA 67 ]", "[ NO CAP ]" };
+        private readonly string[] _phaseA_BrainrotHeadlines = {
+            "Level 99 Gyatt Rizzler 67",
+            "Mewing Streak 100 Days",
+            "Skibidi Lore Explained 67",
+            "Fanum Tax Charged At 3 AM",
+            "Sigma Male Grindset Rule 67",
+            "Looksmaxxing Final Boss 67",
+            "Ohio NPC Uncanny Moment",
+            "Let Him Cook 67 No Cap",
+            "Grimace Shake Incident 67",
+            "Absolute Cinema 67"
+        };
+
         private void ConfigurePhaseA(ContentCard card)
         {
             float hue = Random.Range(0f, 1f);
@@ -116,7 +131,7 @@ namespace TheLastCompact.Wakeup
             card.cardColor = new Color(card.cardColor.r, card.cardColor.g, card.cardColor.b, 0.92f);
             card.cardIcon = "";
 
-            int categoryIndex = Random.Range(0, 4);
+            int categoryIndex = Random.Range(0, 5);
             switch (categoryIndex)
             {
                 case 0: // 窥探 (Voyeurism)
@@ -134,6 +149,10 @@ namespace TheLastCompact.Wakeup
                 case 3: // 轻松的笑 (Easy Laughs / Memes)
                     card.categoryTag = _phaseA_LaughTags[Random.Range(0, _phaseA_LaughTags.Length)];
                     card.cardHeadline = _phaseA_LaughHeadlines[Random.Range(0, _phaseA_LaughHeadlines.Length)];
+                    break;
+                case 4: // 莫名其妙热词 (Brainrot 67 / Absurd Slang)
+                    card.categoryTag = _phaseA_BrainrotTags[Random.Range(0, _phaseA_BrainrotTags.Length)];
+                    card.cardHeadline = _phaseA_BrainrotHeadlines[Random.Range(0, _phaseA_BrainrotHeadlines.Length)];
                     break;
             }
         }
