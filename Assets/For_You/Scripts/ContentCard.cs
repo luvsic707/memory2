@@ -89,8 +89,8 @@ namespace TheLastCompact.Wakeup
             Vector3 toPlayer = (_player.position - transform.position).normalized;
             transform.position += toPlayer * speed * Time.deltaTime;
 
-            // 始终正面向玩家（修正镜像问题）
-            transform.rotation = Quaternion.LookRotation(transform.position - _player.position);
+            // 始终平行对齐玩家视角（完美的 Billboard，彻底解决文字左右镜像反转问题）
+            transform.rotation = _player.rotation;
 
             // 被注视时放大反馈
             float targetScaleMult = _isBeingGazed ? 1.25f : 1.0f;
@@ -144,8 +144,8 @@ namespace TheLastCompact.Wakeup
         {
             GameObject textGo = new GameObject("CardText");
             textGo.transform.SetParent(transform, false);
-            textGo.transform.localPosition = new Vector3(0f, 0f, 0.02f);
-            textGo.transform.localRotation = Quaternion.Euler(0, 180, 0); // 修正文字反向
+            textGo.transform.localPosition = new Vector3(0f, 0f, -0.02f); // 在 Quad 前方
+            textGo.transform.localRotation = Quaternion.identity; // 默认无旋转，正向向右显示
             textGo.transform.localScale = Vector3.one * 0.4f;
 
             _tmp = textGo.AddComponent<TextMeshPro>();
