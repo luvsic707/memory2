@@ -208,15 +208,15 @@ namespace TheLastCompact.Wakeup
 
             if (phaseProgress < 0.35f)
             {
-                _phaseStatusText.text = "<color=#00FFCC>Phase 1</color> —— 多彩的享受";
+                _phaseStatusText.text = "<color=#00FFCC>PHASE 1</color>  —  Sensory Liberation & Delights";
             }
             else if (phaseProgress < 0.70f)
             {
-                _phaseStatusText.text = "<color=#FFCC00>Phase 2</color> —— 不自觉的强迫成瘾机械行为";
+                _phaseStatusText.text = "<color=#FFCC00>PHASE 2</color>  —  Compulsive Algorithmic Addiction";
             }
             else
             {
-                _phaseStatusText.text = "<color=#FF3366>Phase 3</color> —— 数据显形，无处遁形的宿命";
+                _phaseStatusText.text = "<color=#FF3366>PHASE 3</color>  —  Data Exposed: Inescapable Destiny";
             }
         }
 
