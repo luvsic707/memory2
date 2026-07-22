@@ -276,8 +276,8 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
-        /// 核心：随 phaseProgress (0→1) 实时 Lerp 音频 DSP 滤镜参数
-        /// 完美呈现“同一首歌随阶段逐渐变味、扭曲、深沉”
+        /// 核心：夸张演变的单曲 BGM + DSP 音频滤镜扭曲系统
+        /// 随 phaseProgress (0→1) 极其显著地渐变，确保肉耳 100% 能听出阶段质变！
         /// </summary>
         private void UpdateAudioDynamics()
         {
@@ -285,37 +285,38 @@ namespace TheLastCompact.Wakeup
 
             if (phaseProgress < 0.35f)
             {
-                // Phase 1 (0.00 ~ 0.35): 干净甜美
+                // Phase 1 (0.00 ~ 0.35): 干净甜美、全频通透、高保真
                 float t = Mathf.InverseLerp(0f, 0.35f, phaseProgress);
                 _distortionFilter.distortionLevel = 0.0f;
-                _lowPassFilter.cutoffFrequency = 22000f;
+                _lowPassFilter.cutoffFrequency = 22000f; // 22kHz 全频段通透
                 _chorusFilter.depth = 0.0f;
-                _bgmAudioSource.pitch = Mathf.Lerp(1.0f, 0.98f, t);
+                _bgmAudioSource.pitch = Mathf.Lerp(1.0f, 0.95f, t);
             }
             else if (phaseProgress < 0.70f)
             {
-                // Phase 2 (0.35 ~ 0.70): 失真增加、声音变低变嘈杂
+                // Phase 2 (0.35 ~ 0.70): 显著变闷压高频 + 电音失真 + 降调变重（非常明显的隔墙听歌/成瘾过载听感）
                 float t = Mathf.InverseLerp(0.35f, 0.70f, phaseProgress);
-                _distortionFilter.distortionLevel = Mathf.Lerp(0.0f, 0.45f, t); // 渐增失真
-                _lowPassFilter.cutoffFrequency = Mathf.Lerp(22000f, 5500f, t);  // 高频逐渐开始压闷
-                _chorusFilter.depth = Mathf.Lerp(0.0f, 0.35f, t);               // 音高抖动增加
-                _bgmAudioSource.pitch = Mathf.Lerp(0.98f, 0.85f, t);             // 音速变慢变重
+                _distortionFilter.distortionLevel = Mathf.Lerp(0.05f, 0.65f, t); // 剧烈增加失真颗粒
+                _lowPassFilter.cutoffFrequency = Mathf.Lerp(22000f, 1500f, t);   // 剧烈压低高频 (22kHz ➔ 1.5kHz 极度显眼变闷)
+                _chorusFilter.depth = Mathf.Lerp(0.0f, 0.55f, t);                // 磁带相位偏高抖动
+                _bgmAudioSource.pitch = Mathf.Lerp(0.95f, 0.80f, t);              // 明显降速降调
             }
             else if (phaseProgress < 0.96f)
             {
-                // Phase 3 (0.70 ~ 0.96): Distortion 拉满 + Low Pass 极重压暗 + 变调恐怖
+                // Phase 3 (0.70 ~ 0.96): 极端水下极沉低音脉冲 + 失真拉满 + 慢速恶魔音速
                 float t = Mathf.InverseLerp(0.70f, 0.96f, phaseProgress);
-                _distortionFilter.distortionLevel = Mathf.Lerp(0.45f, 0.82f, t); // 失真拉满
-                _lowPassFilter.cutoffFrequency = Mathf.Lerp(5500f, 1000f, t);    // 极沉低通压暗
-                _chorusFilter.depth = Mathf.Lerp(0.35f, 0.75f, t);               // 不祥音高漫游
-                _bgmAudioSource.pitch = Mathf.Lerp(0.85f, 0.72f, t);             // 深沉扭曲音速
+                _distortionFilter.distortionLevel = Mathf.Lerp(0.65f, 0.92f, t); // 极限黑化破音
+                _lowPassFilter.cutoffFrequency = Mathf.Lerp(1500f, 380f, t);      // 塌陷至 380Hz (只剩极其恐怖的基音低频嗡嗡声)
+                _chorusFilter.depth = Mathf.Lerp(0.55f, 0.95f, t);               // 诡异音高漫游
+                _bgmAudioSource.pitch = Mathf.Lerp(0.80f, 0.60f, t);             // 极沉 0.6x 慢速恶魔音调
             }
             else
             {
                 // Phase 4 (0.96 ~ 1.00): 抉择时刻保持定格
-                _distortionFilter.distortionLevel = 0.4f;
-                _lowPassFilter.cutoffFrequency = 3500f;
-                _bgmAudioSource.pitch = 0.9f;
+                _distortionFilter.distortionLevel = 0.35f;
+                _lowPassFilter.cutoffFrequency = 2500f;
+                _chorusFilter.depth = 0.2f;
+                _bgmAudioSource.pitch = 0.88f;
             }
         }
 
