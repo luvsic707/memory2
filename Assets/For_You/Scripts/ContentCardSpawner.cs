@@ -321,6 +321,16 @@ namespace TheLastCompact.Wakeup
 
         private void ConfigureCardContent(ContentCard card)
         {
+            if (phaseProgress >= 0.96f)
+            {
+                // Phase 4 抉择时刻：以 45% 的概率从远方直接发射生成抉择卡，与其他卡片一样飞向玩家
+                if (Random.value < 0.45f)
+                {
+                    ConfigurePhaseD_Choice(card);
+                    return;
+                }
+            }
+
             if (phaseProgress < 0.35f)
             {
                 ConfigurePhaseA(card);
@@ -332,6 +342,27 @@ namespace TheLastCompact.Wakeup
             else
             {
                 ConfigurePhaseC(card);
+            }
+        }
+
+        private void ConfigurePhaseD_Choice(ContentCard card)
+        {
+            card.isChoiceCard = true;
+            card.maxLifetime = 30f;
+
+            if (Random.value < 0.5f)
+            {
+                card.categoryTag = "[ INFINITE LOOP ]";
+                card.cardHeadline = "STAY HERE\nKeep Scrolling";
+                card.cardColor = new Color(0.1f, 0.75f, 1.0f, 0.98f); // 亮蓝
+                card.choiceAction = "stay";
+            }
+            else
+            {
+                card.categoryTag = "[ BREAK THE LOOP ]";
+                card.cardHeadline = "FACE THE FUTURE\nChallenge Stage 6";
+                card.cardColor = new Color(1.0f, 0.5f, 0.1f, 0.98f); // 橙光
+                card.choiceAction = "continue";
             }
         }
 
