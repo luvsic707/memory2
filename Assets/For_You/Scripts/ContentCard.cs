@@ -52,10 +52,13 @@ namespace TheLastCompact.Wakeup
         // 回调：通知选择卡被激活
         public System.Action<string> OnChoiceSelected;
 
+        private Vector3 _baseScale;
+
         private void Start()
         {
             _renderer = GetComponent<Renderer>();
             _mpb = new MaterialPropertyBlock();
+            _baseScale = transform.localScale;
 
             // 找到玩家摄像机
             _player = Camera.main != null ? Camera.main.transform : null;
@@ -86,8 +89,12 @@ namespace TheLastCompact.Wakeup
             Vector3 toPlayer = (_player.position - transform.position).normalized;
             transform.position += toPlayer * speed * Time.deltaTime;
 
-            // 始终面朝玩家
-            transform.LookAt(_player);
+            // 始终正面向玩家（修正镜像问题）
+            transform.rotation = Quaternion.LookRotation(transform.position - _player.position);
+
+            // 被注视时放大反馈
+            float targetScaleMult = _isBeingGazed ? 1.25f : 1.0f;
+            transform.localScale = Vector3.Lerp(transform.localScale, _baseScale * targetScaleMult, Time.deltaTime * 8f);
 
             // 距离检测
             float dist = Vector3.Distance(transform.position, _player.position);
@@ -137,12 +144,13 @@ namespace TheLastCompact.Wakeup
         {
             GameObject textGo = new GameObject("CardText");
             textGo.transform.SetParent(transform, false);
-            textGo.transform.localPosition = new Vector3(0f, 0f, -0.01f);
-            textGo.transform.localScale = Vector3.one * 0.5f;
+            textGo.transform.localPosition = new Vector3(0f, 0f, 0.02f);
+            textGo.transform.localRotation = Quaternion.Euler(0, 180, 0); // 修正文字反向
+            textGo.transform.localScale = Vector3.one * 0.4f;
 
             _tmp = textGo.AddComponent<TextMeshPro>();
             _tmp.text = cardText;
-            _tmp.fontSize = 6f;
+            _tmp.fontSize = 5.5f;
             _tmp.alignment = TextAlignmentOptions.Center;
             _tmp.color = Color.white;
             _tmp.enableWordWrapping = true;

@@ -112,6 +112,9 @@ namespace TheLastCompact.Wakeup
 
         private void Start()
         {
+            // 0. 隐藏场景原有的 UI Canvas（避免旧的数值标签遗留在空天中）
+            HideOldCanvases();
+
             // 1. 压暗环境
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
             RenderSettings.ambientLight = Color.black;
@@ -127,13 +130,48 @@ namespace TheLastCompact.Wakeup
             // 2. 设置玩家视角只可旋转、移速归零（避免 CharacterController 禁用报错）
             SetupPlayerFloat();
 
-            // 3. 创建子系统
+            // 3. 创建注视准心 UI
+            CreateReticleUI();
+
+            // 4. 创建子系统
             CreateSubsystems();
 
-            // 4. 保存原始音量
+            // 5. 保存原始音量
             _originalVolume = AudioListener.volume;
 
             Debug.Log("[Stage5] Feed 系统已初始化。Phase A 开始。");
+        }
+
+        private void HideOldCanvases()
+        {
+            UnityEngine.Canvas[] canvases = FindObjectsOfType<UnityEngine.Canvas>();
+            foreach (var c in canvases)
+            {
+                if (c.gameObject.name != "ReticleCanvas")
+                {
+                    c.gameObject.SetActive(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 创建屏幕中央注视准心（小白点）
+        /// </summary>
+        private void CreateReticleUI()
+        {
+            GameObject canvasGo = new GameObject("ReticleCanvas");
+            UnityEngine.Canvas canvas = canvasGo.AddComponent<UnityEngine.Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvasGo.AddComponent<UnityEngine.UI.CanvasScaler>();
+
+            GameObject dotGo = new GameObject("ReticleDot");
+            dotGo.transform.SetParent(canvasGo.transform, false);
+            UnityEngine.UI.Image img = dotGo.AddComponent<UnityEngine.UI.Image>();
+            img.color = new Color(1f, 1f, 1f, 0.6f);
+
+            RectTransform rt = dotGo.GetComponent<RectTransform>();
+            rt.sizeDelta = new Vector2(6f, 6f);
+            rt.anchoredPosition = Vector2.zero;
         }
 
         private Camera GetMainCamera()
