@@ -334,7 +334,7 @@ namespace TheLastCompact.Wakeup
 
             if (Physics.Raycast(ray, out hit, gazeRayDistance))
             {
-                ContentCard card = hit.collider.GetComponent<ContentCard>();
+                ContentCard card = hit.collider.GetComponentInParent<ContentCard>();
                 if (card != null)
                 {
                     if (_currentGazedCard != card)
@@ -347,7 +347,10 @@ namespace TheLastCompact.Wakeup
 
                     _gazeTimer += Time.deltaTime;
 
-                    if (_gazeTimer >= gazeHoldTime && !_gazeTriggered)
+                    // 如果是选择卡，降低注视响应所需时间（0.15s 秒触）
+                    float requiredGazeTime = card.isChoiceCard ? 0.15f : gazeHoldTime;
+
+                    if (_gazeTimer >= requiredGazeTime && !_gazeTriggered)
                     {
                         _gazeTriggered = true;
                         card.OnGazeEnter();

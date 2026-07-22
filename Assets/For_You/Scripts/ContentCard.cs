@@ -156,7 +156,7 @@ namespace TheLastCompact.Wakeup
             innerGo.transform.localScale = new Vector3(0.90f, 0.90f, 1f); // 留出 10% 彩色发光外边框
 
             Collider col = innerGo.GetComponent<Collider>();
-            if (col != null) Destroy(col);
+            if (col != null) DestroyImmediate(col);
 
             _innerFrameRend = innerGo.GetComponent<Renderer>();
             Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
