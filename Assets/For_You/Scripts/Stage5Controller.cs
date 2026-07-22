@@ -8,17 +8,11 @@ namespace TheLastCompact.Wakeup
     /// <summary>
     /// Stage 5 总控制器 — "Feed / 内容流"
     /// 
-    /// 一套系统，三个旋钮。用单个 phaseProgress (0→1) 驱动 A→B→C 三段无缝渐变。
-    /// Phase A (0.00~0.35): 解放——多向、随机、惊喜
-    /// Phase B (0.35~0.70): 沉迷——单向、过滤、机械
-    /// Phase C (0.70~1.00): 恐怖——你的数据成了 feed
-    /// 
-    /// 职责：
-    /// 1. 禁用玩家移动，只保留鼠标旋转（漂浮在虚空中）
-    /// 2. 协调 ContentCardSpawner + FeedEnvironment
-    /// 3. 注视射线检测 + phaseProgress 推进
-    /// 4. Phase C 声音控制（私密数据出现时抽走声音）
-    /// 5. 结尾加缪式选择（留下 / 继续）
+    /// 一套系统，四个阶段。用单个 phaseProgress (0→1) 驱动无缝进化：
+    /// Phase 1 (0.00~0.35): 多彩的享受 (Sensory Liberation & Delights)
+    /// Phase 2 (0.35~0.70): 不自觉的强迫成瘾机械行为 (Compulsive Algorithmic Addiction)
+    /// Phase 3 (0.70~0.96): 数据显形，无处遁形的宿命 (Data Exposed: Inescapable Destiny)
+    /// Phase 4 (0.96~1.00): 抉择时刻 (Moment of Choice: Stay Here or Challenge Stage 6)
     /// </summary>
     public class Stage5Controller : MonoBehaviour
     {
@@ -31,7 +25,6 @@ namespace TheLastCompact.Wakeup
         private static void AutoBootstrap()
         {
             SceneManager.sceneLoaded += OnSceneLoaded;
-            // 也检查当前场景（编辑器直接Play的情况）
             if (SceneManager.GetActiveScene().name == "5_Contemporary")
             {
                 EnsureInstance();
@@ -66,7 +59,7 @@ namespace TheLastCompact.Wakeup
         [Range(0f, 1f)]
         public float phaseProgress = 0f;
 
-        [Tooltip("每次注视交互推进的增量（设大方便快速体验）")]
+        [Tooltip("每次注视交互推进的增量")]
         public float progressPerGaze = 0.05f;
 
         [Tooltip("时间自动推进速率（每秒）")]
@@ -87,7 +80,7 @@ namespace TheLastCompact.Wakeup
         public float transitionDelay = 2f;
         public string nextSceneName = "6_Future";
 
-        // 子系统引用（运行时自动创建）
+        // 子系统引用
         private ContentCardSpawner _spawner;
         private FeedEnvironment _environment;
 
@@ -100,9 +93,10 @@ namespace TheLastCompact.Wakeup
         private bool _endChoiceSpawned = false;
         private bool _isTransitioning = false;
 
-        // 音量控制
+        // 音量与 HUD
         private float _originalVolume = 1f;
         private float _targetVolume = 1f;
+        private TMPro.TextMeshProUGUI _phaseStatusText;
 
         private void Awake()
         {
@@ -110,11 +104,9 @@ namespace TheLastCompact.Wakeup
             Instance = this;
         }
 
-        private TMPro.TextMeshProUGUI _phaseStatusText;
-
         private void Start()
         {
-            // 0. 确保场景原有的 UI Canvas（数据诊断面板等）保持显示
+            // 0. 确保场景原有的 UI Canvas 保持显示
             EnsureOldCanvasesVisible();
 
             // 1. 压暗环境
@@ -129,10 +121,10 @@ namespace TheLastCompact.Wakeup
                 mainCam.backgroundColor = Color.black;
             }
 
-            // 2. 设置玩家视角只可旋转、移速归零（避免 CharacterController 禁用报错）
+            // 2. 设置玩家视角只可旋转、移速归零
             SetupPlayerFloat();
 
-            // 3. 创建注视准心与 Phase 阶段状态提示 HUD UI
+            // 3. 创建注视准心与 Phase 阶段状态提示 HUD
             CreateHUDUI();
 
             // 4. 创建子系统
@@ -141,7 +133,7 @@ namespace TheLastCompact.Wakeup
             // 5. 保存原始音量
             _originalVolume = AudioListener.volume;
 
-            Debug.Log("[Stage5] Feed 系统已初始化。Phase A 开始。");
+            Debug.Log("[Stage5] Feed 系统已初始化。Phase 1 开始。");
         }
 
         private void EnsureOldCanvasesVisible()
@@ -153,9 +145,6 @@ namespace TheLastCompact.Wakeup
             }
         }
 
-        /// <summary>
-        /// 创建屏幕中央注视准心与顶部 Phase 阶段 HUD 状态栏
-        /// </summary>
         private void CreateHUDUI()
         {
             GameObject canvasGo = new GameObject("HUDCanvas");
@@ -185,7 +174,7 @@ namespace TheLastCompact.Wakeup
             rtBg.anchorMax = new Vector2(0.5f, 1f);
             rtBg.pivot = new Vector2(0.5f, 1f);
             rtBg.anchoredPosition = new Vector2(0f, -18f);
-            rtBg.sizeDelta = new Vector2(580f, 46f);
+            rtBg.sizeDelta = new Vector2(620f, 46f);
 
             // Phase 阶段文字
             GameObject textGo = new GameObject("PhaseStatusText");
@@ -214,9 +203,13 @@ namespace TheLastCompact.Wakeup
             {
                 _phaseStatusText.text = "<color=#FFCC00>PHASE 2</color>  —  Compulsive Algorithmic Addiction";
             }
-            else
+            else if (phaseProgress < 0.96f)
             {
                 _phaseStatusText.text = "<color=#FF3366>PHASE 3</color>  —  Data Exposed: Inescapable Destiny";
+            }
+            else
+            {
+                _phaseStatusText.text = "<color=#AA55FF>PHASE 4</color>  —  Moment of Choice: Stay Here or Challenge Stage 6";
             }
         }
 
@@ -234,9 +227,6 @@ namespace TheLastCompact.Wakeup
             return cam;
         }
 
-        /// <summary>
-        /// 开启玩家控制视角旋转，将移动速度设为 0（避免 Move 报错）
-        /// </summary>
         private void SetupPlayerFloat()
         {
 #if UNITY_2023_1_OR_NEWER
@@ -246,12 +236,11 @@ namespace TheLastCompact.Wakeup
 #endif
             if (player != null)
             {
-                player.moveSpeed = 0f; // 移速归零，无法移动，但允许鼠标转头
-                player.EnableControl(); // 开启控制
+                player.moveSpeed = 0f;
+                player.EnableControl();
                 Debug.Log("[Stage5] 玩家移速已设为 0，视角旋转已启用。");
             }
 
-            // 锁定鼠标
             CursorService.Lock();
         }
 
@@ -261,27 +250,27 @@ namespace TheLastCompact.Wakeup
             if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1))
             {
                 phaseProgress = 0.05f;
-                Debug.Log("<color=green>[Stage5 调试] 已快捷跳转至 Phase A (解放 - 随机感官)</color>");
+                Debug.Log("<color=green>[Stage5 调试] 跳转至 Phase 1 (Sensory Liberation)</color>");
             }
             else if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2))
             {
                 phaseProgress = 0.40f;
-                Debug.Log("<color=yellow>[Stage5 调试] 已快捷跳转至 Phase B (沉迷 - 偏好过滤/隧道)</color>");
+                Debug.Log("<color=yellow>[Stage5 调试] 跳转至 Phase 2 (Compulsive Addiction)</color>");
             }
             else if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3))
             {
                 phaseProgress = 0.75f;
-                Debug.Log("<color=orange>[Stage5 调试] 已快捷跳转至 Phase C 步骤一 (高科技算法诊断)</color>");
+                Debug.Log("<color=orange>[Stage5 调试] 跳转至 Phase 3 (Data Exposed)</color>");
             }
             else if (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4))
             {
                 phaseProgress = 0.92f;
-                Debug.Log("<color=red>[Stage5 调试] 已快捷跳转至 Phase C 步骤三 (私密数据核爆/静音)</color>");
+                Debug.Log("<color=red>[Stage5 调试] 跳转至 Phase 3 (Private Data Nuclear Log)</color>");
             }
             else if (Input.GetKeyDown(KeyCode.Alpha5) || Input.GetKeyDown(KeyCode.Keypad5))
             {
                 phaseProgress = 0.98f;
-                Debug.Log("<color=cyan>[Stage5 调试] 已快捷跳转至 结尾加缪式选择卡片</color>");
+                Debug.Log("<color=cyan>[Stage5 调试] 跳转至 Phase 4 (Moment of Choice)</color>");
             }
 
             // 自动推进 phaseProgress
@@ -304,8 +293,8 @@ namespace TheLastCompact.Wakeup
             // 音量平滑过渡
             AudioListener.volume = Mathf.Lerp(AudioListener.volume, _targetVolume, Time.deltaTime * 3f);
 
-            // 结尾选择
-            if (phaseProgress >= 0.98f && !_endChoiceSpawned)
+            // Phase 4 结尾选择
+            if (phaseProgress >= 0.96f && !_endChoiceSpawned)
             {
                 SpawnEndChoice();
             }
@@ -319,13 +308,11 @@ namespace TheLastCompact.Wakeup
 
         private void CreateSubsystems()
         {
-            // ContentCardSpawner
             GameObject spawnerGo = new GameObject("ContentCardSpawner");
             spawnerGo.transform.SetParent(transform, false);
             _spawner = spawnerGo.AddComponent<ContentCardSpawner>();
             _spawner.OnCardSpawned += OnCardSpawned;
 
-            // FeedEnvironment
             GameObject envGo = new GameObject("FeedEnvironment");
             envGo.transform.SetParent(transform, false);
             _environment = envGo.AddComponent<FeedEnvironment>();
@@ -333,13 +320,9 @@ namespace TheLastCompact.Wakeup
 
         private void OnCardSpawned(ContentCard card)
         {
-            // 注册选择回调
             card.OnChoiceSelected += OnChoiceSelected;
         }
 
-        /// <summary>
-        /// 注视射线检测：摄像机中心射线命中卡片
-        /// </summary>
         private void ProcessGaze()
         {
             Camera cam = Camera.main;
@@ -355,7 +338,6 @@ namespace TheLastCompact.Wakeup
                 {
                     if (_currentGazedCard != card)
                     {
-                        // 新卡片
                         if (_currentGazedCard != null) _currentGazedCard.OnGazeExit();
                         _currentGazedCard = card;
                         _gazeTimer = 0f;
@@ -369,19 +351,15 @@ namespace TheLastCompact.Wakeup
                         _gazeTriggered = true;
                         card.OnGazeEnter();
 
-                        // 推进 phaseProgress
                         phaseProgress += progressPerGaze;
                         phaseProgress = Mathf.Clamp01(phaseProgress);
 
-                        // 声音控制
                         if (card.isPrivateDataCard)
                         {
-                            // 私密数据：抽走声音
                             _targetVolume = silenceVolume;
                         }
                         else
                         {
-                            // 正常：恢复音量
                             _targetVolume = _originalVolume;
                         }
 
@@ -392,7 +370,6 @@ namespace TheLastCompact.Wakeup
                 }
             }
 
-            // 没命中任何卡片
             if (_currentGazedCard != null)
             {
                 _currentGazedCard.OnGazeExit();
@@ -401,68 +378,77 @@ namespace TheLastCompact.Wakeup
                 _gazeTriggered = false;
             }
 
-            // 没注视私密卡时逐步恢复音量
             _targetVolume = _originalVolume;
         }
 
         /// <summary>
-        /// 生成结尾加缪式选择卡片
+        /// 生成 Phase 4 抉择时刻卡片
         /// </summary>
         private void SpawnEndChoice()
         {
             _endChoiceSpawned = true;
-            Debug.Log("[Stage5] Phase C 完成。生成加缪式选择。");
+            Debug.Log("[Stage5] 进入 Phase 4 抉择时刻：留下还是挑战 Stage 6。");
 
             Camera cam = Camera.main;
+            if (cam == null) return;
             Vector3 fwd = cam.transform.forward;
             Vector3 right = cam.transform.right;
 
             // "留在这里" 卡片（左侧）
             SpawnChoiceCard(
-                cam.transform.position + fwd * 8f - right * 3f,
-                "Stay here.\nIn this beautiful place.",
+                cam.transform.position + fwd * 7.5f - right * 3.2f,
+                "[ 🌀 INFINITE LOOP ]",
+                "♾️",
+                "Stay Here\nKeep Scrolling",
                 "stay",
-                new Color(0.9f, 0.95f, 1f, 0.95f)
+                new Color(0.3f, 0.7f, 1f, 0.95f)
             );
 
-            // "继续" 卡片（右侧）
+            // "挑战 Stage 6" 卡片（右侧）
             SpawnChoiceCard(
-                cam.transform.position + fwd * 8f + right * 3f,
-                "Continue.\nThere is still a door.",
+                cam.transform.position + fwd * 7.5f + right * 3.2f,
+                "[ 🚪 BREAK THE LOOP ]",
+                "🚀",
+                "Face the Future\nChallenge Stage 6",
                 "continue",
-                new Color(1f, 0.95f, 0.9f, 0.95f)
+                new Color(1f, 0.6f, 0.2f, 0.95f)
             );
         }
 
-        private void SpawnChoiceCard(Vector3 pos, string text, string action, Color color)
+        private void SpawnChoiceCard(Vector3 pos, string tag, string icon, string headline, string action, Color color)
         {
             GameObject cardGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
             cardGo.name = $"ChoiceCard_{action}";
             cardGo.transform.position = pos;
-            cardGo.transform.localScale = Vector3.one * 2.5f;
+            cardGo.transform.localScale = new Vector3(3.2f, 4.2f, 1f);
 
             Collider col = cardGo.GetComponent<Collider>();
             if (col != null) Destroy(col);
             BoxCollider box = cardGo.AddComponent<BoxCollider>();
             box.isTrigger = true;
 
+            Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null) shader = Shader.Find("Sprites/Default");
+            if (shader == null) shader = Shader.Find("Unlit/Color");
             Renderer rend = cardGo.GetComponent<Renderer>();
-            Material mat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
-            mat.SetFloat("_Surface", 1);
-            mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-            mat.SetInt("_ZWrite", 0);
+            Material mat = new Material(shader);
+            if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1);
+            if (mat.HasProperty("_SrcBlend")) mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            if (mat.HasProperty("_DstBlend")) mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", 0);
             mat.renderQueue = 3000;
             rend.material = mat;
 
             ContentCard card = cardGo.AddComponent<ContentCard>();
-            card.cardText = text;
+            card.categoryTag = tag;
+            card.cardIcon = icon;
+            card.cardHeadline = headline;
             card.cardColor = color;
             card.isChoiceCard = true;
             card.choiceAction = action;
-            card.driftSpeed = 0.3f; // 缓慢漂
-            card.gazeAttractSpeed = 2f;
-            card.maxLifetime = 999f;
+            card.driftSpeed = 0.1f;
+            card.gazeAttractSpeed = 1.5f;
+            card.maxLifetime = 9999f;
             card.OnChoiceSelected += OnChoiceSelected;
         }
 
@@ -472,15 +458,18 @@ namespace TheLastCompact.Wakeup
 
             if (action == "continue")
             {
-                Debug.Log("[Stage5] 玩家选择继续。转场至 6_Future。");
+                Debug.Log("[Stage5] 玩家选择踏入前方：挑战 Stage 6！");
                 StartCoroutine(TransitionSequence());
             }
             else if (action == "stay")
             {
-                Debug.Log("[Stage5] 玩家选择留下。Feed 永远继续。");
-                // Feed 继续无限循环，不转场
-                // 重置 phaseProgress 到 Phase A 让循环重新开始
-                phaseProgress = 0f;
+                Debug.Log("[Stage5] 玩家选择留在此地：重置 Feed 循环。");
+                ContentCard[] cards = FindObjectsOfType<ContentCard>();
+                foreach (var c in cards)
+                {
+                    if (c.isChoiceCard) Destroy(c.gameObject);
+                }
+                phaseProgress = 0.05f;
                 _endChoiceSpawned = false;
             }
         }
@@ -488,16 +477,14 @@ namespace TheLastCompact.Wakeup
         private IEnumerator TransitionSequence()
         {
             _isTransitioning = true;
-            EventBus.RaiseAnnouncement("The feed never ends. But you chose to look away.");
+            EventBus.RaiseAnnouncement("The feed never ends. But you chose to look away and face the future.");
             yield return new WaitForSeconds(transitionDelay);
             PerformSceneTransition();
         }
 
         private void PerformSceneTransition()
         {
-            // 恢复音量
             AudioListener.volume = _originalVolume;
-
             EventBus.RaiseSceneComplete();
 
 #if UNITY_EDITOR
@@ -511,9 +498,10 @@ namespace TheLastCompact.Wakeup
 
         private void LogPhase()
         {
-            string phase = phaseProgress < 0.35f ? "A (解放)"
-                         : phaseProgress < 0.70f ? "B (沉迷)"
-                         : "C (恐怖)";
+            string phase = phaseProgress < 0.35f ? "1 (Sensory Liberation)"
+                         : phaseProgress < 0.70f ? "2 (Compulsive Addiction)"
+                         : phaseProgress < 0.96f ? "3 (Data Exposed)"
+                         : "4 (Moment of Choice)";
             Debug.Log($"[Stage5] Phase {phase} | Progress: {phaseProgress:F3}");
         }
 
