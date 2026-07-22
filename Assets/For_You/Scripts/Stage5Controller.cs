@@ -652,37 +652,33 @@ namespace TheLastCompact.Wakeup
         private void SpawnEndChoice()
         {
             _endChoiceSpawned = true;
-            Debug.Log("[Stage5] 进入 Phase 4 抉择时刻：暂停卡片推送，清理干扰卡片。");
+            Debug.Log("[Stage5] 进入 Phase 4 抉择时刻：保持卡片飞舞生成，双抉择卡夹杂其中浮现。");
 
-            if (_spawner != null) _spawner.enabled = false;
-
-            ContentCard[] activeCards = FindObjectsOfType<ContentCard>();
-            foreach (var c in activeCards)
-            {
-                if (!c.isChoiceCard) Destroy(c.gameObject);
-            }
+            // 保持 Spawner 开启，让满天卡片继续飞舞流转！
+            if (_spawner != null) _spawner.enabled = true;
 
             Camera cam = Camera.main;
             if (cam == null) return;
             Vector3 fwd = cam.transform.forward;
             Vector3 right = cam.transform.right;
 
+            // 将抉择卡布置在玩家前方近距离（4.5 米处），醒目悬浮在满天卡片之中
             SpawnChoiceCard(
-                cam.transform.position + fwd * 6.0f - right * 1.6f,
+                cam.transform.position + fwd * 4.5f - right * 1.5f,
                 "[ INFINITE LOOP ]",
                 "",
                 "STAY HERE\nKeep Scrolling",
                 "stay",
-                new Color(0.2f, 0.6f, 0.95f, 0.95f)
+                new Color(0.1f, 0.75f, 1.0f, 0.98f)
             );
 
             SpawnChoiceCard(
-                cam.transform.position + fwd * 6.0f + right * 1.6f,
+                cam.transform.position + fwd * 4.5f + right * 1.5f,
                 "[ BREAK THE LOOP ]",
                 "",
                 "FACE THE FUTURE\nChallenge Stage 6",
                 "continue",
-                new Color(1f, 0.55f, 0.15f, 0.95f)
+                new Color(1.0f, 0.5f, 0.1f, 0.98f)
             );
         }
 
@@ -691,7 +687,7 @@ namespace TheLastCompact.Wakeup
             GameObject cardGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
             cardGo.name = $"ChoiceCard_{action}";
             cardGo.transform.position = pos;
-            cardGo.transform.localScale = new Vector3(2.2f, 2.8f, 1f);
+            cardGo.transform.localScale = new Vector3(2.0f, 2.6f, 1f);
 
             Collider col = cardGo.GetComponent<Collider>();
             if (col != null) Destroy(col);
@@ -707,7 +703,7 @@ namespace TheLastCompact.Wakeup
             if (mat.HasProperty("_SrcBlend")) mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
             if (mat.HasProperty("_DstBlend")) mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
             if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", 0);
-            mat.renderQueue = 3000;
+            mat.renderQueue = 3500; // 高于常规卡片，确保在漫天飞舞卡片中醒目可见
             rend.material = mat;
 
             ContentCard card = cardGo.AddComponent<ContentCard>();
@@ -717,7 +713,7 @@ namespace TheLastCompact.Wakeup
             card.cardColor = color;
             card.isChoiceCard = true;
             card.choiceAction = action;
-            card.driftSpeed = 0.05f;
+            card.driftSpeed = 0.01f; // 抉择卡几乎静止悬浮在玩家面前
             card.gazeAttractSpeed = 1.2f;
             card.maxLifetime = 9999f;
             card.OnChoiceSelected += OnChoiceSelected;
@@ -734,7 +730,7 @@ namespace TheLastCompact.Wakeup
             }
             else if (action == "stay")
             {
-                Debug.Log("[Stage5] 玩家选择留在此地：重置 Feed 循环并重新恢复推送。");
+                Debug.Log("[Stage5] 玩家选择留在此地：清理选择卡，重置进度至 Phase 1，卡片流循环无缝继续！");
                 ContentCard[] cards = FindObjectsOfType<ContentCard>();
                 foreach (var c in cards)
                 {
