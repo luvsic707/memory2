@@ -26,12 +26,39 @@ namespace TheLastCompact.Wakeup
         [Tooltip("同时存在的最大卡片数")]
         public int maxCards = 60;
 
-        [Header("Phase C 私密数据内容")]
-        [Tooltip("Phase C 第一步：主题推送文案（根据数据自动生成）")]
-        public string[] themeStrings_Banana = { "Organic Living Tips", "Wild Foraging Guide", "Primal Instinct Unlocked", "Return to Nature 🌿" };
-        public string[] themeStrings_Prayer = { "Find Inner Peace", "Daily Meditation Guide", "Spiritual Awakening ✨", "Faith & Healing 🙏" };
-        public string[] themeStrings_Push = { "Endurance Training Plan", "Sisyphus Workout 💪", "Embrace the Grind", "Repetition is Mastery" };
-        public string[] themeStrings_Work = { "Productivity Hacks", "10x Your Output ⚡", "Office Wellness Tips", "Burnout Prevention Guide" };
+        [Header("Phase B/C 4大偏好推送表")]
+        public string[] themeStrings_Banana = {
+            "10 Ways to Eat More Bananas Today! 🍌",
+            "Why Your Brain CRAVES Potassium & Sugar 🍌",
+            "Return to Monkey: Ultimate Dopamine Guide 🐒",
+            "Top 5 Fresh Banana Smoothie Recipes 🥤",
+            "Instant Gratification: Why Wait? 🍌",
+            "Yellow Dopamine: The Primal Instinct 🍌"
+        };
+        public string[] themeStrings_Prayer = {
+            "Daily Meditation: Manifesting Abundance ✨",
+            "How to Open Your Third Eye in 5 Mins 🔮",
+            "Signs the Universe is Talking to You ⛩️",
+            "Finding Peace in Suffering & Prayer 🙏",
+            "Cosmic Energy & Divine Guidance ✨",
+            "Spiritual Awakening: Trust the Process 🔮"
+        };
+        public string[] themeStrings_Push = {
+            "The Sisyphus Mindset: Embrace the Grind 🗿",
+            "Never Stop Pushing: No Pain No Gain 💪",
+            "Why Hard Times Create Strong People ⛰️",
+            "10,000 Hours of Repetition Mastery 🏋️",
+            "The Hill Never Ends: Keep Climbing 🧗",
+            "Pain is Temporary, Glory is Eternal 🗿"
+        };
+        public string[] themeStrings_Work = {
+            "Top 10 Office Slacking & Dodging Hacks 💻",
+            "How to Look Busy When Boss Walks By ☕",
+            "10x Productivity: Typewriter Masterclass ⚡",
+            "Overcoming Workplace Burnout & Fatigue 📊",
+            "Corporate Ladder Survival Guide 💼",
+            "Work-Life Balance: Quiet Quitting 101 ☕"
+        };
 
         // Phase A 的随机缤纷文字池
         private readonly string[] _randomContent = {
@@ -278,34 +305,36 @@ namespace TheLastCompact.Wakeup
             int max = Mathf.Max(Mathf.Max(bananas, prayers), Mathf.Max(pushes, works));
             float narrowT = Mathf.InverseLerp(0.35f, 0.70f, phaseProgress);
 
-            card.categoryTag = Random.value < 0.5f ? "[ 🎯 98% MATCH ]" : "[ 💡 FOR YOU ]";
-
             if (max == bananas)
             {
-                float hue = Mathf.Lerp(Random.Range(0f, 1f), Random.Range(0.10f, 0.18f), narrowT);
-                card.cardColor = Color.HSVToRGB(hue, Random.Range(0.6f, 0.9f), Random.Range(0.85f, 1f));
-                card.cardIcon = "🍌";
+                card.categoryTag = Random.value < 0.5f ? "[ 🍌 BANANA OBSESSED ]" : "[ 🎯 99.4% ALGORITHM MATCH ]";
+                float hue = Mathf.Lerp(Random.Range(0f, 1f), Random.Range(0.12f, 0.16f), narrowT);
+                card.cardColor = Color.HSVToRGB(hue, Random.Range(0.7f, 0.95f), Random.Range(0.9f, 1f));
+                card.cardIcon = Random.value < 0.7f ? "🍌" : "🐒";
                 card.cardHeadline = themeStrings_Banana[Random.Range(0, themeStrings_Banana.Length)];
             }
             else if (max == prayers)
             {
-                float hue = Mathf.Lerp(Random.Range(0f, 1f), Random.Range(0.50f, 0.60f), narrowT);
-                card.cardColor = Color.HSVToRGB(hue, Random.Range(0.5f, 0.8f), Random.Range(0.85f, 1f));
-                card.cardIcon = "🧘";
+                card.categoryTag = Random.value < 0.5f ? "[ 🔮 SPIRITUAL SEEKER ]" : "[ 🎯 98.9% ALGORITHM MATCH ]";
+                float hue = Mathf.Lerp(Random.Range(0f, 1f), Random.Range(0.52f, 0.58f), narrowT);
+                card.cardColor = Color.HSVToRGB(hue, Random.Range(0.6f, 0.9f), Random.Range(0.85f, 1f));
+                card.cardIcon = Random.value < 0.7f ? "🧘" : "🔮";
                 card.cardHeadline = themeStrings_Prayer[Random.Range(0, themeStrings_Prayer.Length)];
             }
             else if (max == pushes)
             {
-                float hue = Mathf.Lerp(Random.Range(0f, 1f), Random.Range(0.06f, 0.12f), narrowT);
-                card.cardColor = Color.HSVToRGB(hue, Random.Range(0.6f, 0.9f), Random.Range(0.85f, 1f));
-                card.cardIcon = "🗿";
+                card.categoryTag = Random.value < 0.5f ? "[ 🗿 SISYPHUS HARDCORE ]" : "[ 🎯 99.1% ALGORITHM MATCH ]";
+                float hue = Mathf.Lerp(Random.Range(0f, 1f), Random.Range(0.06f, 0.10f), narrowT);
+                card.cardColor = Color.HSVToRGB(hue, Random.Range(0.7f, 0.95f), Random.Range(0.85f, 1f));
+                card.cardIcon = Random.value < 0.7f ? "🗿" : "💪";
                 card.cardHeadline = themeStrings_Push[Random.Range(0, themeStrings_Push.Length)];
             }
             else
             {
-                float hue = Mathf.Lerp(Random.Range(0f, 1f), Random.Range(0.97f, 1.03f) % 1f, narrowT);
-                card.cardColor = Color.HSVToRGB(hue, Random.Range(0.5f, 0.85f), Random.Range(0.85f, 1f));
-                card.cardIcon = "⌨️";
+                card.categoryTag = Random.value < 0.5f ? "[ 💻 WORKAHOLIC COG ]" : "[ 🎯 99.8% ALGORITHM MATCH ]";
+                float hue = Mathf.Lerp(Random.Range(0f, 1f), Random.Range(0.97f, 1.02f) % 1f, narrowT);
+                card.cardColor = Color.HSVToRGB(hue, Random.Range(0.6f, 0.95f), Random.Range(0.85f, 1f));
+                card.cardIcon = Random.value < 0.7f ? "💻" : "⌨️";
                 card.cardHeadline = themeStrings_Work[Random.Range(0, themeStrings_Work.Length)];
             }
 
