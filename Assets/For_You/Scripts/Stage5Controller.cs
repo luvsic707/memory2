@@ -330,7 +330,7 @@ namespace TheLastCompact.Wakeup
                 _distortionFilter.distortionLevel = Mathf.Lerp(0.05f, 0.65f, t); // 剧烈增加失真颗粒
                 _lowPassFilter.cutoffFrequency = Mathf.Lerp(22000f, 1500f, t);   // 剧烈压低高频 (22kHz ➔ 1.5kHz 极度显眼变闷)
                 _chorusFilter.depth = Mathf.Lerp(0.0f, 0.55f, t);                // 磁带相位偏高抖动
-                _reverbFilter.reverbPreset = AudioReverbPreset.Hall;      // 开启大厅长混响
+                _reverbFilter.reverbPreset = AudioReverbPreset.Auditorium;  // 开启大音乐厅长混响
                 _reverbFilter.decayTime = Mathf.Lerp(1.0f, 3.5f, t);
                 _bgmAudioSource.pitch = Mathf.Lerp(0.95f, 0.80f, t);              // 明显降速降调
 
