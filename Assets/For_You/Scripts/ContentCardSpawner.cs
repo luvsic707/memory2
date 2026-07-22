@@ -59,14 +59,31 @@ namespace TheLastCompact.Wakeup
         // 回调
         public System.Action<ContentCard> OnCardSpawned;
 
+        private Transform GetPlayerTransform()
+        {
+            if (_player != null) return _player;
+            if (Camera.main != null) _player = Camera.main.transform;
+            if (_player == null)
+            {
+#if UNITY_2023_1_OR_NEWER
+                UniversalPlayer p = FindAnyObjectByType<UniversalPlayer>();
+#else
+                UniversalPlayer p = FindObjectOfType<UniversalPlayer>();
+#endif
+                if (p != null) _player = p.transform;
+            }
+            return _player;
+        }
+
         private void Start()
         {
-            _player = Camera.main != null ? Camera.main.transform : null;
+            _player = GetPlayerTransform();
         }
 
         private void Update()
         {
-            if (_player == null) return;
+            Transform pTransform = GetPlayerTransform();
+            if (pTransform == null) return;
 
             // 清理已销毁的卡片引用
             _activeCards.RemoveAll(c => c == null);
@@ -89,8 +106,22 @@ namespace TheLastCompact.Wakeup
             }
         }
 
+        private Shader FindCardShader()
+        {
+            Shader s = Shader.Find("Universal Render Pipeline/Unlit");
+            if (s == null) s = Shader.Find("URP/Unlit");
+            if (s == null) s = Shader.Find("Sprites/Default");
+            if (s == null) s = Shader.Find("Unlit/Transparent");
+            if (s == null) s = Shader.Find("Unlit/Color");
+            if (s == null) s = Shader.Find("Standard");
+            return s;
+        }
+
         private void SpawnCard()
         {
+            Transform pTransform = GetPlayerTransform();
+            if (pTransform == null) return;
+
             // 1. 计算生成位置（旋钮1: 方向）
             Vector3 spawnPos = CalculateSpawnPosition();
 
@@ -110,14 +141,15 @@ namespace TheLastCompact.Wakeup
             BoxCollider box = cardGo.AddComponent<BoxCollider>();
             box.isTrigger = true;
 
-            // 3. 设置材质为 URP Unlit 透明
+            // 3. 设置材质
             Renderer rend = cardGo.GetComponent<Renderer>();
-            Material mat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
-            mat.SetFloat("_Surface", 1); // Transparent
-            mat.SetFloat("_Blend", 0);   // Alpha
-            mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-            mat.SetInt("_ZWrite", 0);
+            Shader shader = FindCardShader();
+            Material mat = new Material(shader);
+            if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1); // Transparent
+            if (mat.HasProperty("_Blend")) mat.SetFloat("_Blend", 0);   // Alpha
+            if (mat.HasProperty("_SrcBlend")) mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            if (mat.HasProperty("_DstBlend")) mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", 0);
             mat.renderQueue = 3000;
             rend.material = mat;
 

@@ -35,9 +35,25 @@ namespace TheLastCompact.Wakeup
         private MaterialPropertyBlock _mpb;
         private ParticleSystem _starParticles;
 
+        private Transform GetPlayerTransform()
+        {
+            if (_player != null) return _player;
+            if (Camera.main != null) _player = Camera.main.transform;
+            if (_player == null)
+            {
+#if UNITY_2023_1_OR_NEWER
+                UniversalPlayer p = FindAnyObjectByType<UniversalPlayer>();
+#else
+                UniversalPlayer p = FindObjectOfType<UniversalPlayer>();
+#endif
+                if (p != null) _player = p.transform;
+            }
+            return _player;
+        }
+
         private void Start()
         {
-            _player = Camera.main != null ? Camera.main.transform : null;
+            _player = GetPlayerTransform();
             _mpb = new MaterialPropertyBlock();
 
             CreateStarParticles();
@@ -46,10 +62,22 @@ namespace TheLastCompact.Wakeup
 
         private void Update()
         {
-            if (_player == null) return;
+            Transform pTransform = GetPlayerTransform();
+            if (pTransform == null) return;
 
             UpdateTunnel();
             UpdateStars();
+        }
+
+        private Shader FindTunnelShader()
+        {
+            Shader s = Shader.Find("Universal Render Pipeline/Unlit");
+            if (s == null) s = Shader.Find("URP/Unlit");
+            if (s == null) s = Shader.Find("Sprites/Default");
+            if (s == null) s = Shader.Find("Unlit/Transparent");
+            if (s == null) s = Shader.Find("Unlit/Color");
+            if (s == null) s = Shader.Find("Standard");
+            return s;
         }
 
         /// <summary>
@@ -95,6 +123,21 @@ namespace TheLastCompact.Wakeup
             psRenderer.receiveShadows = false;
         }
 
+        private void UpdateStars()
+        {
+            if (_starParticles == null) return;
+            Transform pTransform = GetPlayerTransform();
+            if (pTransform == null) return;
+
+            // Phase A: 星点明亮。Phase B→C: 星点逐渐消失（被隧道取代）
+            var main = _starParticles.main;
+            float starAlpha = Mathf.Lerp(0.5f, 0f, Mathf.InverseLerp(0.3f, 0.6f, phaseProgress));
+            main.startColor = new Color(0.8f, 0.85f, 1f, starAlpha);
+
+            // 跟随玩家
+            _starParticles.transform.position = pTransform.position;
+        }
+
         /// <summary>
         /// 创建隧道壁圆柱（初始完全透明）
         /// </summary>
@@ -110,29 +153,32 @@ namespace TheLastCompact.Wakeup
 
             // 设置透明材质
             _tunnelRenderer = _tunnelGo.GetComponent<Renderer>();
-            Material mat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
-            mat.SetFloat("_Surface", 1);
-            mat.SetFloat("_Blend", 0);
-            mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-            mat.SetInt("_ZWrite", 0);
-            mat.SetInt("_Cull", 1); // Front cull: 从内部看
+            Shader shader = FindTunnelShader();
+            Material mat = new Material(shader);
+            if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1);
+            if (mat.HasProperty("_Blend")) mat.SetFloat("_Blend", 0);
+            if (mat.HasProperty("_SrcBlend")) mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            if (mat.HasProperty("_DstBlend")) mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", 0);
+            if (mat.HasProperty("_Cull")) mat.SetInt("_Cull", 1); // Front cull: 从内部看
             mat.renderQueue = 2900;
             _tunnelRenderer.material = mat;
 
             // 初始完全透明
             _tunnelRenderer.GetPropertyBlock(_mpb);
             _mpb.SetColor("_BaseColor", new Color(0.1f, 0.15f, 0.3f, 0f));
+            _mpb.SetColor("_Color", new Color(0.1f, 0.15f, 0.3f, 0f));
             _tunnelRenderer.SetPropertyBlock(_mpb);
         }
 
         private void UpdateTunnel()
         {
-            if (_tunnelGo == null || _player == null) return;
+            Transform pTransform = GetPlayerTransform();
+            if (_tunnelGo == null || pTransform == null) return;
 
             // 隧道跟随玩家且面朝前方
-            _tunnelGo.transform.position = _player.position + _player.forward * (tunnelLength * 0.4f);
-            _tunnelGo.transform.rotation = Quaternion.LookRotation(_player.forward) * Quaternion.Euler(90f, 0f, 0f);
+            _tunnelGo.transform.position = pTransform.position + pTransform.forward * (tunnelLength * 0.4f);
+            _tunnelGo.transform.rotation = Quaternion.LookRotation(pTransform.forward) * Quaternion.Euler(90f, 0f, 0f);
 
             // Phase A (0~0.35): 隧道不可见
             // Phase B (0.35~0.70): 隧道渐显，半径从大缩小

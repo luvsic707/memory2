@@ -156,7 +156,13 @@ namespace TheLastCompact.Wakeup
             if (_renderer == null) return;
             _renderer.GetPropertyBlock(_mpb);
             _mpb.SetColor("_BaseColor", c);
+            _mpb.SetColor("_Color", c);
             _renderer.SetPropertyBlock(_mpb);
+
+            if (_renderer.material != null && _renderer.material.HasProperty("_Color"))
+            {
+                _renderer.material.color = c;
+            }
         }
 
         private void ApplyAlpha(float a)
@@ -166,7 +172,13 @@ namespace TheLastCompact.Wakeup
             c.a = a;
             _renderer.GetPropertyBlock(_mpb);
             _mpb.SetColor("_BaseColor", c);
+            _mpb.SetColor("_Color", c);
             _renderer.SetPropertyBlock(_mpb);
+
+            if (_renderer.material != null && _renderer.material.HasProperty("_Color"))
+            {
+                _renderer.material.color = c;
+            }
 
             // 文字也淡出
             if (_tmp != null)

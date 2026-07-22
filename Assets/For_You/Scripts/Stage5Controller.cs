@@ -112,29 +112,19 @@ namespace TheLastCompact.Wakeup
 
         private void Start()
         {
-            // 0. 隐藏场景中的所有原有物体（Stage 5 是纯虚空）
-            // Dev_3 本来就是 inactive 的，保持不变即可
-            // 但还要隐藏其他可能 active 的根物体
-            foreach (GameObject root in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
-            {
-                if (root == gameObject) continue; // 保留自己
-                if (root.GetComponent<Camera>() != null) continue; // 保留摄像机
-                if (root.GetComponent<UniversalPlayer>() != null) continue; // 保留玩家
-                if (root.GetComponent<AudioListener>() != null) continue; // 保留音频监听
-                if (root.name.Contains("Light")) continue; // 保留灯光（如果有）
-                if (root.name.Contains("EventSystem")) continue; // 保留事件系统
-                if (root.name.Contains("SceneTransition")) continue; // 保留转场管理器
-                if (root.name.Contains("PlayerBehaviorData")) continue; // 保留行为数据
-                root.SetActive(false);
-            }
             // 1. 压暗环境
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
             RenderSettings.ambientLight = Color.black;
             RenderSettings.skybox = null;
-            Camera.main.clearFlags = CameraClearFlags.SolidColor;
-            Camera.main.backgroundColor = Color.black;
 
-            // 2. 禁用玩家移动，只保留鼠标旋转
+            Camera mainCam = GetMainCamera();
+            if (mainCam != null)
+            {
+                mainCam.clearFlags = CameraClearFlags.SolidColor;
+                mainCam.backgroundColor = Color.black;
+            }
+
+            // 2. 设置玩家视角只可旋转、移速归零（避免 CharacterController 禁用报错）
             SetupPlayerFloat();
 
             // 3. 创建子系统
@@ -146,53 +136,35 @@ namespace TheLastCompact.Wakeup
             Debug.Log("[Stage5] Feed 系统已初始化。Phase A 开始。");
         }
 
-        private void Update()
+        private Camera GetMainCamera()
         {
-            // 自动推进 phaseProgress
-            if (phaseProgress < 1f)
+            Camera cam = Camera.main;
+            if (cam == null)
             {
-                phaseProgress += progressPerSecond * Time.deltaTime;
-                phaseProgress = Mathf.Clamp01(phaseProgress);
+#if UNITY_2023_1_OR_NEWER
+                cam = FindAnyObjectByType<Camera>();
+#else
+                cam = FindObjectOfType<Camera>();
+#endif
             }
-
-            // 同步旋钮给子系统
-            _spawner.phaseProgress = phaseProgress;
-            _environment.phaseProgress = phaseProgress;
-
-            // 注视射线检测
-            ProcessGaze();
-
-            // 音量平滑过渡
-            AudioListener.volume = Mathf.Lerp(AudioListener.volume, _targetVolume, Time.deltaTime * 3f);
-
-            // 结尾选择
-            if (phaseProgress >= 0.98f && !_endChoiceSpawned)
-            {
-                SpawnEndChoice();
-            }
-
-            // P 键调试跳关
-            if (Input.GetKeyDown(KeyCode.P) && !_isTransitioning)
-            {
-                StartCoroutine(TransitionSequence());
-            }
+            return cam;
         }
 
         /// <summary>
-        /// 禁用玩家移动，只保留鼠标旋转
+        /// 开启玩家控制视角旋转，将移动速度设为 0（避免 Move 报错）
         /// </summary>
         private void SetupPlayerFloat()
         {
+#if UNITY_2023_1_OR_NEWER
             UniversalPlayer player = FindAnyObjectByType<UniversalPlayer>();
+#else
+            UniversalPlayer player = FindObjectOfType<UniversalPlayer>();
+#endif
             if (player != null)
             {
-                // 禁用 CharacterController 移动
-                CharacterController cc = player.GetComponent<CharacterController>();
-                if (cc != null) cc.enabled = false;
-
-                // 保留鼠标视角旋转（不调用 DisableControl，那样会禁掉鼠标）
-                // 只禁用移动相关的输入
-                Debug.Log("[Stage5] 玩家移动已禁用，仅保留视角旋转。");
+                player.moveSpeed = 0f; // 移速归零，无法移动，但允许鼠标转头
+                player.EnableControl(); // 开启控制
+                Debug.Log("[Stage5] 玩家移速已设为 0，视角旋转已启用。");
             }
 
             // 锁定鼠标
