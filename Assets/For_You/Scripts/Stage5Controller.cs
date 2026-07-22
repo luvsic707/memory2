@@ -110,10 +110,12 @@ namespace TheLastCompact.Wakeup
             Instance = this;
         }
 
+        private TMPro.TextMeshProUGUI _phaseStatusText;
+
         private void Start()
         {
-            // 0. 隐藏场景原有的 UI Canvas（避免旧的数值标签遗留在空天中）
-            HideOldCanvases();
+            // 0. 确保场景原有的 UI Canvas（数据诊断面板等）保持显示
+            EnsureOldCanvasesVisible();
 
             // 1. 压暗环境
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
@@ -130,8 +132,8 @@ namespace TheLastCompact.Wakeup
             // 2. 设置玩家视角只可旋转、移速归零（避免 CharacterController 禁用报错）
             SetupPlayerFloat();
 
-            // 3. 创建注视准心 UI
-            CreateReticleUI();
+            // 3. 创建注视准心与 Phase 阶段状态提示 HUD UI
+            CreateHUDUI();
 
             // 4. 创建子系统
             CreateSubsystems();
@@ -142,36 +144,80 @@ namespace TheLastCompact.Wakeup
             Debug.Log("[Stage5] Feed 系统已初始化。Phase A 开始。");
         }
 
-        private void HideOldCanvases()
+        private void EnsureOldCanvasesVisible()
         {
             UnityEngine.Canvas[] canvases = FindObjectsOfType<UnityEngine.Canvas>();
             foreach (var c in canvases)
             {
-                if (c.gameObject.name != "ReticleCanvas")
-                {
-                    c.gameObject.SetActive(false);
-                }
+                c.gameObject.SetActive(true);
             }
         }
 
         /// <summary>
-        /// 创建屏幕中央注视准心（小白点）
+        /// 创建屏幕中央注视准心与顶部 Phase 阶段 HUD 状态栏
         /// </summary>
-        private void CreateReticleUI()
+        private void CreateHUDUI()
         {
-            GameObject canvasGo = new GameObject("ReticleCanvas");
+            GameObject canvasGo = new GameObject("HUDCanvas");
             UnityEngine.Canvas canvas = canvasGo.AddComponent<UnityEngine.Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 100;
             canvasGo.AddComponent<UnityEngine.UI.CanvasScaler>();
 
+            // 屏幕中央准心小白点
             GameObject dotGo = new GameObject("ReticleDot");
             dotGo.transform.SetParent(canvasGo.transform, false);
             UnityEngine.UI.Image img = dotGo.AddComponent<UnityEngine.UI.Image>();
             img.color = new Color(1f, 1f, 1f, 0.6f);
 
-            RectTransform rt = dotGo.GetComponent<RectTransform>();
-            rt.sizeDelta = new Vector2(6f, 6f);
-            rt.anchoredPosition = Vector2.zero;
+            RectTransform rtDot = dotGo.GetComponent<RectTransform>();
+            rtDot.sizeDelta = new Vector2(6f, 6f);
+            rtDot.anchoredPosition = Vector2.zero;
+
+            // 顶部 Phase 阶段状态栏背景面板
+            GameObject bannerBgGo = new GameObject("PhaseBannerPanel");
+            bannerBgGo.transform.SetParent(canvasGo.transform, false);
+            UnityEngine.UI.Image bgImg = bannerBgGo.AddComponent<UnityEngine.UI.Image>();
+            bgImg.color = new Color(0.05f, 0.07f, 0.12f, 0.88f);
+
+            RectTransform rtBg = bannerBgGo.GetComponent<RectTransform>();
+            rtBg.anchorMin = new Vector2(0.5f, 1f);
+            rtBg.anchorMax = new Vector2(0.5f, 1f);
+            rtBg.pivot = new Vector2(0.5f, 1f);
+            rtBg.anchoredPosition = new Vector2(0f, -18f);
+            rtBg.sizeDelta = new Vector2(580f, 46f);
+
+            // Phase 阶段文字
+            GameObject textGo = new GameObject("PhaseStatusText");
+            textGo.transform.SetParent(bannerBgGo.transform, false);
+            _phaseStatusText = textGo.AddComponent<TMPro.TextMeshProUGUI>();
+            _phaseStatusText.fontSize = 20f;
+            _phaseStatusText.alignment = TMPro.TextAlignmentOptions.Center;
+            _phaseStatusText.fontStyle = TMPro.FontStyles.Bold;
+
+            RectTransform rtText = textGo.GetComponent<RectTransform>();
+            rtText.anchorMin = Vector2.zero;
+            rtText.anchorMax = Vector2.one;
+            rtText.sizeDelta = Vector2.zero;
+            rtText.anchoredPosition = Vector2.zero;
+        }
+
+        private void UpdatePhaseHUD()
+        {
+            if (_phaseStatusText == null) return;
+
+            if (phaseProgress < 0.35f)
+            {
+                _phaseStatusText.text = "<color=#00FFCC>Phase 1</color> —— 多彩的享受";
+            }
+            else if (phaseProgress < 0.70f)
+            {
+                _phaseStatusText.text = "<color=#FFCC00>Phase 2</color> —— 不自觉的强迫成瘾机械行为";
+            }
+            else
+            {
+                _phaseStatusText.text = "<color=#FF3366>Phase 3</color> —— 数据显形，无处遁形的宿命";
+            }
         }
 
         private Camera GetMainCamera()
@@ -248,6 +294,9 @@ namespace TheLastCompact.Wakeup
             // 同步旋钮给子系统
             if (_spawner != null) _spawner.phaseProgress = phaseProgress;
             if (_environment != null) _environment.phaseProgress = phaseProgress;
+
+            // 动态更新顶部 Phase 阶段状态栏 HUD
+            UpdatePhaseHUD();
 
             // 注视射线检测
             ProcessGaze();
