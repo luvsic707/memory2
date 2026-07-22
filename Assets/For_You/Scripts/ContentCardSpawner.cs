@@ -342,7 +342,7 @@ namespace TheLastCompact.Wakeup
                               : max == pushes ? themeStrings_Push
                               : themeStrings_Work;
                 card.cardHeadline = pool[Random.Range(0, pool.Length)];
-                card.cardColor = new Color(0.95f, 0.95f, 1f, 0.95f);
+                card.cardColor = new Color(0.2f, 0.75f, 1.0f, 0.95f); // 霓虹青紫外包边
             }
             else if (cProgress < 0.66f)
             {
@@ -356,7 +356,7 @@ namespace TheLastCompact.Wakeup
                     "You've been here before...",
                 };
                 card.cardHeadline = behaviorHints[Random.Range(0, behaviorHints.Length)];
-                card.cardColor = new Color(1f, 0.98f, 0.93f, 0.97f);
+                card.cardColor = new Color(1.0f, 0.65f, 0.15f, 0.97f); // 警示琥珀橙外包边
                 card.isPrivateDataCard = true;
             }
             else
@@ -375,7 +375,7 @@ namespace TheLastCompact.Wakeup
                     "The feed knows. It always knew.",
                 };
                 card.cardHeadline = privateData[(_phaseCDataIndex - 1) % privateData.Length];
-                card.cardColor = new Color(1f, 1f, 1f, 0.98f);
+                card.cardColor = new Color(1.0f, 0.25f, 0.4f, 0.98f); // 高科技警示绯红外包边
                 card.isPrivateDataCard = true;
             }
         }

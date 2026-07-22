@@ -152,8 +152,8 @@ namespace TheLastCompact.Wakeup
             GameObject innerGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
             innerGo.name = "InnerFrame";
             innerGo.transform.SetParent(transform, false);
-            innerGo.transform.localPosition = new Vector3(0f, 0f, 0.005f); // 在外框前一点
-            innerGo.transform.localScale = new Vector3(0.92f, 0.92f, 1f); // 留出 8% 边框
+            innerGo.transform.localPosition = new Vector3(0f, 0f, -0.01f); // 在外框前面 (-0.01)，在文字后面 (-0.02)
+            innerGo.transform.localScale = new Vector3(0.90f, 0.90f, 1f); // 留出 10% 彩色发光外边框
 
             Collider col = innerGo.GetComponent<Collider>();
             if (col != null) Destroy(col);
@@ -163,11 +163,12 @@ namespace TheLastCompact.Wakeup
             if (shader == null) shader = Shader.Find("Sprites/Default");
             if (shader == null) shader = Shader.Find("Unlit/Color");
             Material innerMat = new Material(shader);
+            if (innerMat.HasProperty("_Surface")) innerMat.SetFloat("_Surface", 0); // Opaque 保证不透光
             _innerFrameRend.material = innerMat;
 
-            // 内部给一个优雅的深冷灰色背景
-            Color innerBg = isPrivateDataCard ? new Color(0.05f, 0.06f, 0.1f, 0.95f) : new Color(0.08f, 0.09f, 0.14f, 0.92f);
-            if (isChoiceCard) innerBg = new Color(0.12f, 0.1f, 0.18f, 0.95f);
+            // 内部背景统一使用极具质感的高对比度暗夜黑灰（#0E101A）
+            Color innerBg = isPrivateDataCard ? new Color(0.04f, 0.05f, 0.08f, 0.98f) : new Color(0.07f, 0.08f, 0.13f, 0.96f);
+            if (isChoiceCard) innerBg = new Color(0.09f, 0.08f, 0.15f, 0.98f);
 
             MaterialPropertyBlock mpb = new MaterialPropertyBlock();
             mpb.SetColor("_BaseColor", innerBg);
