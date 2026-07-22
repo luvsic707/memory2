@@ -26,9 +26,13 @@ namespace TheLastCompact.Wakeup
         [Tooltip("存活时间上限（秒），超过自动销毁")]
         public float maxLifetime = 25f;
 
-        [Header("视觉")]
+        [Header("视觉扩展")]
         public Color cardColor = Color.white;
         public string cardText = "";
+        public string categoryTag = "";
+        public string cardIcon = "";
+        public string cardHeadline = "";
+        public string cardSubtext = "";
 
         [Header("类型标记")]
         [Tooltip("是否是 Phase C 的私密数据卡")]
@@ -43,7 +47,10 @@ namespace TheLastCompact.Wakeup
         private bool _isBeingGazed = false;
         private float _lifetime = 0f;
         private Renderer _renderer;
-        private TextMeshPro _tmp;
+        private TextMeshPro _tmpMain;
+        private TextMeshPro _tmpHeader;
+        private TextMeshPro _tmpIcon;
+        private Renderer _innerFrameRend;
         private MaterialPropertyBlock _mpb;
         private float _alpha = 1f;
 
@@ -63,11 +70,11 @@ namespace TheLastCompact.Wakeup
             // 找到玩家摄像机
             _player = Camera.main != null ? Camera.main.transform : null;
 
-            // 如果有文字内容，创建 TextMeshPro 子物体
-            if (!string.IsNullOrEmpty(cardText))
-            {
-                CreateTextLabel();
-            }
+            // 创建内嵌深色卡片背景（制造精美的边框与层级感）
+            CreateInnerCardFrame();
+
+            // 构建富文本排版层（顶部标签 + 中央大图标 + 底部文案）
+            BuildRichCardLayout();
 
             // 应用初始颜色
             ApplyColor(cardColor);
@@ -188,13 +195,21 @@ namespace TheLastCompact.Wakeup
                 _renderer.material.color = c;
             }
 
-            // 文字也淡出
-            if (_tmp != null)
+            // 内框淡出
+            if (_innerFrameRend != null)
             {
-                Color tc = _tmp.color;
-                tc.a = a;
-                _tmp.color = tc;
+                Color innerBg = isPrivateDataCard ? new Color(0.05f, 0.06f, 0.1f, 0.95f * a) : new Color(0.08f, 0.09f, 0.14f, 0.92f * a);
+                if (isChoiceCard) innerBg = new Color(0.12f, 0.1f, 0.18f, 0.95f * a);
+                MaterialPropertyBlock mpb = new MaterialPropertyBlock();
+                mpb.SetColor("_BaseColor", innerBg);
+                mpb.SetColor("_Color", innerBg);
+                _innerFrameRend.SetPropertyBlock(mpb);
             }
+
+            // 所有文字层淡出
+            if (_tmpMain != null) { Color tc = _tmpMain.color; tc.a = a; _tmpMain.color = tc; }
+            if (_tmpHeader != null) { Color tc = _tmpHeader.color; tc.a = a * 0.75f; _tmpHeader.color = tc; }
+            if (_tmpIcon != null) { Color tc = _tmpIcon.color; tc.a = a; _tmpIcon.color = tc; }
         }
     }
 }

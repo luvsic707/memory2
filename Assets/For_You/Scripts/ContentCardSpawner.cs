@@ -242,15 +242,20 @@ namespace TheLastCompact.Wakeup
             }
         }
 
+        private static readonly string[] _phaseATags = { "[ 🔥 FOR YOU ]", "[ ✨ DISCOVER ]", "[ 🌸 VIBES ]", "[ 🍿 TRENDING ]", "[ 💎 POPULAR ]", "[ 🎵 REEL ]" };
+        private static readonly string[] _phaseAIcons = { "✨", "🦄", "🔮", "🌸", "🍩", "🌈", "🎵", "💫", "🎨", "🍭", "🦋", "💖" };
+
         private void ConfigurePhaseA(ContentCard card)
         {
-            // 高饱和度随机色
+            // 高饱和度随机彩虹色
             float hue = Random.Range(0f, 1f);
-            card.cardColor = Color.HSVToRGB(hue, Random.Range(0.6f, 0.95f), Random.Range(0.85f, 1f));
+            card.cardColor = Color.HSVToRGB(hue, Random.Range(0.7f, 0.95f), Random.Range(0.85f, 1f));
             card.cardColor = new Color(card.cardColor.r, card.cardColor.g, card.cardColor.b, 0.92f);
 
-            // 随机文字
-            card.cardText = _randomContent[Random.Range(0, _randomContent.Length)];
+            // 富视觉结构
+            card.categoryTag = _phaseATags[Random.Range(0, _phaseATags.Length)];
+            card.cardIcon = _phaseAIcons[Random.Range(0, _phaseAIcons.Length)];
+            card.cardHeadline = _randomContent[Random.Range(0, _randomContent.Length)];
         }
 
         private void ConfigurePhaseB(ContentCard card)
@@ -265,52 +270,43 @@ namespace TheLastCompact.Wakeup
                 works = PlayerBehaviorData.Instance.workCount;
             }
 
-            // 如果全是 0（调试模式），用模拟数据
             if (bananas + prayers + pushes + works == 0)
             {
                 bananas = 8; prayers = 15; pushes = 3; works = 45;
             }
 
             int max = Mathf.Max(Mathf.Max(bananas, prayers), Mathf.Max(pushes, works));
-
-            // 色系收窄
             float narrowT = Mathf.InverseLerp(0.35f, 0.70f, phaseProgress);
+
+            card.categoryTag = Random.value < 0.5f ? "[ 🎯 98% MATCH ]" : "[ 💡 FOR YOU ]";
 
             if (max == bananas)
             {
-                // 黄色系
                 float hue = Mathf.Lerp(Random.Range(0f, 1f), Random.Range(0.10f, 0.18f), narrowT);
                 card.cardColor = Color.HSVToRGB(hue, Random.Range(0.6f, 0.9f), Random.Range(0.85f, 1f));
-                card.cardText = Random.value < narrowT
-                    ? themeStrings_Banana[Random.Range(0, themeStrings_Banana.Length)]
-                    : _randomContent[Random.Range(0, _randomContent.Length)];
+                card.cardIcon = "🍌";
+                card.cardHeadline = themeStrings_Banana[Random.Range(0, themeStrings_Banana.Length)];
             }
             else if (max == prayers)
             {
-                // 青蓝色系
                 float hue = Mathf.Lerp(Random.Range(0f, 1f), Random.Range(0.50f, 0.60f), narrowT);
                 card.cardColor = Color.HSVToRGB(hue, Random.Range(0.5f, 0.8f), Random.Range(0.85f, 1f));
-                card.cardText = Random.value < narrowT
-                    ? themeStrings_Prayer[Random.Range(0, themeStrings_Prayer.Length)]
-                    : _randomContent[Random.Range(0, _randomContent.Length)];
+                card.cardIcon = "🧘";
+                card.cardHeadline = themeStrings_Prayer[Random.Range(0, themeStrings_Prayer.Length)];
             }
             else if (max == pushes)
             {
-                // 橙色系
                 float hue = Mathf.Lerp(Random.Range(0f, 1f), Random.Range(0.06f, 0.12f), narrowT);
                 card.cardColor = Color.HSVToRGB(hue, Random.Range(0.6f, 0.9f), Random.Range(0.85f, 1f));
-                card.cardText = Random.value < narrowT
-                    ? themeStrings_Push[Random.Range(0, themeStrings_Push.Length)]
-                    : _randomContent[Random.Range(0, _randomContent.Length)];
+                card.cardIcon = "🗿";
+                card.cardHeadline = themeStrings_Push[Random.Range(0, themeStrings_Push.Length)];
             }
             else
             {
-                // 红色系
                 float hue = Mathf.Lerp(Random.Range(0f, 1f), Random.Range(0.97f, 1.03f) % 1f, narrowT);
                 card.cardColor = Color.HSVToRGB(hue, Random.Range(0.5f, 0.85f), Random.Range(0.85f, 1f));
-                card.cardText = Random.value < narrowT
-                    ? themeStrings_Work[Random.Range(0, themeStrings_Work.Length)]
-                    : _randomContent[Random.Range(0, _randomContent.Length)];
+                card.cardIcon = "⌨️";
+                card.cardHeadline = themeStrings_Work[Random.Range(0, themeStrings_Work.Length)];
             }
 
             card.cardColor = new Color(card.cardColor.r, card.cardColor.g, card.cardColor.b, 0.92f);
@@ -335,48 +331,51 @@ namespace TheLastCompact.Wakeup
 
             if (cProgress < 0.33f)
             {
-                // 步骤1: 推主题（眼熟但不点破）
+                // 步骤1: 推荐标签
+                card.categoryTag = "[ 📡 ALGORITHM EVAL ]";
+                card.cardIcon = "📊";
                 int max = Mathf.Max(Mathf.Max(bananas, prayers), Mathf.Max(pushes, works));
                 string[] pool = max == bananas ? themeStrings_Banana
                               : max == prayers ? themeStrings_Prayer
                               : max == pushes ? themeStrings_Push
                               : themeStrings_Work;
-                card.cardText = pool[Random.Range(0, pool.Length)];
-                card.cardColor = new Color(0.95f, 0.95f, 1f, 0.95f); // 精致白，依然好看
+                card.cardHeadline = pool[Random.Range(0, pool.Length)];
+                card.cardColor = new Color(0.95f, 0.95f, 1f, 0.95f);
             }
             else if (cProgress < 0.66f)
             {
-                // 步骤2: 推具体行为物件——用文字描述唤起回忆
+                // 步骤2: 行为关联物
+                card.categoryTag = "[ 👁️ BEHAVIOR TRACKED ]";
+                card.cardIcon = "🔍";
                 string[] behaviorHints = {
-                    "🍌",
                     "A familiar yellow shape...",
-                    "That rock you pushed",
-                    "The sound of keys clicking",
-                    "A stone idol, waiting",
-                    "All work and no play...",
-                    "The hill never ends",
-                    "You've seen this before",
+                    "That rock you pushed on the hill",
+                    "The sound of keys clicking in office",
+                    "A stone idol waiting in silence",
+                    "You've been here before...",
                 };
-                card.cardText = behaviorHints[Random.Range(0, behaviorHints.Length)];
-                card.cardColor = new Color(1f, 0.98f, 0.93f, 0.97f); // 暖白，更精致更贴心
+                card.cardHeadline = behaviorHints[Random.Range(0, behaviorHints.Length)];
+                card.cardColor = new Color(1f, 0.98f, 0.93f, 0.97f);
                 card.isPrivateDataCard = true;
             }
             else
             {
-                // 步骤3: 核爆——直接吐私密数据
+                // 步骤3: 核爆私密数据
                 _phaseCDataIndex++;
+                card.categoryTag = "[ ⚠️ OBSERVER DATA LOG ]";
+                card.cardIcon = "👁️";
                 string[] privateData = {
                     $"You picked up {bananas} bananas.",
                     $"You prayed {prayers} times.",
                     $"You pushed the rock {pushes} times.",
                     $"You typed that sentence {works} times.",
                     "We have been watching\nsince the first banana.",
-                    $"banana: {bananas}\nprayer: {prayers}\npush: {pushes}\nwork: {works}",
+                    $"banana: {bananas} | prayer: {prayers}\npush: {pushes} | work: {works}",
                     "There was never a moment\nwithout an observer.",
-                    "The feed knows.\nIt always knew.",
+                    "The feed knows. It always knew.",
                 };
-                card.cardText = privateData[(_phaseCDataIndex - 1) % privateData.Length];
-                card.cardColor = new Color(1f, 1f, 1f, 0.98f); // 纯白——最可怕的是它没变凶
+                card.cardHeadline = privateData[(_phaseCDataIndex - 1) % privateData.Length];
+                card.cardColor = new Color(1f, 1f, 1f, 0.98f);
                 card.isPrivateDataCard = true;
             }
         }
