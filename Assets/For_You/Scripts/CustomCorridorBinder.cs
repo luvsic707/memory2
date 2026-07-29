@@ -6,8 +6,10 @@ using TheLastCompact.Core;
 namespace TheLastCompact.Wakeup
 {
     /// <summary>
-    /// 高级多维 3D 走廊绑定器 (图片 + 视频融合版 + 动态节奏控制)
-    /// 包含：VideoPlayer 视频渲染融合、阶段性节奏调控 (Phase 1 极速刷屏 -> Phase 2 停滞卡顿 -> Phase 3 疯狂抽搐)
+    /// 高级多维 3D 走廊绑定器 (主动点击掌控 -> 掌控力丧失 -> 彻底失控 完整机制)
+    /// Phase 1: 玩家主动点击鼠标左键/Trigger 才能刷下一条 Feed（主动掌控感）
+    /// Phase 2: 算法开始剥夺控制权，即使不点击也会自动强制切屏，玩家点击开始卡顿/失灵
+    /// Phase 3: 玩家彻底失去控制权，点击完全无效，Feed 不受控制地狂乱抽搐！
     /// </summary>
     public class CustomCorridorBinder : MonoBehaviour
     {
@@ -62,7 +64,6 @@ namespace TheLastCompact.Wakeup
                 Debug.Log("[CustomCorridorBinder] 已自动禁用散落卡片生成器，全面使用高级 3D 走廊！");
             }
 
-            // 初始化 VideoPlayer
             SetupVideoPlayer();
 
             Shader frontShader = Shader.Find("Wakeup/CorridorFrontShader");
@@ -119,10 +120,13 @@ namespace TheLastCompact.Wakeup
 
             float time = Time.time;
 
-            // 动态调节内容交替节奏 (Phase 1 极速刷屏 -> Phase 2 滞留卡顿 -> Phase 3 狂乱抽搐)
+            // 动态调节内容交替节奏
             UpdateRhythmTempo(phaseProgress);
 
-            // 1. 注视检测
+            // 1. 鼠标点击与主动/被动切屏逻辑 (Phase 1 必须点击 -> Phase 2 半自动 -> Phase 3 完全失控)
+            HandleControlModeAndInput(phaseProgress);
+
+            // 2. 注视检测
             Camera cam = Camera.main;
             if (cam != null)
             {
@@ -146,7 +150,7 @@ namespace TheLastCompact.Wakeup
                 }
             }
 
-            // 2. Phase 4 抉择界面
+            // 3. Phase 4 抉择界面
             if (phaseProgress >= 0.96f)
             {
                 if (_choiceContainer == null) CreatePhase4ChoiceTerminals();
@@ -157,20 +161,6 @@ namespace TheLastCompact.Wakeup
                 if (_choiceContainer != null) _choiceContainer.SetActive(false);
             }
 
-            // 3. 动态交替媒体 (依照 _currentInterval 节奏)
-            _switchTimer += Time.deltaTime;
-            if (_switchTimer >= _currentInterval)
-            {
-                _switchTimer = 0f;
-                _isTransitioning = true;
-                _transTimer = 0f;
-
-                _currentModeIndex = Random.Range(0, 3);
-                _currentTex = _nextTex;
-                PickNextMedia();
-                ApplyTexturesToWalls();
-            }
-
             // 4. 驱动 Front Wall 过渡与 Glitch
             if (_frontMat != null)
             {
@@ -178,7 +168,7 @@ namespace TheLastCompact.Wakeup
                 if (_isTransitioning)
                 {
                     _transTimer += Time.deltaTime;
-                    float transDur = phaseProgress > 0.70f ? 0.3f : 0.85f; // Phase 3 抽搐快切
+                    float transDur = phaseProgress > 0.70f ? 0.3f : 0.85f;
                     progress = Mathf.Clamp01(_transTimer / transDur);
                     if (_transTimer >= transDur) _isTransitioning = false;
                 }
@@ -189,7 +179,7 @@ namespace TheLastCompact.Wakeup
                 _frontMat.SetFloat("_GlitchIntensity", glitch);
             }
 
-            // 5. 驱动 Side Walls 四周墙面多维流体与抖动
+            // 5. 驱动 Side Walls 四周墙面多维流体
             if (_wallMat != null)
             {
                 float speed = 1.0f + phaseProgress * 2.5f;
@@ -234,16 +224,70 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
-        /// 动态调节内容交替节奏
-        /// Phase 1 (0 ~ 0.35): 1.2s - 1.8s 快节奏刷屏感
-        /// Phase 2 (0.35 ~ 0.70): 2.5s - 4.0s 滞留卡顿感
-        /// Phase 3 (0.70 ~ 0.96): 0.4s - 0.7s 疯狂抽搐感
+        /// 核心掌控力剥夺逻辑
+        /// Phase 1 (0 ~ 0.35): 必须按鼠标左键切屏（玩家完全掌控 Feed）
+        /// Phase 2 (0.35 ~ 0.70): 即使不按，计时器到期也会自动强制切屏，玩家按键反应迟钝
+        /// Phase 3 (0.70 ~ 0.96): 玩家按键彻底被忽略失灵，Feed 自动狂乱快切！
         /// </summary>
+        private void HandleControlModeAndInput(float phaseProgress)
+        {
+            bool playerClicked = Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.Space);
+
+            if (phaseProgress < 0.35f)
+            {
+                // Phase 1：玩家掌控，点击才切屏
+                if (playerClicked && !_isTransitioning)
+                {
+                    TriggerNextMediaSwitch();
+
+                    // 每次主动刷屏，进度微增
+                    if (Stage5Controller.Instance != null)
+                    {
+                        Stage5Controller.Instance.phaseProgress += 0.02f;
+                        Stage5Controller.Instance.phaseProgress = Mathf.Clamp01(Stage5Controller.Instance.phaseProgress);
+                    }
+                }
+            }
+            else if (phaseProgress < 0.70f)
+            {
+                // Phase 2：半失控模式——支持点击，但即使不点也会自动倒计时强制切屏
+                _switchTimer += Time.deltaTime;
+                bool timerExpired = _switchTimer >= _currentInterval;
+
+                if ((playerClicked || timerExpired) && !_isTransitioning)
+                {
+                    _switchTimer = 0f;
+                    TriggerNextMediaSwitch();
+                }
+            }
+            else
+            {
+                // Phase 3：完全失控模式——彻底忽略玩家点击！系统按狂乱节奏自动强切！
+                _switchTimer += Time.deltaTime;
+                if (_switchTimer >= _currentInterval && !_isTransitioning)
+                {
+                    _switchTimer = 0f;
+                    TriggerNextMediaSwitch();
+                }
+            }
+        }
+
+        private void TriggerNextMediaSwitch()
+        {
+            _isTransitioning = true;
+            _transTimer = 0f;
+
+            _currentModeIndex = Random.Range(0, 3);
+            _currentTex = _nextTex;
+            PickNextMedia();
+            ApplyTexturesToWalls();
+        }
+
         private void UpdateRhythmTempo(float phaseProgress)
         {
             if (phaseProgress < 0.35f)
             {
-                _currentInterval = Mathf.Lerp(1.5f, 1.8f, Mathf.InverseLerp(0f, 0.35f, phaseProgress));
+                _currentInterval = 1.8f;
             }
             else if (phaseProgress < 0.70f)
             {
@@ -265,8 +309,7 @@ namespace TheLastCompact.Wakeup
 
             string theme = GetDominantTheme();
 
-            // Phase 1 间歇性概率播放短视频
-            bool wantVideo = phaseProgress < 0.35f ? (Random.value < 0.35f) : (Random.value < 0.20f);
+            bool wantVideo = phaseProgress < 0.35f ? (Random.value < 0.45f) : (Random.value < 0.20f);
 
             if (wantVideo)
             {
@@ -284,7 +327,6 @@ namespace TheLastCompact.Wakeup
                 }
             }
 
-            // 图像处理
             _isNextMediaVideo = false;
             if (phaseProgress < 0.35f)
             {
