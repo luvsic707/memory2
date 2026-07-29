@@ -176,21 +176,48 @@ namespace TheLastCompact.Wakeup
 
         private void CreateInnerCardFrame()
         {
+            // 创建后置软辉光/尾迹层（环境渗透感）
+            GameObject trailGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            trailGo.name = "AmbientGlowTrail";
+            trailGo.transform.SetParent(transform, false);
+            trailGo.transform.localPosition = new Vector3(0f, 0f, 0.02f); // 放在卡片正后方
+            trailGo.transform.localScale = new Vector3(1.25f, 1.25f, 1f); // 比主卡片宽 25%，作为柔和羽化尾痕
+
+            Collider trailCol = trailGo.GetComponent<Collider>();
+            if (trailCol != null) DestroyImmediate(trailCol);
+
+            Renderer trailRend = trailGo.GetComponent<Renderer>();
+            Shader shader = FindCardShader();
+            Material trailMat = new Material(shader);
+
+            if (trailMat.HasProperty("_Surface")) trailMat.SetFloat("_Surface", 1); // Transparent
+            if (trailMat.HasProperty("_SrcBlend")) trailMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            if (trailMat.HasProperty("_DstBlend")) trailMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.One); // Additive 辉光融合
+            if (trailMat.HasProperty("_ZWrite")) trailMat.SetInt("_ZWrite", 0);
+            trailMat.renderQueue = 2999;
+
+            // 给尾迹渲染器赋予半透明发光
+            Color glowColor = cardColor;
+            glowColor.a = 0.35f;
+            if (trailMat.HasProperty("_BaseColor")) trailMat.SetColor("_BaseColor", glowColor);
+            if (trailMat.HasProperty("_Color")) trailMat.SetColor("_Color", glowColor);
+            trailRend.material = trailMat;
+
+            // 创建内嵌深色/图像卡片主体（满格呈现，消除硬框积木感）
             GameObject innerGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
             innerGo.name = "InnerFrame";
             innerGo.transform.SetParent(transform, false);
-            innerGo.transform.localPosition = new Vector3(0f, 0f, -0.01f); // 在外框前面 (-0.01)，在文字后面 (-0.02)
-            innerGo.transform.localScale = new Vector3(0.90f, 0.90f, 1f);  // 留出 10% 彩色发光外边框
+            innerGo.transform.localPosition = new Vector3(0f, 0f, -0.01f);
+            innerGo.transform.localScale = new Vector3(0.98f, 0.98f, 1f); // 98% 满格显示
 
             Collider col = innerGo.GetComponent<Collider>();
             if (col != null) DestroyImmediate(col);
 
             _innerFrameRend = innerGo.GetComponent<Renderer>();
-            Shader shader = FindCardShader();
             _innerCardMat = new Material(shader);
 
             // 配置透明度混合
-            if (_innerCardMat.HasProperty("_Surface")) _innerCardMat.SetFloat("_Surface", assignedTexture != null ? 0f : 0f); // Opaque
+            if (_innerCardMat.HasProperty("_Surface")) _innerCardMat.SetFloat("_Surface", 1); // Alpha Blend
             if (_innerCardMat.HasProperty("_SrcBlend")) _innerCardMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
             if (_innerCardMat.HasProperty("_DstBlend")) _innerCardMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
             if (_innerCardMat.HasProperty("_ZWrite")) _innerCardMat.SetInt("_ZWrite", 0);
@@ -199,12 +226,10 @@ namespace TheLastCompact.Wakeup
             // ── 贴上图片纹理 ──
             if (assignedTexture != null)
             {
-                // URP Unlit 用 _BaseMap，Standard / Sprites 用 _MainTex
                 if (_innerCardMat.HasProperty("_BaseMap"))
                     _innerCardMat.SetTexture("_BaseMap", assignedTexture);
                 _innerCardMat.mainTexture = assignedTexture;
 
-                // 有纹理时背景色设为白色，让图片颜色完整显示
                 if (_innerCardMat.HasProperty("_BaseColor"))
                     _innerCardMat.SetColor("_BaseColor", Color.white);
                 if (_innerCardMat.HasProperty("_Color"))
@@ -212,10 +237,10 @@ namespace TheLastCompact.Wakeup
             }
             else
             {
-                // 无纹理：退回纯色背景
+                // 无纹理退回柔和卡片色
                 Color innerBg = isPrivateDataCard
                     ? new Color(0.04f, 0.05f, 0.08f, 0.98f)
-                    : new Color(0.07f, 0.08f, 0.13f, 0.96f);
+                    : cardColor * 0.4f + new Color(0.05f, 0.05f, 0.05f, 0.9f);
                 if (isChoiceCard) innerBg = new Color(0.09f, 0.08f, 0.15f, 0.98f);
                 if (_innerCardMat.HasProperty("_BaseColor")) _innerCardMat.SetColor("_BaseColor", innerBg);
                 if (_innerCardMat.HasProperty("_Color"))     _innerCardMat.SetColor("_Color",     innerBg);
