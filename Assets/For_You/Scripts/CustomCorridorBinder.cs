@@ -1,13 +1,13 @@
 using UnityEngine;
+using UnityEngine.Video;
 using TMPro;
 using TheLastCompact.Core;
 
 namespace TheLastCompact.Wakeup
 {
     /// <summary>
-    /// 高级多维 3D 走廊绑定器 (完整融合 4 阶段叙事机制与 Phase 4 抉择)
-    /// 包含：多模式 Front Wall 图像过渡、Side Walls 浮动与 Glitch 腐蚀、
-    /// 注视推进 Phase 1->2->3 机制，以及 Phase 4 的 [STAY HERE] / [FACE THE FUTURE] 3D 抉择悬浮终端！
+    /// 高级多维 3D 走廊绑定器 (图片 + 视频融合版 + 动态节奏控制)
+    /// 包含：VideoPlayer 视频渲染融合、阶段性节奏调控 (Phase 1 极速刷屏 -> Phase 2 停滞卡顿 -> Phase 3 疯狂抽搐)
     /// </summary>
     public class CustomCorridorBinder : MonoBehaviour
     {
@@ -15,15 +15,11 @@ namespace TheLastCompact.Wakeup
         public CardMediaDatabase mediaDatabase;
 
         [Header("手动搭建的走廊墙体")]
-        [Tooltip("走廊尽头的正面墙/Quad（播放交替图像）")]
+        [Tooltip("走廊尽头的正面墙/Quad（播放交替图像/视频）")]
         public Renderer frontWallRenderer;
 
         [Tooltip("走廊四周的 4 面墙体 Cube（左、右、天花板、地面）")]
         public Renderer[] sideWallRenderers;
-
-        [Header("动态与动画参数")]
-        public float imageSwitchInterval = 2.2f;
-        public float transitionDuration = 0.85f;
 
         [Header("物理墙体震颤")]
         public float physicalWarpIntensity = 0.15f;
@@ -31,10 +27,16 @@ namespace TheLastCompact.Wakeup
         private Material _frontMat;
         private Material _wallMat;
 
+        // 视频播放组件
+        private VideoPlayer _videoPlayer;
+        private RenderTexture _videoRenderTexture;
+
         private Texture2D _currentTex;
         private Texture2D _nextTex;
-        
+        private bool _isNextMediaVideo = false;
+
         private float _switchTimer = 0f;
+        private float _currentInterval = 1.8f;
         private float _transTimer = 0f;
         private bool _isTransitioning = false;
         private int _currentModeIndex = 0; // 0: SlitScan, 1: Burst, 2: Feedback
@@ -59,6 +61,9 @@ namespace TheLastCompact.Wakeup
                 spawner.enabled = false;
                 Debug.Log("[CustomCorridorBinder] 已自动禁用散落卡片生成器，全面使用高级 3D 走廊！");
             }
+
+            // 初始化 VideoPlayer
+            SetupVideoPlayer();
 
             Shader frontShader = Shader.Find("Wakeup/CorridorFrontShader");
             if (frontShader == null) frontShader = Shader.Find("Universal Render Pipeline/Unlit");
@@ -86,10 +91,24 @@ namespace TheLastCompact.Wakeup
                 }
             }
 
-            PickNextTexture();
+            PickNextMedia();
             _currentTex = _nextTex;
-            PickNextTexture();
+            PickNextMedia();
             ApplyTexturesToWalls();
+        }
+
+        private void SetupVideoPlayer()
+        {
+            GameObject vpGo = new GameObject("CorridorVideoPlayer");
+            vpGo.transform.SetParent(transform, false);
+            _videoPlayer = vpGo.AddComponent<VideoPlayer>();
+            _videoPlayer.playOnAwake = false;
+            _videoPlayer.isLooping = true;
+            _videoPlayer.renderMode = VideoRenderMode.RenderTexture;
+
+            _videoRenderTexture = new RenderTexture(1024, 1024, 0, RenderTextureFormat.ARGB32);
+            _videoRenderTexture.Create();
+            _videoPlayer.targetTexture = _videoRenderTexture;
         }
 
         private void Update()
@@ -100,7 +119,10 @@ namespace TheLastCompact.Wakeup
 
             float time = Time.time;
 
-            // 1. 注视检测 (Phase 1-3 推进进度，Phase 4 选择分支)
+            // 动态调节内容交替节奏 (Phase 1 极速刷屏 -> Phase 2 滞留卡顿 -> Phase 3 狂乱抽搐)
+            UpdateRhythmTempo(phaseProgress);
+
+            // 1. 注视检测
             Camera cam = Camera.main;
             if (cam != null)
             {
@@ -109,7 +131,6 @@ namespace TheLastCompact.Wakeup
 
                 if (phaseProgress < 0.96f)
                 {
-                    // Phase 1->3: 注视尽头画面推进 Phase 进度
                     if (frontWallRenderer != null && Physics.Raycast(ray, out hit, 50f))
                     {
                         if (hit.transform == frontWallRenderer.transform && Stage5Controller.Instance != null)
@@ -121,12 +142,11 @@ namespace TheLastCompact.Wakeup
                 }
                 else
                 {
-                    // Phase 4 抉择时刻：检测玩家注视哪个选择终端
                     HandlePhase4ChoiceGaze(ray);
                 }
             }
 
-            // 2. Phase 4 抉择界面的显示与生成
+            // 2. Phase 4 抉择界面
             if (phaseProgress >= 0.96f)
             {
                 if (_choiceContainer == null) CreatePhase4ChoiceTerminals();
@@ -137,9 +157,9 @@ namespace TheLastCompact.Wakeup
                 if (_choiceContainer != null) _choiceContainer.SetActive(false);
             }
 
-            // 3. 定时触发图像多模式过渡
+            // 3. 动态交替媒体 (依照 _currentInterval 节奏)
             _switchTimer += Time.deltaTime;
-            if (_switchTimer >= imageSwitchInterval)
+            if (_switchTimer >= _currentInterval)
             {
                 _switchTimer = 0f;
                 _isTransitioning = true;
@@ -147,19 +167,20 @@ namespace TheLastCompact.Wakeup
 
                 _currentModeIndex = Random.Range(0, 3);
                 _currentTex = _nextTex;
-                PickNextTexture();
+                PickNextMedia();
                 ApplyTexturesToWalls();
             }
 
-            // 4. 驱动 Front Wall 图像过渡与 Glitch
+            // 4. 驱动 Front Wall 过渡与 Glitch
             if (_frontMat != null)
             {
                 float progress = 0f;
                 if (_isTransitioning)
                 {
                     _transTimer += Time.deltaTime;
-                    progress = Mathf.Clamp01(_transTimer / transitionDuration);
-                    if (_transTimer >= transitionDuration) _isTransitioning = false;
+                    float transDur = phaseProgress > 0.70f ? 0.3f : 0.85f; // Phase 3 抽搐快切
+                    progress = Mathf.Clamp01(_transTimer / transDur);
+                    if (_transTimer >= transDur) _isTransitioning = false;
                 }
 
                 float glitch = phaseProgress > 0.35f ? Mathf.InverseLerp(0.35f, 0.96f, phaseProgress) * 0.85f : 0f;
@@ -168,10 +189,10 @@ namespace TheLastCompact.Wakeup
                 _frontMat.SetFloat("_GlitchIntensity", glitch);
             }
 
-            // 5. 驱动 Side Walls 墙面多维流体与 Glitch
+            // 5. 驱动 Side Walls 四周墙面多维流体与抖动
             if (_wallMat != null)
             {
-                float speed = 1.0f + phaseProgress * 2.2f;
+                float speed = 1.0f + phaseProgress * 2.5f;
                 float glitch = phaseProgress > 0.35f ? Mathf.InverseLerp(0.35f, 0.96f, phaseProgress) * 0.85f : 0f;
                 float rgbShift = 0.015f + phaseProgress * 0.035f;
                 float waveWarp = 0.3f + phaseProgress * 1.5f;
@@ -212,15 +233,101 @@ namespace TheLastCompact.Wakeup
             }
         }
 
+        /// <summary>
+        /// 动态调节内容交替节奏
+        /// Phase 1 (0 ~ 0.35): 1.2s - 1.8s 快节奏刷屏感
+        /// Phase 2 (0.35 ~ 0.70): 2.5s - 4.0s 滞留卡顿感
+        /// Phase 3 (0.70 ~ 0.96): 0.4s - 0.7s 疯狂抽搐感
+        /// </summary>
+        private void UpdateRhythmTempo(float phaseProgress)
+        {
+            if (phaseProgress < 0.35f)
+            {
+                _currentInterval = Mathf.Lerp(1.5f, 1.8f, Mathf.InverseLerp(0f, 0.35f, phaseProgress));
+            }
+            else if (phaseProgress < 0.70f)
+            {
+                _currentInterval = Mathf.Lerp(2.5f, 3.8f, Mathf.InverseLerp(0.35f, 0.70f, phaseProgress));
+            }
+            else
+            {
+                _currentInterval = Mathf.Lerp(0.7f, 0.4f, Mathf.InverseLerp(0.70f, 0.96f, phaseProgress));
+            }
+        }
+
+        private void PickNextMedia()
+        {
+            if (mediaDatabase == null) return;
+
+            float phaseProgress = Stage5Controller.Instance != null
+                ? Stage5Controller.Instance.phaseProgress
+                : 0f;
+
+            string theme = GetDominantTheme();
+
+            // Phase 1 间歇性概率播放短视频
+            bool wantVideo = phaseProgress < 0.35f ? (Random.value < 0.35f) : (Random.value < 0.20f);
+
+            if (wantVideo)
+            {
+                VideoClip clip = phaseProgress < 0.35f
+                    ? mediaDatabase.GetEntertainmentVideo()
+                    : mediaDatabase.GetThemeVideo(theme);
+
+                if (clip != null)
+                {
+                    _videoPlayer.clip = clip;
+                    _videoPlayer.Play();
+                    _nextTex = (Texture2D)(Texture)_videoRenderTexture;
+                    _isNextMediaVideo = true;
+                    return;
+                }
+            }
+
+            // 图像处理
+            _isNextMediaVideo = false;
+            if (phaseProgress < 0.35f)
+            {
+                _nextTex = mediaDatabase.GetEntertainmentTexture();
+            }
+            else if (phaseProgress < 0.70f)
+            {
+                _nextTex = Random.value < 0.5f
+                    ? mediaDatabase.GetThemeTexture(theme)
+                    : mediaDatabase.GetEntertainmentTexture();
+            }
+            else
+            {
+                _nextTex = mediaDatabase.GetThemeTexture(theme) ?? mediaDatabase.GetEntertainmentTexture();
+            }
+        }
+
+        private void ApplyTexturesToWalls()
+        {
+            if (_currentTex == null) return;
+
+            if (_frontMat != null)
+            {
+                if (_frontMat.HasProperty("_MainTex")) _frontMat.SetTexture("_MainTex", _currentTex);
+                if (_frontMat.HasProperty("_NextTex")) _frontMat.SetTexture("_NextTex", _nextTex);
+            }
+
+            if (_wallMat != null)
+            {
+                if (_wallMat.HasProperty("_MainTex")) _wallMat.SetTexture("_MainTex", _currentTex);
+                if (_wallMat.HasProperty("_BaseMap")) _wallMat.SetTexture("_BaseMap", _currentTex);
+                _wallMat.mainTexture = _currentTex;
+            }
+        }
+
         private void CreatePhase4ChoiceTerminals()
         {
             if (frontWallRenderer == null) return;
 
             _choiceContainer = new GameObject("Phase4_ChoiceTerminals");
             _choiceContainer.transform.SetParent(frontWallRenderer.transform, false);
-            _choiceContainer.transform.localPosition = new Vector3(0f, 0f, -0.1f); // 浮在尽头墙面前方
+            _choiceContainer.transform.localPosition = new Vector3(0f, 0f, -0.1f);
 
-            // 左选项：[INFINITE LOOP] Stay Here
             _stayOptionGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
             _stayOptionGo.name = "StayOptionQuad";
             _stayOptionGo.transform.SetParent(_choiceContainer.transform, false);
@@ -237,7 +344,6 @@ namespace TheLastCompact.Wakeup
             _stayTmp.fontSize = 0.35f;
             _stayTmp.color = Color.white;
 
-            // 右选项：[BREAK THE LOOP] Challenge Stage 6
             _continueOptionGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
             _continueOptionGo.name = "ContinueOptionQuad";
             _continueOptionGo.transform.SetParent(_choiceContainer.transform, false);
@@ -282,7 +388,6 @@ namespace TheLastCompact.Wakeup
 
                 _gazeChoiceTimer += Time.deltaTime;
 
-                // 悬停缩放反馈
                 if (hovered == "stay" && _stayOptionGo != null)
                     _stayOptionGo.transform.localScale = Vector3.Lerp(_stayOptionGo.transform.localScale, new Vector3(0.48f, 0.48f, 1f), Time.deltaTime * 10f);
                 if (hovered == "continue" && _continueOptionGo != null)
@@ -331,50 +436,6 @@ namespace TheLastCompact.Wakeup
             if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", color);
             if (m.HasProperty("_Color")) m.SetColor("_Color", color);
             rend.material = m;
-        }
-
-        private void PickNextTexture()
-        {
-            if (mediaDatabase == null) return;
-
-            float phaseProgress = Stage5Controller.Instance != null
-                ? Stage5Controller.Instance.phaseProgress
-                : 0f;
-
-            string theme = GetDominantTheme();
-
-            if (phaseProgress < 0.35f)
-            {
-                _nextTex = mediaDatabase.GetEntertainmentTexture();
-            }
-            else if (phaseProgress < 0.70f)
-            {
-                _nextTex = Random.value < 0.5f
-                    ? mediaDatabase.GetThemeTexture(theme)
-                    : mediaDatabase.GetEntertainmentTexture();
-            }
-            else
-            {
-                _nextTex = mediaDatabase.GetThemeTexture(theme) ?? mediaDatabase.GetEntertainmentTexture();
-            }
-        }
-
-        private void ApplyTexturesToWalls()
-        {
-            if (_currentTex == null) return;
-
-            if (_frontMat != null)
-            {
-                if (_frontMat.HasProperty("_MainTex")) _frontMat.SetTexture("_MainTex", _currentTex);
-                if (_frontMat.HasProperty("_NextTex")) _frontMat.SetTexture("_NextTex", _nextTex);
-            }
-
-            if (_wallMat != null)
-            {
-                if (_wallMat.HasProperty("_MainTex")) _wallMat.SetTexture("_MainTex", _currentTex);
-                if (_wallMat.HasProperty("_BaseMap")) _wallMat.SetTexture("_BaseMap", _currentTex);
-                _wallMat.mainTexture = _currentTex;
-            }
         }
 
         private string GetDominantTheme()
