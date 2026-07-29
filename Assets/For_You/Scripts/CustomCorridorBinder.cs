@@ -240,10 +240,10 @@ namespace TheLastCompact.Wakeup
                 {
                     TriggerNextMediaSwitch();
 
-                    // 每次主动刷屏，进度微增
+                    // 每次主动刷屏，进度微增（调校至 Phase 1 约 25s 体验）
                     if (Stage5Controller.Instance != null)
                     {
-                        Stage5Controller.Instance.phaseProgress += 0.02f;
+                        Stage5Controller.Instance.phaseProgress += 0.008f;
                         Stage5Controller.Instance.phaseProgress = Mathf.Clamp01(Stage5Controller.Instance.phaseProgress);
                     }
                 }
