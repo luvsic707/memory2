@@ -97,5 +97,11 @@ namespace TheLastCompact.Wakeup
             if (targetPool == null || targetPool.Length == 0) return GetEntertainmentVideo();
             return targetPool[Random.Range(0, targetPool.Length)];
         }
+
+        public Texture2D GetPrivateDataTexture()
+        {
+            if (privateDataTextures == null || privateDataTextures.Length == 0) return null;
+            return privateDataTextures[Random.Range(0, privateDataTextures.Length)];
+        }
     }
 }
