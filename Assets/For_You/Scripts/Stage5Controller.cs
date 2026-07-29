@@ -66,6 +66,10 @@ namespace TheLastCompact.Wakeup
         [Tooltip("Phase C 私密数据出现时，全局音量降到此值")]
         public float silenceVolume = 0.05f;
 
+        [Header("实验模式：Brandon Eversole 流体穿梭模式")]
+        [Tooltip("勾选后将开启 Brandon Eversole 风格的全屏流体无限穿梭模式")]
+        public bool useFluidTunnelMode = false;
+
         [Header("媒体数据库（图片/纹理）")]
         [Tooltip("将 Assets/For_You 下的 CardMediaDatabase.asset 拖入此槽。留空则卡片以纯色模式运行。")]
         public CardMediaDatabase mediaDatabase;
@@ -545,6 +549,15 @@ namespace TheLastCompact.Wakeup
 
         private void CreateSubsystems()
         {
+            if (useFluidTunnelMode)
+            {
+                GameObject fluidGo = new GameObject("FluidTunnelRenderer");
+                fluidGo.transform.SetParent(transform, false);
+                FluidTunnelRenderer fluidRend = fluidGo.AddComponent<FluidTunnelRenderer>();
+                fluidRend.mediaDatabase = mediaDatabase;
+                Debug.Log("[Stage5] 已启动 Brandon Eversole 风格流体无限穿梭模式！");
+            }
+
             GameObject spawnerGo = new GameObject("ContentCardSpawner");
             spawnerGo.transform.SetParent(transform, false);
             _spawner = spawnerGo.AddComponent<ContentCardSpawner>();
