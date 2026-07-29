@@ -8,6 +8,11 @@ Shader "Wakeup/CorridorWallShader"
         _GlitchAmount ("Pixel Glitch Intensity", Range(0, 1)) = 0
         _RGBShift ("RGB Chromatic Shift", Range(0, 0.05)) = 0.015
         _WaveWarp ("Wave Warp Distortion", Range(0, 2)) = 0.3
+        
+        // 新增多维流动控制
+        _FlowAngle ("Flow Diagonal Angle", Range(-3.14, 3.14)) = 0.785
+        _VortexAmount ("Vortex Shear Amount", Range(0, 2)) = 0.2
+        _SliceOffset ("Slit Strip Shift", Range(0, 1)) = 0
     }
     SubShader
     {
@@ -43,6 +48,9 @@ Shader "Wakeup/CorridorWallShader"
                 float _GlitchAmount;
                 float _RGBShift;
                 float _WaveWarp;
+                float _FlowAngle;
+                float _VortexAmount;
+                float _SliceOffset;
             CBUFFER_END
 
             Varyings vert(Attributes input)
@@ -63,36 +71,61 @@ Shader "Wakeup/CorridorWallShader"
                 float2 uv = input.uv;
                 float time = _Time.y;
 
-                // 1. 有机呼吸脉动速度 (Pulsing Speed)
-                float pulseSpeed = _FlowSpeed * (1.0 + sin(time * 2.0) * 0.35);
+                // 1. 有机呼吸流动速度
+                float pulseSpeed = _FlowSpeed * (1.0 + sin(time * 1.8) * 0.4);
 
-                // 2. 沿通道深度 (V 轴) 的 Slit-scan 流体拉伸
-                float wave = sin(uv.x * 12.0 + time * 3.0) * 0.04 * _WaveWarp;
-                uv.y = frac((uv.y + wave) * _StretchScale - time * pulseSpeed);
+                // 2. 切片错位 (Slit Strip Shift - 横向/纵向条纹错位)
+                if (_SliceOffset > 0.01)
+                {
+                    float strips = 16.0;
+                    float stripID = floor(uv.x * strips);
+                    float shiftDir = frac(stripID * 0.5) > 0.25 ? 1.0 : -1.0;
+                    uv.y += shiftDir * time * 0.3 * _SliceOffset;
+                }
 
-                // 3. Phase 2/3 的像素腐蚀
+                // 3. 斜向与双向复合流动 (Diagonal & Angular Flow)
+                float cosA = cos(_FlowAngle);
+                float sinA = sin(_FlowAngle);
+                float2 dir = float2(cosA, sinA);
+                
+                // 结合 Z 轴深度拉伸
+                uv.y *= _StretchScale;
+                uv += dir * time * pulseSpeed * 0.5;
+                uv = frac(uv);
+
+                // 4. 水面漩涡扭曲 (Vortex Shear)
+                if (_VortexAmount > 0.01)
+                {
+                    float2 cent = uv - 0.5;
+                    float r = length(cent);
+                    float a = atan2(cent.y, cent.x);
+                    a += sin(r * 12.0 - time * 2.0) * _VortexAmount * _WaveWarp;
+                    uv = float2(cos(a), sin(a)) * r + 0.5;
+                }
+
+                // 5. 类似 thezhapezhifter 的彩虹像素腐蚀
                 if (_GlitchAmount > 0.01)
                 {
                     float blocks = lerp(120.0, 20.0, _GlitchAmount);
                     float2 blockUV = floor(uv * blocks) / blocks;
                     float n = hash(blockUV + floor(time * 8.0));
-                    if (n < _GlitchAmount * 0.5)
+                    if (n < _GlitchAmount * 0.55)
                     {
-                        uv = blockUV + float2(sin(n * 6.28), cos(n * 6.28)) * 0.04;
+                        uv = blockUV + float2(sin(n * 6.28), cos(n * 6.28)) * 0.05;
                     }
                 }
 
-                // 4. RGB 色彩分离/色差拖尾 (Chromatic Aberration)
+                // 6. RGB 色彩分离 (Chromatic Shift)
                 float shift = _RGBShift * (1.0 + _GlitchAmount * 2.0);
-                float r = _MainTex.Sample(sampler_MainTex, uv + float2(shift, 0.0)).r;
-                float g = _MainTex.Sample(sampler_MainTex, uv).g;
-                float b = _MainTex.Sample(sampler_MainTex, uv - float2(shift, 0.0)).b;
+                float rCol = _MainTex.Sample(sampler_MainTex, uv + float2(shift, shift * 0.5)).r;
+                float gCol = _MainTex.Sample(sampler_MainTex, uv).g;
+                float bCol = _MainTex.Sample(sampler_MainTex, uv - float2(shift, shift * 0.5)).b;
 
-                float4 col = float4(r, g, b, 1.0);
+                float4 col = float4(rCol, gCol, bCol, 1.0);
 
-                // 5. 深度光辉暗角
-                float depthGlow = smoothstep(0.0, 0.8, input.uv.y);
-                col.rgb *= lerp(0.35, 1.3, depthGlow);
+                // 7. 深度暗角与光芒
+                float depthGlow = smoothstep(0.0, 0.85, input.uv.y);
+                col.rgb *= lerp(0.35, 1.35, depthGlow);
 
                 return col;
             }
