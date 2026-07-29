@@ -13,6 +13,10 @@ namespace TheLastCompact.Wakeup
     /// </summary>
     public class ContentCardSpawner : MonoBehaviour
     {
+        [Header("媒体数据库（图片/视觉纹理）")]
+        [Tooltip("拖入由 CardMediaDatabase 生成的 .asset 文件。未填则卡片保持纯色模式。")]
+        public CardMediaDatabase mediaDatabase;
+
         [Header("生成参数")]
         [Tooltip("卡片生成的基础半径（距离玩家）")]
         public float spawnRadius = 20f;
@@ -327,7 +331,7 @@ namespace TheLastCompact.Wakeup
                 if (Random.value < 0.45f)
                 {
                     ConfigurePhaseD_Choice(card);
-                    return;
+                    return; // 抉择卡不需要媒体纹理
                 }
             }
 
@@ -343,6 +347,77 @@ namespace TheLastCompact.Wakeup
             {
                 ConfigurePhaseC(card);
             }
+
+            // 媒体纹理分配（在内容配置完成后执行，需要 isPrivateDataCard 已经设好）
+            AssignMediaToCard(card);
+        }
+
+        /// <summary>
+        /// 根据当前 phaseProgress 和玩家行为数据，从 CardMediaDatabase 中为卡片挑选合适的纹理。
+        /// Phase 1: 纯娱乐内容。
+        /// Phase 2: 娱乐内容为主，逐渐渗入玩家偏好主题。
+        /// Phase 3: 完全切换到玩家行为数据对应的荒诞主题（香蕉/祈祷/推岩石/工作）。
+        /// 若 mediaDatabase 未填充，退回纯色模式（无纹理）。
+        /// </summary>
+        private void AssignMediaToCard(ContentCard card)
+        {
+            if (mediaDatabase == null) return;           // 数据库未挂载 → 纯色模式
+            if (card.isChoiceCard)     return;           // 抉择卡保持干净，无图片
+
+            string theme = GetDominantTheme();
+
+            if (phaseProgress < 0.35f)
+            {
+                // Phase 1：全部娱乐内容，干净缤纷
+                card.assignedTexture = mediaDatabase.GetEntertainmentTexture();
+            }
+            else if (phaseProgress < 0.70f)
+            {
+                // Phase 2：娱乐为主，主题渗透率随进度提升（0% → 40%）
+                float themeBlend = Mathf.InverseLerp(0.35f, 0.70f, phaseProgress) * 0.40f;
+                card.assignedTexture = Random.value < themeBlend
+                    ? mediaDatabase.GetThemeTexture(theme)
+                    : mediaDatabase.GetEntertainmentTexture();
+            }
+            else if (card.isPrivateDataCard)
+            {
+                // Phase 3 私密数据卡：优先用私密数据纹理，其次退回主题纹理
+                card.assignedTexture = mediaDatabase.GetPrivateDataTexture()
+                                    ?? mediaDatabase.GetThemeTexture(theme);
+            }
+            else
+            {
+                // Phase 3 普通卡：主题内容为主，娱乐逐渐归零（进度 0.70→0.96：娱乐从 30% 降到 0%）
+                float entertainChance = (1f - Mathf.InverseLerp(0.70f, 0.96f, phaseProgress)) * 0.30f;
+                card.assignedTexture = Random.value < entertainChance
+                    ? mediaDatabase.GetEntertainmentTexture()
+                    : mediaDatabase.GetThemeTexture(theme);
+            }
+        }
+
+        /// <summary>
+        /// 根据 PlayerBehaviorData 中四项行为计数，返回主导主题字符串。
+        /// 返回值："banana" / "prayer" / "push" / "work"
+        /// </summary>
+        private string GetDominantTheme()
+        {
+            int bananas = 0, prayers = 0, pushes = 0, works = 0;
+            if (PlayerBehaviorData.Instance != null)
+            {
+                bananas = PlayerBehaviorData.Instance.bananaCount;
+                prayers = PlayerBehaviorData.Instance.prayerCount;
+                pushes  = PlayerBehaviorData.Instance.pushCount;
+                works   = PlayerBehaviorData.Instance.workCount;
+            }
+
+            // 默认值（测试/编辑器单独运行时无 PlayerBehaviorData）
+            if (bananas + prayers + pushes + works == 0) works = 45;
+
+            int max = Mathf.Max(Mathf.Max(bananas, prayers), Mathf.Max(pushes, works));
+            if (max == bananas) return "banana";
+            if (max == prayers) return "prayer";
+            if (max == pushes)  return "push";
+            return "work";
         }
 
         private void ConfigurePhaseD_Choice(ContentCard card)
