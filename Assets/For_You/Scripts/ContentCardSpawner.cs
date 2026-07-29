@@ -193,6 +193,17 @@ namespace TheLastCompact.Wakeup
         private void Start()
         {
             _player = GetPlayerTransform();
+
+            // 若 mediaDatabase 未手动赋值，自动从 Resources 文件夹加载
+            // 使用前请确保 CardMediaDatabase.asset 放在任意 Resources/ 子目录下，文件名为 "CardMediaDatabase"
+            if (mediaDatabase == null)
+            {
+                mediaDatabase = Resources.Load<CardMediaDatabase>("CardMediaDatabase");
+                if (mediaDatabase != null)
+                    Debug.Log("[ContentCardSpawner] 已从 Resources 自动加载 CardMediaDatabase。");
+                else
+                    Debug.LogWarning("[ContentCardSpawner] 未找到 CardMediaDatabase（Resources/CardMediaDatabase.asset），卡片将以纯色模式运行。");
+            }
         }
 
         private void Update()
