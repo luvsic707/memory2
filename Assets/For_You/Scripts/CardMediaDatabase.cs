@@ -15,7 +15,7 @@ namespace TheLastCompact.Wakeup
     ///   Phase 2 → 娱乐内容 + 逐渐渗入玩家偏好主题
     ///   Phase 3 → 强制切换到玩家行为数据对应的荒诞主题内容
     /// </summary>
-    [CreateAssetMenu(fileName = "CardMediaDatabase", menuName = "Wakeup/Card Media Database")]
+    [CreateAssetMenu(fileName = "CardMediaDatabase", menuName = "For_You_stage5/Card Media Database")]
     public class CardMediaDatabase : ScriptableObject
     {
         [Header("Phase 1 — 娱乐内容（TikTok 风，色彩缤纷）")]
