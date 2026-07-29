@@ -551,11 +551,15 @@ namespace TheLastCompact.Wakeup
         {
             if (useFluidTunnelMode)
             {
-                GameObject corridorGo = new GameObject("FluidCorridorBuilder");
-                corridorGo.transform.SetParent(transform, false);
-                FluidCorridorBuilder builder = corridorGo.AddComponent<FluidCorridorBuilder>();
-                builder.mediaDatabase = mediaDatabase;
-                Debug.Log("[Stage5] 已启动 3D 几何包裹流体走廊 (Brandon Eversole 物理通道模式)！");
+                CustomCorridorBinder binder = FindObjectOfType<CustomCorridorBinder>();
+                if (binder == null)
+                {
+                    GameObject binderGo = new GameObject("CustomCorridorBinder_Auto");
+                    binderGo.transform.SetParent(transform, false);
+                    binder = binderGo.AddComponent<CustomCorridorBinder>();
+                }
+                binder.mediaDatabase = mediaDatabase;
+                Debug.Log("[Stage5] 已成功启动手工 3D 走廊绑定器！");
             }
             else
             {
