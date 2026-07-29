@@ -126,15 +126,16 @@ namespace TheLastCompact.Wakeup
             // 1. 鼠标点击与主动/被动切屏逻辑 (Phase 1 必须点击 -> Phase 2 半自动 -> Phase 3 完全失控)
             HandleControlModeAndInput(phaseProgress);
 
-            // 2. 注视检测
+            // 2. 注视检测 (Phase 1 仅靠玩家手动点击，禁用自动加进度；Phase 2-3 启用注视与时间自动推进)
             Camera cam = Camera.main;
             if (cam != null)
             {
                 Ray ray = new Ray(cam.transform.position, cam.transform.forward);
                 RaycastHit hit;
 
-                if (phaseProgress < 0.96f)
+                if (phaseProgress >= 0.35f && phaseProgress < 0.96f)
                 {
+                    // Phase 2->3: 注视尽头画面推进 Phase 进度
                     if (frontWallRenderer != null && Physics.Raycast(ray, out hit, 50f))
                     {
                         if (hit.transform == frontWallRenderer.transform && Stage5Controller.Instance != null)
@@ -144,8 +145,9 @@ namespace TheLastCompact.Wakeup
                         }
                     }
                 }
-                else
+                else if (phaseProgress >= 0.96f)
                 {
+                    // Phase 4 抉择时刻：检测玩家注视哪个选择终端
                     HandlePhase4ChoiceGaze(ray);
                 }
             }

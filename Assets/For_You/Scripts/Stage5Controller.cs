@@ -510,8 +510,9 @@ namespace TheLastCompact.Wakeup
                 Debug.Log("<color=cyan>[Stage5 调试] 跳转至 Phase 4 (Moment of Choice)</color>");
             }
 
-            // 自动推进 phaseProgress
-            if (phaseProgress < 1f)
+            // Phase 1 (progress < 0.35) 禁用时间自增，纯靠玩家手动点击 12 次推进！
+            // 只有进入 Phase 2 (progress >= 0.35) 后才恢复时间自增。
+            if (phaseProgress >= 0.35f && phaseProgress < 1f)
             {
                 phaseProgress += progressPerSecond * Time.deltaTime;
                 phaseProgress = Mathf.Clamp01(phaseProgress);
