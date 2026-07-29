@@ -180,28 +180,32 @@ namespace TheLastCompact.Wakeup
             _tunnelGo.transform.position = pTransform.position + pTransform.forward * (tunnelLength * 0.4f);
             _tunnelGo.transform.rotation = Quaternion.LookRotation(pTransform.forward) * Quaternion.Euler(90f, 0f, 0f);
 
-            // Phase A (0~0.35): 隧道不可见
-            // Phase B (0.35~0.70): 隧道渐显，半径从大缩小
-            // Phase C (0.70~1.0): 隧道最窄
-            float tunnelVisibility = 0f;
+            // Phase A (0~0.35): 虚空感，带有极其微弱的星流
+            // Phase B (0.35~0.70): 隧道渐显，有机的流动脉冲
+            // Phase C (0.70~1.0): 极窄收拢
+            float tunnelVisibility = 0.04f; // 保持微弱的虚空氛围感
             float radius = maxTunnelRadius;
 
             if (phaseProgress > 0.35f)
             {
                 float t = Mathf.InverseLerp(0.35f, 1.0f, phaseProgress);
-                tunnelVisibility = Mathf.Lerp(0f, maxTunnelAlpha, t);
+                tunnelVisibility = Mathf.Lerp(0.04f, maxTunnelAlpha, t);
                 radius = Mathf.Lerp(maxTunnelRadius, minTunnelRadius, t);
             }
 
-            _tunnelGo.transform.localScale = new Vector3(radius, tunnelLength * 0.5f, radius);
+            // 添加有机的微弱呼吸/波纹动效（像流体隧道在蠕动/流动）
+            float organicPulse = Mathf.Sin(Time.time * 1.8f) * 0.15f * radius;
+            _tunnelGo.transform.localScale = new Vector3(radius + organicPulse, tunnelLength * 0.5f, radius - organicPulse);
 
-            // 颜色：深蓝到深紫渐变
-            float hue = Mathf.Lerp(0.62f, 0.72f, phaseProgress);
-            Color tunnelColor = Color.HSVToRGB(hue, 0.4f, 0.2f);
+            // 色彩随时间有机的缓慢漂移（从洋红到电青色）
+            float dynamicHue = (Mathf.Sin(Time.time * 0.5f) * 0.08f + Mathf.Lerp(0.60f, 0.75f, phaseProgress)) % 1.0f;
+            Color tunnelColor = Color.HSVToRGB(dynamicHue, 0.5f, 0.25f);
             tunnelColor.a = tunnelVisibility;
 
             _tunnelRenderer.GetPropertyBlock(_mpb);
+            _tunnelRenderer.GetPropertyBlock(_mpb);
             _mpb.SetColor("_BaseColor", tunnelColor);
+            _mpb.SetColor("_Color", tunnelColor);
             _tunnelRenderer.SetPropertyBlock(_mpb);
         }
     }
