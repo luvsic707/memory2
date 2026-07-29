@@ -511,63 +511,45 @@ namespace TheLastCompact.Wakeup
         {
             float cProgress = Mathf.InverseLerp(0.70f, 1.0f, phaseProgress);
 
-            int bananas = 0, prayers = 0, pushes = 0, works = 0;
-            if (PlayerBehaviorData.Instance != null)
-            {
-                bananas = PlayerBehaviorData.Instance.bananaCount;
-                prayers = PlayerBehaviorData.Instance.prayerCount;
-                pushes = PlayerBehaviorData.Instance.pushCount;
-                works = PlayerBehaviorData.Instance.workCount;
-            }
-            if (bananas + prayers + pushes + works == 0)
-            {
-                bananas = 8; prayers = 15; pushes = 3; works = 45;
-            }
+            // Phase C 分三段渐进——全部通过图像和 Glitch 扭曲讲故事，不展示任何数据数字。
+            // isPrivateDataCard 仅用于触发 Stage5Controller 的音量骤降效果。
 
             if (cProgress < 0.33f)
             {
-                card.categoryTag = "[ ALGORITHM EVAL ]";
+                card.categoryTag = "[ CONTENT NARROWING ]";
                 card.cardIcon = "";
-                int max = Mathf.Max(Mathf.Max(bananas, prayers), Mathf.Max(pushes, works));
-                string[] pool = max == bananas ? themeStrings_Banana
-                              : max == prayers ? themeStrings_Prayer
-                              : max == pushes ? themeStrings_Push
-                              : themeStrings_Work;
-                card.cardHeadline = pool[Random.Range(0, pool.Length)];
-                card.cardColor = new Color(0.2f, 0.75f, 1.0f, 0.95f); // 霓虹青紫外包边
+                string[] atmosphericLines = {
+                    "something familiar",
+                    "you've seen this before",
+                    "the feed remembers",
+                    "always returning",
+                    "drawn back again",
+                };
+                card.cardHeadline = atmosphericLines[Random.Range(0, atmosphericLines.Length)];
+                card.cardColor = new Color(0.2f, 0.75f, 1.0f, 0.95f);
             }
             else if (cProgress < 0.66f)
             {
-                card.categoryTag = "[ BEHAVIOR TRACKED ]";
+                card.categoryTag = "[ SIGNAL LOCKED ]";
                 card.cardIcon = "";
-                string[] behaviorHints = {
-                    "A familiar yellow shape...",
-                    "That rock you pushed on the hill",
-                    "The sound of keys clicking in office",
-                    "A stone idol waiting in silence",
-                    "You've been here before...",
+                string[] hauntingLines = {
+                    "...",
+                    "this one again",
+                    "and again",
+                    "why does it keep showing you this",
+                    "you already know",
                 };
-                card.cardHeadline = behaviorHints[Random.Range(0, behaviorHints.Length)];
-                card.cardColor = new Color(1.0f, 0.65f, 0.15f, 0.97f); // 警示琥珀橙外包边
+                card.cardHeadline = hauntingLines[Random.Range(0, hauntingLines.Length)];
+                card.cardColor = new Color(1.0f, 0.65f, 0.15f, 0.97f);
                 card.isPrivateDataCard = true;
             }
             else
             {
-                _phaseCDataIndex++;
-                card.categoryTag = "[ OBSERVER DATA LOG ]";
+                card.categoryTag = "[ — ]";
                 card.cardIcon = "";
-                string[] privateData = {
-                    $"You picked up {bananas} bananas.",
-                    $"You prayed {prayers} times.",
-                    $"You pushed the rock {pushes} times.",
-                    $"You typed that sentence {works} times.",
-                    "We have been watching\nsince the first banana.",
-                    $"banana: {bananas} | prayer: {prayers}\npush: {pushes} | work: {works}",
-                    "There was never a moment\nwithout an observer.",
-                    "The feed knows. It always knew.",
-                };
-                card.cardHeadline = privateData[(_phaseCDataIndex - 1) % privateData.Length];
-                card.cardColor = new Color(1.0f, 0.25f, 0.4f, 0.98f); // 高科技警示绯红外包边
+                string[] silentLines = { " ", ".", "..", "...", " " };
+                card.cardHeadline = silentLines[Random.Range(0, silentLines.Length)];
+                card.cardColor = new Color(0.85f, 0.15f, 0.25f, 0.98f);
                 card.isPrivateDataCard = true;
             }
         }
