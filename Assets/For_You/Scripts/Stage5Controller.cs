@@ -551,20 +551,20 @@ namespace TheLastCompact.Wakeup
         {
             if (useFluidTunnelMode)
             {
-                GameObject fluidGo = new GameObject("FluidTunnelRenderer");
-                fluidGo.transform.SetParent(transform, false);
-                FluidTunnelRenderer fluidRend = fluidGo.AddComponent<FluidTunnelRenderer>();
-                fluidRend.mediaDatabase = mediaDatabase;
-                Debug.Log("[Stage5] 已启动 Brandon Eversole 风格流体无限穿梭模式！");
+                GameObject corridorGo = new GameObject("FluidCorridorBuilder");
+                corridorGo.transform.SetParent(transform, false);
+                FluidCorridorBuilder builder = corridorGo.AddComponent<FluidCorridorBuilder>();
+                builder.mediaDatabase = mediaDatabase;
+                Debug.Log("[Stage5] 已启动 3D 几何包裹流体走廊 (Brandon Eversole 物理通道模式)！");
             }
-
-            GameObject spawnerGo = new GameObject("ContentCardSpawner");
-            spawnerGo.transform.SetParent(transform, false);
-            _spawner = spawnerGo.AddComponent<ContentCardSpawner>();
-            _spawner.OnCardSpawned += OnCardSpawned;
-
-            // 将 Inspector 中拖入的媒体数据库传给 Spawner
-            _spawner.mediaDatabase = mediaDatabase;
+            else
+            {
+                GameObject spawnerGo = new GameObject("ContentCardSpawner");
+                spawnerGo.transform.SetParent(transform, false);
+                _spawner = spawnerGo.AddComponent<ContentCardSpawner>();
+                _spawner.OnCardSpawned += OnCardSpawned;
+                _spawner.mediaDatabase = mediaDatabase;
+            }
 
             GameObject envGo = new GameObject("FeedEnvironment");
             envGo.transform.SetParent(transform, false);
