@@ -237,11 +237,11 @@ namespace TheLastCompact.Wakeup
             }
             else
             {
-                // 无纹理退回柔和卡片色
+                // 【关键修改】无纹理时彻底消灭半透明大色块！只保留几乎透明的非常柔和的深底，绝不填巨大的亮色方块
                 Color innerBg = isPrivateDataCard
-                    ? new Color(0.04f, 0.05f, 0.08f, 0.98f)
-                    : cardColor * 0.4f + new Color(0.05f, 0.05f, 0.05f, 0.9f);
-                if (isChoiceCard) innerBg = new Color(0.09f, 0.08f, 0.15f, 0.98f);
+                    ? new Color(0.04f, 0.05f, 0.08f, 0.4f)
+                    : new Color(0.05f, 0.05f, 0.08f, 0.2f);
+                if (isChoiceCard) innerBg = new Color(0.09f, 0.08f, 0.15f, 0.95f);
                 if (_innerCardMat.HasProperty("_BaseColor")) _innerCardMat.SetColor("_BaseColor", innerBg);
                 if (_innerCardMat.HasProperty("_Color"))     _innerCardMat.SetColor("_Color",     innerBg);
             }
@@ -515,15 +515,9 @@ namespace TheLastCompact.Wakeup
         private void ApplyColor(Color c)
         {
             if (_renderer == null) return;
-            _renderer.GetPropertyBlock(_mpb);
-            _mpb.SetColor("_BaseColor", c);
-            _mpb.SetColor("_Color", c);
-            _renderer.SetPropertyBlock(_mpb);
-
-            if (_renderer.material != null && _renderer.material.HasProperty("_Color"))
-            {
-                _renderer.material.color = c;
-            }
+            
+            // 【关键修改】隐藏底层标准的 Renderer（彻底消灭直角色彩大方块）
+            _renderer.enabled = false;
         }
 
         private void ApplyAlpha(float a)
