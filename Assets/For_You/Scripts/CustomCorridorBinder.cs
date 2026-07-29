@@ -33,8 +33,8 @@ namespace TheLastCompact.Wakeup
         private VideoPlayer _videoPlayer;
         private RenderTexture _videoRenderTexture;
 
-        private Texture2D _currentTex;
-        private Texture2D _nextTex;
+        private Texture _currentTex;
+        private Texture _nextTex;
         private bool _isNextMediaVideo = false;
 
         private float _switchTimer = 0f;
@@ -321,7 +321,7 @@ namespace TheLastCompact.Wakeup
                 {
                     _videoPlayer.clip = clip;
                     _videoPlayer.Play();
-                    _nextTex = (Texture2D)(Texture)_videoRenderTexture;
+                    _nextTex = _videoRenderTexture;
                     _isNextMediaVideo = true;
                     return;
                 }
