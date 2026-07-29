@@ -6,8 +6,8 @@ Shader "Wakeup/CorridorWallShader"
         _FlowSpeed ("Fluid Flow Speed", Float) = 1.2
         _StretchScale ("Depth Stretch Scale", Float) = 4.0
         _GlitchAmount ("Pixel Glitch Intensity", Range(0, 1)) = 0
-        _RGBShift ("RGB Chromatic Shift", Range(0, 0.05)) = 0.015
-        _WaveWarp ("Wave Warp Distortion", Range(0, 2)) = 0.3
+        _RGBShift ("RGB Chromatic Shift", Range(0, 0.05)) = 0.0
+        _WaveWarp ("Wave Warp Distortion", Range(0, 2)) = 0.0
         
         // 新增多维流动控制
         _FlowAngle ("Flow Diagonal Angle", Range(-3.14, 3.14)) = 0.785

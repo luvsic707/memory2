@@ -181,17 +181,19 @@ namespace TheLastCompact.Wakeup
                 _frontMat.SetFloat("_GlitchIntensity", glitch);
             }
 
-            // 5. 驱动 Side Walls 四周墙面多维流体
+            // 5. 驱动 Side Walls 四周墙面多维流体 (Phase 1 绝对纯净 0 扭曲，Phase 2 逐渐加速侵蚀)
             if (_wallMat != null)
             {
-                float speed = 1.0f + phaseProgress * 2.5f;
-                float glitch = phaseProgress > 0.35f ? Mathf.InverseLerp(0.35f, 0.96f, phaseProgress) * 0.85f : 0f;
-                float rgbShift = 0.015f + phaseProgress * 0.035f;
-                float waveWarp = 0.3f + phaseProgress * 1.5f;
+                bool isPhase1 = phaseProgress < 0.35f;
 
-                float angle = Mathf.Sin(time * 0.4f) * 1.2f;
-                float vortex = phaseProgress > 0.35f ? Mathf.InverseLerp(0.35f, 1.0f, phaseProgress) * 1.5f : 0.1f;
-                float sliceShift = phaseProgress > 0.35f ? Mathf.InverseLerp(0.35f, 1.0f, phaseProgress) * 0.9f : 0f;
+                float speed = isPhase1 ? 0.8f : (1.0f + phaseProgress * 2.5f);
+                float glitch = isPhase1 ? 0f : (Mathf.InverseLerp(0.35f, 0.96f, phaseProgress) * 0.85f);
+                float rgbShift = isPhase1 ? 0f : (Mathf.InverseLerp(0.35f, 0.96f, phaseProgress) * 0.04f);
+                float waveWarp = isPhase1 ? 0f : (Mathf.InverseLerp(0.35f, 0.96f, phaseProgress) * 1.5f);
+
+                float angle = isPhase1 ? 0f : (Mathf.Sin(time * 0.4f) * 1.2f);
+                float vortex = isPhase1 ? 0f : (Mathf.InverseLerp(0.35f, 1.0f, phaseProgress) * 1.5f);
+                float sliceShift = isPhase1 ? 0f : (Mathf.InverseLerp(0.35f, 1.0f, phaseProgress) * 0.9f);
 
                 _wallMat.SetFloat("_FlowSpeed", speed);
                 _wallMat.SetFloat("_GlitchAmount", glitch);
