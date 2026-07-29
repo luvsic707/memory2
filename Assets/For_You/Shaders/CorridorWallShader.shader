@@ -6,6 +6,8 @@ Shader "Wakeup/CorridorWallShader"
         _FlowSpeed ("Fluid Flow Speed", Float) = 1.2
         _StretchScale ("Depth Stretch Scale", Float) = 4.0
         _GlitchAmount ("Pixel Glitch Intensity", Range(0, 1)) = 0
+        _RGBShift ("RGB Chromatic Shift", Range(0, 0.05)) = 0.015
+        _WaveWarp ("Wave Warp Distortion", Range(0, 2)) = 0.3
     }
     SubShader
     {
@@ -39,6 +41,8 @@ Shader "Wakeup/CorridorWallShader"
                 float _FlowSpeed;
                 float _StretchScale;
                 float _GlitchAmount;
+                float _RGBShift;
+                float _WaveWarp;
             CBUFFER_END
 
             Varyings vert(Attributes input)
@@ -57,12 +61,16 @@ Shader "Wakeup/CorridorWallShader"
             float4 frag(Varyings input) : SV_Target
             {
                 float2 uv = input.uv;
+                float time = _Time.y;
 
-                // 沿通道深度 (V 轴) 进行流体拉伸与滚动
-                float time = _Time.y * _FlowSpeed;
-                uv.y = frac(uv.y * _StretchScale - time);
+                // 1. 有机呼吸脉动速度 (Pulsing Speed)
+                float pulseSpeed = _FlowSpeed * (1.0 + sin(time * 2.0) * 0.35);
 
-                // Phase 2/3 加入类似 thezhapezhifter 的像素腐蚀
+                // 2. 沿通道深度 (V 轴) 的 Slit-scan 流体拉伸
+                float wave = sin(uv.x * 12.0 + time * 3.0) * 0.04 * _WaveWarp;
+                uv.y = frac((uv.y + wave) * _StretchScale - time * pulseSpeed);
+
+                // 3. Phase 2/3 的像素腐蚀
                 if (_GlitchAmount > 0.01)
                 {
                     float blocks = lerp(120.0, 20.0, _GlitchAmount);
@@ -74,11 +82,17 @@ Shader "Wakeup/CorridorWallShader"
                     }
                 }
 
-                float4 col = _MainTex.Sample(sampler_MainTex, uv);
+                // 4. RGB 色彩分离/色差拖尾 (Chromatic Aberration)
+                float shift = _RGBShift * (1.0 + _GlitchAmount * 2.0);
+                float r = _MainTex.Sample(sampler_MainTex, uv + float2(shift, 0.0)).r;
+                float g = _MainTex.Sample(sampler_MainTex, uv).g;
+                float b = _MainTex.Sample(sampler_MainTex, uv - float2(shift, 0.0)).b;
 
-                // 越靠近深处尽头越亮，越靠近玩家边缘越带暗角拖尾
+                float4 col = float4(r, g, b, 1.0);
+
+                // 5. 深度光辉暗角
                 float depthGlow = smoothstep(0.0, 0.8, input.uv.y);
-                col.rgb *= lerp(0.4, 1.2, depthGlow);
+                col.rgb *= lerp(0.35, 1.3, depthGlow);
 
                 return col;
             }
