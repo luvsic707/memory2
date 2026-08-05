@@ -253,10 +253,10 @@ namespace TheLastCompact.Wakeup
                 float angle = isPhase1 ? 0.1f : (0.1f + Mathf.Sin(time * 0.3f) * (0.4f + p2Ratio * 0.6f));
                 float vortex = isPhase1 ? 0.05f : (0.05f + p2Ratio * 0.6f + p3Ratio * 1.2f);
                 float sliceShift = isPhase1 ? 0.06f : (0.06f + p2Ratio * 0.2f + p3Ratio * 0.65f); // 轻柔水波切片
-                // 参考图 2 径向像素拖尾与参考图 3 液体抹平 (Phase 3&4 彻底擦除 3D 墙角硬棱线)
+                // 参考图 1 油彩弧形抹平与参考图 2 爆炸极速拖尾 (Phase 1 渐进至 Phase 4)
                 float borderFade = isPhase1 ? 0f : (p2Ratio * 0.2f + p3Ratio * 1.0f);
-                float radialBlur = isPhase1 ? 0f : (p2Ratio * 0.3f + p3Ratio * 1.0f);
-                float liquidWarp = isPhase1 ? 0.3f : (0.3f + p2Ratio * 0.5f + p3Ratio * 0.8f);
+                float oilSmear = isPhase1 ? 0.05f : (0.05f + p2Ratio * 0.45f + p3Ratio * 1.0f);
+                float speedTrails = isPhase1 ? 0f : (p2Ratio * 0.35f + p3Ratio * 1.0f);
 
                 _wallMat.SetFloat("_JellyAmount", jelly);
                 _wallMat.SetFloat("_FlowSpeed", speed);
@@ -264,8 +264,8 @@ namespace TheLastCompact.Wakeup
                 _wallMat.SetFloat("_RGBShift", rgbShift);
                 _wallMat.SetFloat("_WaveWarp", waveWarp);
                 _wallMat.SetFloat("_BorderFade", borderFade);
-                _wallMat.SetFloat("_RadialMotionBlur", radialBlur);
-                _wallMat.SetFloat("_LiquidWarp", liquidWarp);
+                _wallMat.SetFloat("_OilSmearArc", oilSmear);
+                _wallMat.SetFloat("_ExplosiveRadialTrails", speedTrails);
 
                 _wallMat.SetFloat("_FlowAngle", angle);
                 _wallMat.SetFloat("_VortexAmount", vortex);

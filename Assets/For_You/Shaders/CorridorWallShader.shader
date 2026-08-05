@@ -17,9 +17,9 @@ Shader "Wakeup/CorridorWallShader"
         _SliceOffset ("Slice Shift Offset", Range(0, 1)) = 0
         _BorderFade ("Border Feather & Melt Amount", Range(0, 1)) = 0
 
-        // 核心升级：参考图 2 径向像素拖尾与图 3 液体抹平
-        _RadialMotionBlur ("Radial Motion Blur Trailing (Pic 2)", Range(0, 1)) = 0
-        _LiquidWarp ("Organic Liquid Edge Softening (Pic 3)", Range(0, 1)) = 0
+        // 参考图 1 & 2 顶级艺术拖尾与消融
+        _OilSmearArc ("Oil Smear Arc Sweep (Pic 1)", Range(0, 1)) = 0
+        _ExplosiveRadialTrails ("Explosive Radial Speed Trails (Pic 2)", Range(0, 1)) = 0
     }
     SubShader
     {
@@ -64,8 +64,8 @@ Shader "Wakeup/CorridorWallShader"
                 float _VortexAmount;
                 float _SliceOffset;
                 float _BorderFade;
-                float _RadialMotionBlur;
-                float _LiquidWarp;
+                float _OilSmearArc;
+                float _ExplosiveRadialTrails;
             CBUFFER_END
 
             Varyings vert(Attributes input)
@@ -97,13 +97,15 @@ Shader "Wakeup/CorridorWallShader"
                 float2 uv = input.uv;
                 float time = _Time.y;
 
-                // 1. 图 3 液体流线软体抹平 (Soft Organic Edge Morph)
-                if (_LiquidWarp > 0.01)
+                // 1. 参考图 1：油彩弧形流体抹平 (Oil Smear Arc Sweep)
+                if (_OilSmearArc > 0.01)
                 {
-                    float2 dist = uv - 0.5;
-                    float r = length(dist);
-                    float liquidWave = sin(r * 15.0 - time * 3.0) * 0.06 * _LiquidWarp;
-                    uv += dist * liquidWave;
+                    float2 centerDist = uv - 0.5;
+                    float angle = atan2(centerDist.y, centerDist.x);
+                    float r = length(centerDist);
+                    
+                    float arcOffset = sin(angle * 3.0 + r * 10.0 - time * 2.5) * 0.15 * _OilSmearArc;
+                    uv += float2(cos(angle + arcOffset), sin(angle + arcOffset)) * arcOffset;
                 }
 
                 float2 baseUV = uv;
@@ -140,12 +142,12 @@ Shader "Wakeup/CorridorWallShader"
                     baseUV.x += shift * 0.25;
                 }
 
-                // 4. Glitch 像素块 (Phase 1&2 梦幻柔和，Phase 3 剧烈爆发)
+                // 4. 梦幻 Glitch 像素块
                 if (_GlitchAmount > 0.01)
                 {
                     float blocks = lerp(180.0, 20.0, _GlitchAmount);
                     float2 blockUV = floor(uv * blocks) / blocks;
-                    float timeSpeed = lerp(4.0, 18.0, _GlitchAmount); // Phase 1 极为缓慢的舒缓呼吸
+                    float timeSpeed = lerp(4.0, 18.0, _GlitchAmount);
                     float n = hash(blockUV + floor(time * timeSpeed));
 
                     if (n < _GlitchAmount * 0.5)
@@ -159,14 +161,14 @@ Shader "Wakeup/CorridorWallShader"
                 baseUV = frac(abs(baseUV));
                 subUV = frac(abs(subUV));
 
-                // 🌟 5. 核心升级：参考图 2 径向像素拖尾 (Radial Motion Blur Trailing across Borders)
+                // 🌟 5. 核心升级：参考图 2 爆炸式 360 度极速拖尾 (Explosive Radial Speed Trails)
                 float4 col = float4(0, 0, 0, 1);
-                if (_RadialMotionBlur > 0.01)
+                if (_ExplosiveRadialTrails > 0.01)
                 {
                     float2 dir = baseUV - float2(0.5, 0.5);
                     float4 accumCol = float4(0, 0, 0, 0);
-                    int samples = 8;
-                    float blurScale = 0.03 * _RadialMotionBlur;
+                    int samples = 10;
+                    float blurScale = 0.04 * _ExplosiveRadialTrails;
 
                     for (int i = 0; i < samples; i++)
                     {
@@ -191,29 +193,13 @@ Shader "Wakeup/CorridorWallShader"
                     }
                 }
 
-                // 6. 边缘消除与融入
+                // 6. 边缘消融与油彩渗透
                 if (_BorderFade > 0.01)
                 {
                     float edgeDist = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
                     float edgeAlpha = smoothstep(0.0, 0.25 * _BorderFade, edgeDist);
                     float3 meltColor = lerp(col.rgb, col.gbr, 0.5 + 0.5 * sin(time * 2.5 + uv.x * 10.0));
                     col.rgb = lerp(meltColor, col.rgb, edgeAlpha);
-                }
-
-                // Phase 3 像素彩虹杂色
-                if (_GlitchAmount > 0.2)
-                {
-                    float2 glitchBlock = floor(uv * float2(30.0, 20.0));
-                    float noiseVal = hash(glitchBlock + floor(time * 12.0));
-                    if (noiseVal > 0.88)
-                    {
-                        float3 rainbowNoise = float3(
-                            hash(glitchBlock + 1.1),
-                            hash(glitchBlock + 2.2),
-                            hash(glitchBlock + 3.3)
-                        );
-                        col.rgb = lerp(col.rgb, rainbowNoise, (_GlitchAmount - 0.2) * 0.8);
-                    }
                 }
 
                 return col;
