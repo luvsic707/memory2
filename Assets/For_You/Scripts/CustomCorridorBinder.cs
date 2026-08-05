@@ -70,6 +70,7 @@ namespace TheLastCompact.Wakeup
 
         private Vector3[] _initialWallPositions;
         private Quaternion[] _initialWallRotations;
+        private Vector3[] _initialWallScales;
 
         // Phase 3/4 提示 UI Text
         private GameObject _resistanceUiGo;
@@ -113,6 +114,7 @@ namespace TheLastCompact.Wakeup
             {
                 _initialWallPositions = new Vector3[sideWallRenderers.Length];
                 _initialWallRotations = new Quaternion[sideWallRenderers.Length];
+                _initialWallScales = new Vector3[sideWallRenderers.Length];
 
                 for (int i = 0; i < sideWallRenderers.Length; i++)
                 {
@@ -121,6 +123,7 @@ namespace TheLastCompact.Wakeup
                         sideWallRenderers[i].material = _wallMat;
                         _initialWallPositions[i] = sideWallRenderers[i].transform.localPosition;
                         _initialWallRotations[i] = sideWallRenderers[i].transform.localRotation;
+                        _initialWallScales[i] = sideWallRenderers[i].transform.localScale;
                     }
                 }
             }
@@ -238,8 +241,8 @@ namespace TheLastCompact.Wakeup
                 _wallMat.SetFloat("_SliceOffset", sliceShift);
             }
 
-            // 物理 Cube (1)~(5) 墙面圆润软弹形变 (Phase 1&2 软糖级 3D 物理弹性呼吸)
-            if (sideWallRenderers != null && _initialWallPositions != null)
+            // 物理 Cube (1)~(5) 墙面：保持原汁原味结实长方形走廊结构！
+            if (sideWallRenderers != null && _initialWallPositions != null && _initialWallScales != null)
             {
                 bool isPhase1 = phaseProgress < 0.35f;
                 float physIntensity = phaseProgress > 0.70f ? Mathf.InverseLerp(0.70f, 1.0f, phaseProgress) * physicalWarpIntensity : 0f;
@@ -248,20 +251,22 @@ namespace TheLastCompact.Wakeup
                 {
                     if (sideWallRenderers[i] != null)
                     {
-                        // Phase 1&2 轻松软弹呼吸 Squash & Stretch
-                        Vector3 jellyScale = Vector3.one;
+                        // 1. 严格基于你在 Scene 里搭好的初始 Scale 进行 5% 微小软呼吸，绝不改变长条结构！
+                        Vector3 baseScale = _initialWallScales[i];
+                        Vector3 jellyScale = baseScale;
                         if (phaseProgress < 0.70f)
                         {
-                            float breathe = Mathf.Sin(time * 1.8f + i * 0.8f) * 0.06f;
-                            jellyScale = new Vector3(1.0f + breathe, 1.0f - breathe * 0.8f, 1.0f + breathe * 0.5f);
+                            float breathe = Mathf.Sin(time * 1.5f + i * 0.8f) * 0.03f;
+                            jellyScale = new Vector3(baseScale.x * (1.0f + breathe), baseScale.y * (1.0f - breathe), baseScale.z * (1.0f + breathe * 0.5f));
                         }
                         sideWallRenderers[i].transform.localScale = jellyScale;
 
+                        // 2. 物理位置微震
                         Vector3 waveOffset = new Vector3(
-                            Mathf.Sin(time * 2.2f + i) * 0.08f,
-                            Mathf.Cos(time * 1.8f + i) * 0.08f,
-                            Mathf.Sin(time * 1.5f + i) * 0.05f
-                        ) * (isPhase1 ? 0.3f : (0.3f + physIntensity));
+                            Mathf.Sin(time * 2.2f + i) * 0.03f,
+                            Mathf.Cos(time * 1.8f + i) * 0.03f,
+                            Mathf.Sin(time * 1.5f + i) * 0.02f
+                        ) * (isPhase1 ? 0.2f : (0.2f + physIntensity));
 
                         sideWallRenderers[i].transform.localPosition = _initialWallPositions[i] + waveOffset;
                         float angleOffset = Mathf.Sin(time * 4.0f + i) * 2.5f * physIntensity;
