@@ -244,10 +244,10 @@ namespace TheLastCompact.Wakeup
                 {
                     TriggerNextMediaSwitch();
 
-                    // 每次主动刷屏，进度增加 1/12 (恰好点击 12 次进入 Phase 2)
+                    // 每次主动刷屏，进度增加 1/18 (恰好点击 18 次进入 Phase 2，延长 150%)
                     if (Stage5Controller.Instance != null)
                     {
-                        Stage5Controller.Instance.phaseProgress += 0.35f / 12f; // 约 0.02917f 每击
+                        Stage5Controller.Instance.phaseProgress += 0.35f / 18f; // 约 0.01944f 每击
                         Stage5Controller.Instance.phaseProgress = Mathf.Clamp01(Stage5Controller.Instance.phaseProgress);
                     }
                 }
@@ -291,15 +291,15 @@ namespace TheLastCompact.Wakeup
         {
             if (phaseProgress < 0.35f)
             {
-                _currentInterval = 1.8f;
+                _currentInterval = 2.7f;
             }
             else if (phaseProgress < 0.70f)
             {
-                _currentInterval = Mathf.Lerp(2.5f, 3.8f, Mathf.InverseLerp(0.35f, 0.70f, phaseProgress));
+                _currentInterval = Mathf.Lerp(3.7f, 5.7f, Mathf.InverseLerp(0.35f, 0.70f, phaseProgress));
             }
             else
             {
-                _currentInterval = Mathf.Lerp(0.7f, 0.4f, Mathf.InverseLerp(0.70f, 0.96f, phaseProgress));
+                _currentInterval = Mathf.Lerp(1.0f, 0.6f, Mathf.InverseLerp(0.70f, 0.96f, phaseProgress));
             }
         }
 
