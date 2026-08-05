@@ -26,18 +26,18 @@ namespace TheLastCompact.Wakeup
         [Header("物理墙体震颤")]
         public float physicalWarpIntensity = 0.25f;
 
-        [Header("Phase 1~3 节奏与步数配置 (全新扩展版)")]
-        [Tooltip("Phase 1 必须刷完的独立视频总数 (默认 25 个视频)")]
-        public int requiredPhase1Videos = 25;
+        [Header("Phase 1~3 节奏与步数配置 (超级延长大片版)")]
+        [Tooltip("Phase 1 必须刷完的独立视频总数 (默认 40 个视频，长效沉浸)")]
+        public int requiredPhase1Videos = 40;
 
-        [Tooltip("Phase 2 算法渐进渗透的总切屏步数 (默认 40 步，极其循序渐进)")]
-        public int requiredPhase2Steps = 40;
+        [Tooltip("Phase 2 算法渐进渗透的总切屏步数 (默认 80 步，约 5-6 分钟极其漫长平缓)")]
+        public int requiredPhase2Steps = 80;
 
-        [Tooltip("Phase 3 空间崩坏倒计时 (秒)，若不按鼠标将自动崩坏回到 Phase 1")]
-        public float collapseCountdown = 12f;
+        [Tooltip("Phase 3 空间崩坏倒计时 (秒)，留出 30 秒足够的高潮崩溃沉淀时间")]
+        public float collapseCountdown = 30f;
 
-        [Tooltip("Phase 3 觉醒突破所需的疯狂连击鼠标次数 (默认连击 15 次打破死循环)")]
-        public int requiredResistanceClicks = 15;
+        [Tooltip("Phase 3 觉醒突破所需的疯狂连击鼠标次数 (连击 30 次打碎信息茧房)")]
+        public int requiredResistanceClicks = 30;
 
         private Material _frontMat;
         private Material _wallMat;
@@ -344,17 +344,17 @@ namespace TheLastCompact.Wakeup
         {
             if (phaseProgress < 0.35f)
             {
-                _currentInterval = 4.0f;
+                _currentInterval = 4.5f;
             }
             else if (phaseProgress < 0.70f)
             {
-                // Phase 2: 循序渐进，时间从 5.5 秒逐渐加速到 3.5 秒
-                _currentInterval = Mathf.Lerp(5.5f, 3.5f, Mathf.InverseLerp(0.35f, 0.70f, phaseProgress));
+                // Phase 2: 漫长平缓，时间从 7.0 秒逐渐变化到 4.5 秒
+                _currentInterval = Mathf.Lerp(7.0f, 4.5f, Mathf.InverseLerp(0.35f, 0.70f, phaseProgress));
             }
             else
             {
-                // Phase 3: 狂乱高频 0.9s ~ 0.5s 切屏
-                _currentInterval = Mathf.Lerp(0.9f, 0.5f, Mathf.InverseLerp(0.70f, 1.00f, phaseProgress));
+                // Phase 3: 狂乱高频 1.0s ~ 0.5s 切屏
+                _currentInterval = Mathf.Lerp(1.0f, 0.5f, Mathf.InverseLerp(0.70f, 1.00f, phaseProgress));
             }
         }
 
