@@ -151,24 +151,42 @@ namespace TheLastCompact.Wakeup
 
         private void SetupDoubleBufferedVideoPlayers()
         {
+            // Player A
             GameObject vpGoA = new GameObject("CorridorVideoPlayer_A");
             vpGoA.transform.SetParent(transform, false);
+            AudioSource audioSourceA = vpGoA.AddComponent<AudioSource>();
+            audioSourceA.playOnAwake = false;
+            audioSourceA.spatialBlend = 0f; // 2D 环绕立体声
+            audioSourceA.volume = 0.85f;
+
             _videoPlayerA = vpGoA.AddComponent<VideoPlayer>();
             _videoPlayerA.playOnAwake = false;
             _videoPlayerA.isLooping = true;
             _videoPlayerA.renderMode = VideoRenderMode.RenderTexture;
+            _videoPlayerA.audioOutputMode = VideoAudioOutputMode.AudioSource;
+            _videoPlayerA.EnableAudioTrack(0, true);
+            _videoPlayerA.SetTargetAudioSource(0, audioSourceA);
             _videoPlayerA.prepareCompleted += OnVideoPrepared;
 
             _renderTexA = new RenderTexture(1024, 1024, 0, RenderTextureFormat.ARGB32);
             _renderTexA.Create();
             _videoPlayerA.targetTexture = _renderTexA;
 
+            // Player B
             GameObject vpGoB = new GameObject("CorridorVideoPlayer_B");
             vpGoB.transform.SetParent(transform, false);
+            AudioSource audioSourceB = vpGoB.AddComponent<AudioSource>();
+            audioSourceB.playOnAwake = false;
+            audioSourceB.spatialBlend = 0f;
+            audioSourceB.volume = 0.85f;
+
             _videoPlayerB = vpGoB.AddComponent<VideoPlayer>();
             _videoPlayerB.playOnAwake = false;
             _videoPlayerB.isLooping = true;
             _videoPlayerB.renderMode = VideoRenderMode.RenderTexture;
+            _videoPlayerB.audioOutputMode = VideoAudioOutputMode.AudioSource;
+            _videoPlayerB.EnableAudioTrack(0, true);
+            _videoPlayerB.SetTargetAudioSource(0, audioSourceB);
             _videoPlayerB.prepareCompleted += OnVideoPrepared;
 
             _renderTexB = new RenderTexture(1024, 1024, 0, RenderTextureFormat.ARGB32);
@@ -192,7 +210,12 @@ namespace TheLastCompact.Wakeup
             UpdateRhythmTempo(phaseProgress);
             HandleControlModeAndInput(phaseProgress);
 
-            // 驱动 Front Wall 艺术过渡
+            // 动态调节视频音源音量 (Phase 1&2 音质饱满，Phase 3 音量随抽走压迫沉寂)
+            float videoVolume = phaseProgress > 0.70f ? Mathf.Lerp(0.85f, 0.05f, Mathf.InverseLerp(0.70f, 0.96f, phaseProgress)) : 0.85f;
+            if (_videoPlayerA != null && _videoPlayerA.GetTargetAudioSource(0) != null)
+                _videoPlayerA.GetTargetAudioSource(0).volume = videoVolume;
+            if (_videoPlayerB != null && _videoPlayerB.GetTargetAudioSource(0) != null)
+                _videoPlayerB.GetTargetAudioSource(0).volume = videoVolume;
             if (_frontMat != null)
             {
                 float progress = 0f;
