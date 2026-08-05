@@ -71,16 +71,28 @@ namespace TheLastCompact.Wakeup
                 // 🌟 核心升级：每次闪烁高潮瞬间，随机切换到列表里的下一个视频 Clip！
                 SwitchToRandomVideoClip();
 
-                // 随机选择一部分模型发生视频流暴露与湍流拉扯高潮 (图 1 湍流 & 图 2 连成一片)
+                // 🌟 核心升级：每次闪烁时，为每个模型单独随机分配故障风格 (视频矩阵 / 湍流拉伸 / 组合爆发)
                 float flickerDur = Random.Range(flickerDurationRange.x, flickerDurationRange.y);
-                float glitchIntensity = Random.Range(0.4f, 0.95f);
-                float smearStrength = Random.Range(1.8f, 3.8f); // 湍流拉伸强度
 
-                // 触发闪烁与湍流融合高潮
                 for (int i = 0; i < _glitchMaterials.Count; i++)
                 {
-                    if (_glitchMaterials[i] != null && Random.value > 0.2f)
+                    if (_glitchMaterials[i] != null && Random.value > 0.15f)
                     {
+                        // 随机分配 3 种艺术模式
+                        int glitchMode = Random.Range(0, 3); // 0: 经典视频矩阵, 1: 湍流连成一片, 2: 组合高潮
+
+                        float glitchIntensity = Random.Range(0.4f, 0.95f);
+                        float smearStrength = 0f;
+
+                        if (glitchMode == 1) // 纯湍流连成一片
+                        {
+                            smearStrength = Random.Range(2.0f, 4.2f);
+                        }
+                        else if (glitchMode == 2) // 双重组合爆发
+                        {
+                            smearStrength = Random.Range(1.5f, 3.5f);
+                        }
+
                         _glitchMaterials[i].SetFloat("_GlitchBlend", 1.0f);
                         _glitchMaterials[i].SetFloat("_GlitchIntensity", glitchIntensity);
                         _glitchMaterials[i].SetFloat("_SmearTurbulence", smearStrength);
