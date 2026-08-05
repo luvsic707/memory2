@@ -71,6 +71,7 @@ namespace TheLastCompact.Wakeup
         private Vector3[] _initialWallPositions;
         private Quaternion[] _initialWallRotations;
         private Vector3[] _initialWallScales;
+        private Vector3 _initialFrontScale = Vector3.one;
 
         // Phase 3/4 提示 UI Text
         private GameObject _resistanceUiGo;
@@ -108,8 +109,11 @@ namespace TheLastCompact.Wakeup
             if (wallShader == null) wallShader = Shader.Find("Universal Render Pipeline/Unlit");
             _wallMat = new Material(wallShader);
 
-            if (frontWallRenderer != null) frontWallRenderer.material = _frontMat;
-
+            if (frontWallRenderer != null)
+            {
+                frontWallRenderer.material = _frontMat;
+                _initialFrontScale = frontWallRenderer.transform.localScale;
+            }
             if (sideWallRenderers != null && sideWallRenderers.Length > 0)
             {
                 _initialWallPositions = new Vector3[sideWallRenderers.Length];
@@ -245,11 +249,11 @@ namespace TheLastCompact.Wakeup
                 _frontMat.SetFloat("_ExplosiveRadialTrails", frontSpeedTrails);
             }
 
-            // 正面墙 (Front Wall) Transform 3D 软体呼吸同步 (和四周墙彻底融合)
+            // 正面墙 (Front Wall) 严格保持其原本封闭尽头的大尺寸，并基于初始 Scale 进行微呼吸！
             if (frontWallRenderer != null)
             {
-                float breathe = Mathf.Sin(time * 1.5f) * 0.04f;
-                frontWallRenderer.transform.localScale = Vector3.one * (1.0f + breathe);
+                float breathe = Mathf.Sin(time * 1.5f) * 0.03f;
+                frontWallRenderer.transform.localScale = _initialFrontScale * (1.0f + breathe);
             }
 
             // 5. 驱动 Side Walls 四周墙面多维流体 (Phase 1&2 轻松有趣、浪漫圆润)
