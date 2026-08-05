@@ -145,7 +145,7 @@ namespace TheLastCompact.Wakeup
                 {
                     if (hit.transform == _frontWall.transform && Stage5Controller.Instance != null)
                     {
-                        Stage5Controller.Instance.phaseProgress += Stage5Controller.Instance.progressPerSecond * Time.deltaTime * 1.5f;
+                        Stage5Controller.Instance.phaseProgress += 0.005f * Time.deltaTime * 1.5f;
                         Stage5Controller.Instance.phaseProgress = Mathf.Clamp01(Stage5Controller.Instance.phaseProgress);
                     }
                 }
