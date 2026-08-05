@@ -4,27 +4,33 @@ using UnityEngine;
 namespace TheLastCompact.Wakeup
 {
     /// <summary>
-    /// 第一视角猩猩臂爪与抓取吞噬控制器 (First-Person Ape Arm & Grab Controller)
-    /// 1. 提取 FlesherApe FBX 中专属的手臂/手掌节点，隐藏全身躯干与头部。
-    /// 2. 挂载在摄像机右下方，打造真正的 AAA 级第一视角伸手抓取体验。
+    /// 第一视角手臂与抓取控制器 (支持 Unity 编辑器手动配置拖拽)
+    /// 1. 如果你在 Main Camera 下手动创建并配置好了手臂 Prefab/GameObject，
+    ///    把手臂 GameObject 拖入 Inspector 的 armVisual 槽位即可！
+    /// 2. 当玩家交互香蕉时，手臂会自动向香蕉方向伸出抓取 (Reach Forward) ➔ 抓握 (Grab) ➔ 拿回嘴边 (Pull to Mouth)。
     /// </summary>
     public class FirstPersonArmController : MonoBehaviour
     {
         public static FirstPersonArmController Instance { get; private set; }
 
-        [Header("手部参数")]
+        [Header("手动配置 (Inspector 拖拽)")]
+        [Tooltip("你在 Unity 场景中调好位置的第一视角手臂 GameObject/Prefab")]
+        public GameObject armVisual;
+
+        [Header("抓取动画参数")]
+        [Tooltip("手臂伸出抓取的目标前伸距离")]
         public float reachDistance = 0.85f;
+
+        [Tooltip("手臂伸出与收回的动画速度")]
         public float grabSpeed = 8.5f;
 
-        private Transform _armHolder;
-        private Transform _apeHandMesh;
+        [Tooltip("手臂在视角右下角的自然呼吸摇摆幅度")]
+        public float swayAmount = 0.015f;
 
-        // 第一视角右下角默认手部挂载位置
-        private Vector3 _defaultLocalPos = new Vector3(0.32f, -0.35f, 0.55f);
-        private Quaternion _defaultLocalRot = Quaternion.Euler(15f, -25f, 10f);
-
+        private Vector3 _defaultLocalPos;
+        private Quaternion _defaultLocalRot;
         private bool _isGrabbing = false;
-        private Camera _mainCam;
+        private Transform _armTransform;
 
         private void Awake()
         {
@@ -37,46 +43,69 @@ namespace TheLastCompact.Wakeup
                 Destroy(gameObject);
                 return;
             }
-
-            _mainCam = Camera.main;
-            LoadAndSetupApeArmMesh();
         }
 
         private void Start()
         {
-            if (_mainCam == null) _mainCam = Camera.main;
-            if (_mainCam != null && _armHolder != null)
+            SetupArmReferences();
+        }
+
+        private void SetupArmReferences()
+        {
+            // 优先使用玩家在 Inspector 里手动拖入的 armVisual
+            if (armVisual != null)
             {
-                _armHolder.SetParent(_mainCam.transform, false);
-                _armHolder.localPosition = _defaultLocalPos;
-                _armHolder.localRotation = _defaultLocalRot;
+                _armTransform = armVisual.transform;
+            }
+            else
+            {
+                // 如果场景里有同名的 "FPS_Arm_Holder" 或子物体，自动寻找
+                Transform foundHolder = transform.Find("FPS_Arm_Holder");
+                if (foundHolder != null)
+                {
+                    _armTransform = foundHolder;
+                }
+                else
+                {
+                    // 若玩家完全没有手动配置，创建一个简单的占位容器供测试
+                    GameObject holderGo = new GameObject("FPS_Arm_Holder");
+                    holderGo.transform.SetParent(transform, false);
+                    holderGo.transform.localPosition = new Vector3(0.35f, -0.35f, 0.6f);
+                    holderGo.transform.localRotation = Quaternion.Euler(20f, -25f, 10f);
+                    _armTransform = holderGo.transform;
+                }
+            }
+
+            if (_armTransform != null)
+            {
+                _defaultLocalPos = _armTransform.localPosition;
+                _defaultLocalRot = _armTransform.localRotation;
             }
         }
 
         private void Update()
         {
-            if (_armHolder == null || _isGrabbing) return;
+            if (_armTransform == null || _isGrabbing) return;
 
-            // 1. 第一视角自然手部呼吸摇摆 Idle Sway
+            // 第一视角手部自然呼吸与视角摆动 (Idle Sway & Look Lag)
             float time = Time.time;
-            float swayX = Mathf.Sin(time * 1.8f) * 0.012f;
-            float swayY = Mathf.Cos(time * 2.2f) * 0.015f;
-            float swayZ = Mathf.Sin(time * 1.5f) * 0.008f;
+            float swayX = Mathf.Sin(time * 1.8f) * swayAmount;
+            float swayY = Mathf.Cos(time * 2.2f) * (swayAmount * 1.2f);
+            float swayZ = Mathf.Sin(time * 1.5f) * (swayAmount * 0.8f);
 
-            // 2. 视角转动平滑惯性 Lag Inertia
             float mouseX = Input.GetAxis("Mouse X");
             float mouseY = Input.GetAxis("Mouse Y");
             Vector3 lagOffset = new Vector3(-mouseX * 0.012f, -mouseY * 0.012f, 0f);
 
-            _armHolder.localPosition = Vector3.Lerp(_armHolder.localPosition, _defaultLocalPos + new Vector3(swayX, swayY, swayZ) + lagOffset, Time.deltaTime * 7f);
+            _armTransform.localPosition = Vector3.Lerp(_armTransform.localPosition, _defaultLocalPos + new Vector3(swayX, swayY, swayZ) + lagOffset, Time.deltaTime * 6f);
         }
 
         /// <summary>
-        /// 触发猩猩臂爪伸出抓取与吞噬动作
+        /// 触发手臂抓取与吃蕉动作
         /// </summary>
         public void PlayGrabAndEatMotion(Vector3 targetWorldPos, System.Action onGrabbedCallback = null)
         {
-            if (_isGrabbing || _armHolder == null) return;
+            if (_isGrabbing || _armTransform == null) return;
             StartCoroutine(GrabAndEatRoutine(targetWorldPos, onGrabbedCallback));
         }
 
@@ -84,156 +113,65 @@ namespace TheLastCompact.Wakeup
         {
             _isGrabbing = true;
 
-            Vector3 startLocalPos = _armHolder.localPosition;
-            Quaternion startLocalRot = _armHolder.localRotation;
+            Vector3 startLocalPos = _armTransform.localPosition;
+            Quaternion startLocalRot = _armTransform.localRotation;
 
-            Vector3 targetLocalPos = _armHolder.parent.InverseTransformPoint(targetWorldPos);
+            Transform parentT = _armTransform.parent != null ? _armTransform.parent : transform;
+            Vector3 targetLocalPos = parentT.InverseTransformPoint(targetWorldPos);
             Vector3 reachDir = (targetLocalPos - startLocalPos).normalized;
             if (reachDir == Vector3.zero) reachDir = Vector3.forward;
 
             Vector3 grabLocalPos = startLocalPos + reachDir * reachDistance;
             Quaternion grabLocalRot = Quaternion.LookRotation(reachDir) * Quaternion.Euler(30f, -10f, 15f);
 
-            // 1. 伸出猩猩臂爪 Reach Forward
+            // 1. 手臂伸出向目标 (Reach Out)
             float t = 0f;
             while (t < 1f)
             {
                 t += Time.deltaTime * grabSpeed;
                 float easeT = Mathf.Sin(t * Mathf.PI * 0.5f);
-                _armHolder.localPosition = Vector3.Lerp(startLocalPos, grabLocalPos, easeT);
-                _armHolder.localRotation = Quaternion.Slerp(startLocalRot, grabLocalRot, easeT);
+                _armTransform.localPosition = Vector3.Lerp(startLocalPos, grabLocalPos, easeT);
+                _armTransform.localRotation = Quaternion.Slerp(startLocalRot, grabLocalRot, easeT);
                 yield return null;
             }
 
-            // 抓取回调 (把香蕉吃掉或有丝分裂)
+            // 抓到物体后的逻辑回调
             onGrabbedCallback?.Invoke();
 
-            // 2. 快速抓回嘴边 Pull Back to Mouth & Eat
-            Vector3 mouthLocalPos = new Vector3(0.06f, -0.15f, 0.32f);
+            // 2. 手臂快速拉回嘴边 (Pull to Mouth)
+            Vector3 mouthLocalPos = _defaultLocalPos + new Vector3(-0.25f, 0.15f, -0.2f);
             Quaternion mouthLocalRot = Quaternion.Euler(45f, -10f, 30f);
 
             t = 0f;
             while (t < 1f)
             {
-                t += Time.deltaTime * (grabSpeed * 0.95f);
+                t += Time.deltaTime * (grabSpeed * 0.9f);
                 float easeT = t * t * (3f - 2f * t);
-                _armHolder.localPosition = Vector3.Lerp(grabLocalPos, mouthLocalPos, easeT);
-                _armHolder.localRotation = Quaternion.Slerp(grabLocalRot, mouthLocalRot, easeT);
+                _armTransform.localPosition = Vector3.Lerp(grabLocalPos, mouthLocalPos, easeT);
+                _armTransform.localRotation = Quaternion.Slerp(grabLocalRot, mouthLocalRot, easeT);
                 yield return null;
             }
 
-            // 3. 嘴边嚼动颤抖
+            // 3. 轻微吞咽抖动
             float eatShake = 0f;
             while (eatShake < 0.16f)
             {
                 eatShake += Time.deltaTime;
-                _armHolder.localPosition = mouthLocalPos + Random.insideUnitSphere * 0.012f;
+                _armTransform.localPosition = mouthLocalPos + Random.insideUnitSphere * 0.012f;
                 yield return null;
             }
 
-            // 4. 恢复默认第一视角位置
+            // 4. 平滑恢复初始位置
             t = 0f;
             while (t < 1f)
             {
                 t += Time.deltaTime * 6f;
-                _armHolder.localPosition = Vector3.Lerp(mouthLocalPos, _defaultLocalPos, t);
-                _armHolder.localRotation = Quaternion.Slerp(mouthLocalRot, _defaultLocalRot, t);
+                _armTransform.localPosition = Vector3.Lerp(mouthLocalPos, _defaultLocalPos, t);
+                _armTransform.localRotation = Quaternion.Slerp(mouthLocalRot, _defaultLocalRot, t);
                 yield return null;
             }
 
             _isGrabbing = false;
-        }
-
-        /// <summary>
-        /// 从项目 FBX 中精确定位并提取手部/臂爪，屏蔽全身
-        /// </summary>
-        private void LoadAndSetupApeArmMesh()
-        {
-            _armHolder = new GameObject("FP_Ape_Arm_Holder").transform;
-
-            GameObject apePrefab = Resources.Load<GameObject>("FlesherApe");
-            if (apePrefab == null)
-            {
-#if UNITY_EDITOR
-                apePrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/For_You/Art/Ape_Art/flesher-ape-lethal-ape/source/FlesherApe.fbx");
-#endif
-            }
-
-            if (apePrefab != null)
-            {
-                GameObject apeInstance = Instantiate(apePrefab, _armHolder, false);
-                apeInstance.name = "FlesherApe_Instance";
-
-                // 遍历搜寻手部 Mesh（"Hands" / "Hand" / "Arm"）并强行屏蔽其余无关的躯干和头部 Renderer！
-                Renderer[] allRenderers = apeInstance.GetComponentsInChildren<Renderer>(true);
-                bool foundHand = false;
-
-                foreach (Renderer r in allRenderers)
-                {
-                    string nameLower = r.gameObject.name.ToLower();
-                    if (nameLower.Contains("hand") || nameLower.Contains("arm") || nameLower.Contains("claw"))
-                    {
-                        r.enabled = true;
-                        foundHand = true;
-                        _apeHandMesh = r.transform;
-                        Debug.Log($"[FirstPersonArm] 成功精确定位并启用了手部 Mesh: {r.gameObject.name}");
-                    }
-                    else
-                    {
-                        // 屏蔽其余无关身体部分（腿、头、身体），防止整个小猴子在屏幕前闪烁！
-                        r.enabled = false;
-                    }
-                }
-
-                // 如果模型内部 Mesh 结构没有单独拆分 Hands 节点，则仅保留包含手部骨骼的部分
-                if (!foundHand && allRenderers.Length > 0)
-                {
-                    // 启用了整体但不拉伸全身体态，精确定位至右臂/右爪
-                    allRenderers[0].enabled = true;
-                }
-
-                // 调整手部贴合第一视角摄像机的右下角姿态与轴心补偿
-                apeInstance.transform.localPosition = new Vector3(-0.15f, -0.65f, 0.45f);
-                apeInstance.transform.localRotation = Quaternion.Euler(-15f, 175f, 10f);
-                apeInstance.transform.localScale = Vector3.one * 0.85f;
-
-                // 移除碰撞体
-                Collider[] colliders = apeInstance.GetComponentsInChildren<Collider>(true);
-                foreach (var c in colliders) Destroy(c);
-            }
-            else
-            {
-                // 应急写实第一视角手臂
-                CreateProceduralApeHandMesh(_armHolder);
-            }
-        }
-
-        private void CreateProceduralApeHandMesh(Transform parent)
-        {
-            GameObject handRoot = new GameObject("Procedural_Ape_Hand");
-            handRoot.transform.SetParent(parent, false);
-
-            Shader unlitShader = Shader.Find("Universal Render Pipeline/Unlit");
-            if (unlitShader == null) unlitShader = Shader.Find("Standard");
-            Material armMat = new Material(unlitShader);
-            armMat.color = new Color(0.18f, 0.14f, 0.12f); // 野性深色
-
-            // 前臂
-            GameObject forearm = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            forearm.transform.SetParent(handRoot.transform, false);
-            forearm.transform.localPosition = new Vector3(0f, -0.25f, -0.25f);
-            forearm.transform.localRotation = Quaternion.Euler(75f, 0f, 0f);
-            forearm.transform.localScale = new Vector3(0.09f, 0.28f, 0.09f);
-            forearm.GetComponent<Renderer>().material = armMat;
-            Destroy(forearm.GetComponent<Collider>());
-
-            // 掌心
-            GameObject palm = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            palm.transform.SetParent(handRoot.transform, false);
-            palm.transform.localPosition = Vector3.zero;
-            palm.transform.localScale = new Vector3(0.14f, 0.08f, 0.16f);
-            palm.GetComponent<Renderer>().material = armMat;
-            Destroy(palm.GetComponent<Collider>());
         }
     }
 }
