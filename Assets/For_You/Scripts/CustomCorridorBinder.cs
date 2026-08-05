@@ -242,7 +242,7 @@ namespace TheLastCompact.Wakeup
 
             if (phaseProgress < 0.35f)
             {
-                // Phase 1 (0.0 -> 0.35): 必须看完 25 个以上视频，每次展示至少 2.2 秒防偷跑
+                // Phase 1: 必须看完 40 个视频，每次展示至少 2.2 秒防偷跑
                 bool readyForNextClick = _mediaPlayTimer >= 2.2f && !_isTransitioning;
 
                 if (playerClicked && readyForNextClick)
@@ -253,11 +253,13 @@ namespace TheLastCompact.Wakeup
 
                     float p = Mathf.Clamp01((float)_phase1VideoCount / Mathf.Max(1, requiredPhase1Videos)) * 0.35f;
                     if (Stage5Controller.Instance != null) Stage5Controller.Instance.phaseProgress = p;
+
+                    Debug.Log($"<color=cyan>[Phase 1 刷屏点击] 点击切换视频成功！已刷视频: {_phase1VideoCount}/{requiredPhase1Videos} (Phase进度: {p * 100f:F1}%)</color>");
                 }
             }
             else if (phaseProgress < 0.70f)
             {
-                // Phase 2 (0.35 -> 0.70): 算法半自动渐进推移 (40 步，每步 5~8s，偏好权重从 10% 逐步增加到 90%)
+                // Phase 2: 算法半自动渐进推移 (80 步)
                 _switchTimer += Time.deltaTime;
                 bool timerExpired = _switchTimer >= _currentInterval;
 
@@ -269,6 +271,9 @@ namespace TheLastCompact.Wakeup
 
                     float p = 0.35f + Mathf.Clamp01((float)_phase2StepCount / Mathf.Max(1, requiredPhase2Steps)) * 0.35f;
                     if (Stage5Controller.Instance != null) Stage5Controller.Instance.phaseProgress = p;
+
+                    float themeWeight = Mathf.Lerp(10f, 90f, Mathf.InverseLerp(0.35f, 0.70f, p));
+                    Debug.Log($"<color=yellow>[Phase 2 算法推流] 切屏步骤: {_phase2StepCount}/{requiredPhase2Steps} (偏好渗透率: {themeWeight:F0}%, Phase进度: {p * 100f:F1}%)</color>");
                 }
             }
             else
@@ -281,7 +286,6 @@ namespace TheLastCompact.Wakeup
                     TriggerNextMediaSwitch();
                 }
 
-                // 倒计时更新：如果玩家不动，崩坏计时归零回到 Phase 1 循环
                 _collapseTimer += Time.deltaTime;
                 EnsureResistanceUI();
 
@@ -295,7 +299,7 @@ namespace TheLastCompact.Wakeup
                 if (playerClicked && !_hasTriggeredBreakthrough)
                 {
                     _resistanceClickCount++;
-                    Debug.Log($"[抗争机制] 玩家点击抗争 +1，当前累计: {_resistanceClickCount}/{requiredResistanceClicks}");
+                    Debug.Log($"<color=red>[Phase 3 觉醒连击] 突破抗争点击 +1！当前累计: {_resistanceClickCount}/{requiredResistanceClicks}</color>");
 
                     if (_resistanceClickCount >= requiredResistanceClicks)
                     {
