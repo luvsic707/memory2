@@ -281,7 +281,8 @@ namespace TheLastCompact.Wakeup
             _isTransitioning = true;
             _transTimer = 0f;
 
-            _currentModeIndex = Random.Range(0, 3);
+            // 从 5 种 @elfilter_a 风格艺术过渡模式中随机抽取 (0:Grid, 1:Strips, 2:Fluid, 3:Portal, 4:Data)
+            _currentModeIndex = Random.Range(0, 5);
             _currentTex = _nextTex;
             PickNextMedia();
             ApplyTexturesToWalls();
