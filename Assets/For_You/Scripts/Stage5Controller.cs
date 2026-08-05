@@ -670,7 +670,15 @@ namespace TheLastCompact.Wakeup
             }
         }
 
-        private IEnumerator TransitionSequence()
+        public void TriggerSceneTransition()
+        {
+            if (!_isTransitioning)
+            {
+                StartCoroutine(TransitionSequence());
+            }
+        }
+
+        public IEnumerator TransitionSequence()
         {
             _isTransitioning = true;
             EventBus.RaiseAnnouncement("The feed never ends. But you chose to look away and face the future.");

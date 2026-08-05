@@ -65,6 +65,7 @@ namespace TheLastCompact.Wakeup
         private int _phase2StepCount = 0;
         private float _collapseTimer = 0f;
         private int _resistanceClickCount = 0;
+        private bool _hasTriggeredBreakthrough = false;
         private int _lastVideoIndex = -1;
 
         private Vector3[] _initialWallPositions;
@@ -291,20 +292,21 @@ namespace TheLastCompact.Wakeup
                 }
 
                 // 玩家疯狂连击抗争检测
-                if (playerClicked)
+                if (playerClicked && !_hasTriggeredBreakthrough)
                 {
                     _resistanceClickCount++;
                     Debug.Log($"[抗争机制] 玩家点击抗争 +1，当前累计: {_resistanceClickCount}/{requiredResistanceClicks}");
 
                     if (_resistanceClickCount >= requiredResistanceClicks)
                     {
-                        // 成功觉醒突破！跨入 Stage 6！
-                        Debug.Log("<color=green>[觉醒突破] 玩家通过疯狂连击成功打破算法信息茧房死循环！进入 Stage 6！</color>");
+                        _hasTriggeredBreakthrough = true;
+                        Debug.Log("<color=green>[觉醒突破] 玩家通过疯狂连击成功打破算法信息茧房死循环！正式跳转加载 Stage 6！</color>");
                         if (_resistanceUiGo != null) _resistanceUiGo.SetActive(false);
+                        
                         if (Stage5Controller.Instance != null)
                         {
                             Stage5Controller.Instance.phaseProgress = 1.0f;
-                            Stage5Controller.Instance.StartCoroutine("TransitionSequence");
+                            Stage5Controller.Instance.TriggerSceneTransition();
                         }
                         return;
                     }
