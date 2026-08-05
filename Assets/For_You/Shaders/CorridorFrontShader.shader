@@ -7,6 +7,11 @@ Shader "Wakeup/CorridorFrontShader"
         _TransitionProgress ("Transition Progress", Range(0, 1)) = 0
         _TransitionMode ("Transition Mode (0:SoftRoundEcho, 1:Strips, 2:Fluid, 3:Portal, 4:Data)", Float) = 0
         _GlitchIntensity ("Pixel Corruption Intensity", Range(0, 1)) = 0
+        
+        // Front Wall 与四周融合的核心：爆炸极速拖尾与油彩抹平
+        _OilSmearArc ("Oil Smear Arc Sweep (Pic 1)", Range(0, 1)) = 0
+        _ExplosiveRadialTrails ("Explosive Radial Speed Trails (Pic 2)", Range(0, 1)) = 0
+        _BorderFade ("Border Feather Amount", Range(0, 1)) = 0
     }
     SubShader
     {
@@ -42,12 +47,16 @@ Shader "Wakeup/CorridorFrontShader"
                 float _TransitionProgress;
                 float _TransitionMode;
                 float _GlitchIntensity;
+                float _OilSmearArc;
+                float _ExplosiveRadialTrails;
+                float _BorderFade;
             CBUFFER_END
 
             Varyings vert(Attributes input)
             {
                 Varyings output;
-                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                float3 posOS = input.positionOS.xyz;
+                output.positionCS = TransformObjectToHClip(posOS);
                 output.uv = input.uv;
                 return output;
             }
@@ -69,7 +78,6 @@ Shader "Wakeup/CorridorFrontShader"
                 return lerp(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
             }
 
-            // 圆角矩形 Sdf 柔边计算
             float sdRoundedBox(float2 p, float2 b, float r)
             {
                 float2 q = abs(p) - b + r;
@@ -82,26 +90,31 @@ Shader "Wakeup/CorridorFrontShader"
                 float time = _Time.y;
                 float progress = saturate(_TransitionProgress);
 
+                // 1. 油彩弧形抹平 Sweep
+                if (_OilSmearArc > 0.01)
+                {
+                    float2 centerDist = uv - 0.5;
+                    float angle = atan2(centerDist.y, centerDist.x);
+                    float r = length(centerDist);
+                    float arcOffset = sin(angle * 3.0 + r * 10.0 - time * 2.5) * 0.15 * _OilSmearArc;
+                    uv += float2(cos(angle + arcOffset), sin(angle + arcOffset)) * arcOffset;
+                }
+
                 float2 uvA = uv;
                 float2 uvB = uv;
                 float blendAlpha = progress;
 
-                // ─────────────────────────────────────────────────────────────
-                // 模式 0：浪漫柔角圆润套娃扩散 (Cute Soft Rounded Echo - 参考图 1 & 4 风格)
-                // ─────────────────────────────────────────────────────────────
+                // 模式 0：柔角圆润套娃
                 if (_TransitionMode < 0.5)
                 {
                     float2 p = uv - 0.5;
                     float d = sdRoundedBox(p, float2(0.35, 0.35) * progress, 0.15);
                     blendAlpha = smoothstep(0.01, -0.01, d);
 
-                    // 弧形涟漪缩放
                     float waveScale = 1.0 + (1.0 - progress) * 0.15 * sin(length(p) * 20.0 - time * 4.0);
                     uvA = p * waveScale + 0.5;
                 }
-                // ─────────────────────────────────────────────────────────────
-                // 模式 1：横向条纹柔和切片 (Horizontal Soft Strip)
-                // ─────────────────────────────────────────────────────────────
+                // 模式 1：横向条纹撕裂
                 else if (_TransitionMode < 1.5)
                 {
                     float stripCount = 10.0;
@@ -114,9 +127,7 @@ Shader "Wakeup/CorridorFrontShader"
                     uvB.x -= dir * progress * 0.2 * (0.5 + r);
                     blendAlpha = progress;
                 }
-                // ─────────────────────────────────────────────────────────────
-                // 模式 2：油彩流体浪漫涂抹 (Oil Paint Organic Liquid Dissolve - 参考图 2 风格)
-                // ─────────────────────────────────────────────────────────────
+                // 模式 2：油彩流体涂抹
                 else if (_TransitionMode < 2.5)
                 {
                     float n = noise(uv * 6.0 + time * 1.2);
@@ -127,9 +138,7 @@ Shader "Wakeup/CorridorFrontShader"
                     uvA += fluidOffset;
                     uvB -= fluidOffset;
                 }
-                // ─────────────────────────────────────────────────────────────
-                // 模式 3：软心传送门膨胀 (Soft Portal Burst Expansion)
-                // ─────────────────────────────────────────────────────────────
+                // 模式 3：传送门爆裂
                 else if (_TransitionMode < 3.5)
                 {
                     float2 centerUV = uv - 0.5;
@@ -139,9 +148,7 @@ Shader "Wakeup/CorridorFrontShader"
                     uvB = centerUV / scaleB + 0.5;
                     blendAlpha = smoothstep(0.2, 0.8, progress);
                 }
-                // ─────────────────────────────────────────────────────────────
-                // 模式 4：高频数据错位重影 (Data Displacement Overlay)
-                // ─────────────────────────────────────────────────────────────
+                // 模式 4：高频数据重影
                 else
                 {
                     float d = hash(floor(uv * 18.0) + time);
@@ -151,7 +158,7 @@ Shader "Wakeup/CorridorFrontShader"
                     blendAlpha = progress;
                 }
 
-                // 像素 Glitch 扰动 (Phase 3 开启)
+                // 像素 Glitch
                 if (_GlitchIntensity > 0.01)
                 {
                     float blocks = lerp(150.0, 25.0, _GlitchIntensity);
@@ -164,10 +171,45 @@ Shader "Wakeup/CorridorFrontShader"
                     }
                 }
 
-                float4 colA = _MainTex.Sample(sampler_MainTex, uvA);
-                float4 colB = _NextTex.Sample(sampler_NextTex, uvB);
+                uvA = frac(abs(uvA));
+                uvB = frac(abs(uvB));
 
-                float4 finalCol = lerp(colA, colB, saturate(blendAlpha));
+                // 🌟 核心升级：爆炸式 360 度向外喷射拖尾 (Explosive Speed Trails directly blending into Side Walls)
+                float4 finalCol;
+                if (_ExplosiveRadialTrails > 0.01)
+                {
+                    float2 dir = uvA - float2(0.5, 0.5);
+                    float4 accumColA = float4(0, 0, 0, 0);
+                    float4 accumColB = float4(0, 0, 0, 0);
+                    int samples = 8;
+                    float blurScale = 0.04 * _ExplosiveRadialTrails;
+
+                    for (int i = 0; i < samples; i++)
+                    {
+                        float2 sA = frac(abs(uvA - dir * (float)i * blurScale));
+                        float2 sB = frac(abs(uvB - dir * (float)i * blurScale));
+                        accumColA += _MainTex.Sample(sampler_MainTex, sA);
+                        accumColB += _NextTex.Sample(sampler_NextTex, sB);
+                    }
+                    float4 cA = accumColA / (float)samples;
+                    float4 cB = accumColB / (float)samples;
+                    finalCol = lerp(cA, cB, saturate(blendAlpha));
+                }
+                else
+                {
+                    float4 colA = _MainTex.Sample(sampler_MainTex, uvA);
+                    float4 colB = _NextTex.Sample(sampler_NextTex, uvB);
+                    finalCol = lerp(colA, colB, saturate(blendAlpha));
+                }
+
+                // 边缘羽化消融与四周连通
+                if (_BorderFade > 0.01)
+                {
+                    float edgeDist = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
+                    float edgeAlpha = smoothstep(0.0, 0.20 * _BorderFade, edgeDist);
+                    float3 meltColor = lerp(finalCol.rgb, finalCol.gbr, 0.6 + 0.4 * sin(time * 3.0 + uv.x * 12.0));
+                    finalCol.rgb = lerp(meltColor, finalCol.rgb, edgeAlpha);
+                }
 
                 return finalCol;
             }

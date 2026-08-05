@@ -228,9 +228,28 @@ namespace TheLastCompact.Wakeup
                 }
 
                 float glitch = phaseProgress > 0.35f ? Mathf.InverseLerp(0.35f, 0.96f, phaseProgress) * 0.95f : 0f;
+                float borderFade = phaseProgress > 0.35f ? Mathf.InverseLerp(0.35f, 0.96f, phaseProgress) * 1.0f : 0f;
+
+                bool isP1 = phaseProgress < 0.35f;
+                float p2R = Mathf.InverseLerp(0.35f, 0.70f, phaseProgress);
+                float p3R = Mathf.InverseLerp(0.70f, 1.00f, phaseProgress);
+
+                float frontOilSmear = isP1 ? 0.05f : (0.05f + p2R * 0.45f + p3R * 1.0f);
+                float frontSpeedTrails = isP1 ? 0f : (p2R * 0.35f + p3R * 1.0f);
+
                 _frontMat.SetFloat("_TransitionProgress", progress);
                 _frontMat.SetFloat("_TransitionMode", (float)_currentModeIndex);
                 _frontMat.SetFloat("_GlitchIntensity", glitch);
+                _frontMat.SetFloat("_BorderFade", borderFade);
+                _frontMat.SetFloat("_OilSmearArc", frontOilSmear);
+                _frontMat.SetFloat("_ExplosiveRadialTrails", frontSpeedTrails);
+            }
+
+            // 正面墙 (Front Wall) Transform 3D 软体呼吸同步 (和四周墙彻底融合)
+            if (frontWallRenderer != null)
+            {
+                float breathe = Mathf.Sin(time * 1.5f) * 0.04f;
+                frontWallRenderer.transform.localScale = Vector3.one * (1.0f + breathe);
             }
 
             // 5. 驱动 Side Walls 四周墙面多维流体 (Phase 1&2 轻松有趣、浪漫圆润)
