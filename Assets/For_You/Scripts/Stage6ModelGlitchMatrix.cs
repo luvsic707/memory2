@@ -58,7 +58,7 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
-        /// 协程：控制模型在“正常材质”与“Stage 5 视频矩阵”之间随机脉冲闪烁
+        /// 协程：控制模型在“正常材质”与“Stage 5 视频矩阵”之间随机脉冲闪烁，且每次闪烁自动随机切换下一个视频！
         /// </summary>
         private IEnumerator FlickerRoutine()
         {
@@ -68,6 +68,9 @@ namespace TheLastCompact.Wakeup
                 float waitTime = Random.Range(flickerIntervalRange.x, flickerIntervalRange.y);
                 yield return new WaitForSeconds(waitTime);
 
+                // 🌟 核心升级：每次闪烁高潮瞬间，随机切换到列表里的下一个视频 Clip！
+                SwitchToRandomVideoClip();
+
                 // 随机选择一部分模型发生视频流暴露闪烁
                 float flickerDur = Random.Range(flickerDurationRange.x, flickerDurationRange.y);
                 float glitchIntensity = Random.Range(0.4f, 0.95f);
@@ -75,7 +78,7 @@ namespace TheLastCompact.Wakeup
                 // 触发闪烁高潮
                 for (int i = 0; i < _glitchMaterials.Count; i++)
                 {
-                    if (_glitchMaterials[i] != null && Random.value > 0.3f)
+                    if (_glitchMaterials[i] != null && Random.value > 0.25f)
                     {
                         _glitchMaterials[i].SetFloat("_GlitchBlend", 1.0f);
                         _glitchMaterials[i].SetFloat("_GlitchIntensity", glitchIntensity);
@@ -93,6 +96,27 @@ namespace TheLastCompact.Wakeup
                         _glitchMaterials[i].SetFloat("_GlitchIntensity", 0.05f);
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// 随机切换播放不同的视频 Clip (防止单一视频 Loop 显得死板)
+        /// </summary>
+        private void SwitchToRandomVideoClip()
+        {
+            if (_videoPlayer == null) return;
+
+            VideoClip nextClip = null;
+            if (stage5VideoClips != null && stage5VideoClips.Length > 0)
+            {
+                int nextIndex = Random.Range(0, stage5VideoClips.Length);
+                nextClip = stage5VideoClips[nextIndex];
+            }
+
+            if (nextClip != null && _videoPlayer.clip != nextClip)
+            {
+                _videoPlayer.clip = nextClip;
+                _videoPlayer.Play();
             }
         }
 

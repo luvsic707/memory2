@@ -13,6 +13,10 @@ namespace TheLastCompact.Wakeup
     /// </summary>
     public class Stage6ComplexMatrixBuilder : MonoBehaviour
     {
+        [Header("视频源配置 (Inspector 拖拽)")]
+        [Tooltip("Stage 5 视频列表 (若留空，自动载入项目中的默认视频)")]
+        public VideoClip[] stage5VideoClips;
+
         [Header("3D 矩阵通道配置 (参考图 1)")]
         [Tooltip("矩阵通道在 X/Y 方向上的网格数量 (比如 6x6)")]
         public Vector2Int gridCount = new Vector2Int(7, 7);
@@ -74,6 +78,26 @@ namespace TheLastCompact.Wakeup
                 _centerCore.Rotate(centerRotationSpeed * Time.deltaTime, Space.Self);
                 float pulse = 1.0f + Mathf.Sin(time * 3f) * 0.12f;
                 _centerCore.localScale = Vector3.one * pulse * 2.5f;
+            }
+
+            // 3. 动态轮换视频 Clip (每隔一段时间随机切到下一个视频 Clip)
+            if (time > _nextVideoSwapTime)
+            {
+                _nextVideoSwapTime = time + Random.Range(1.2f, 3.5f);
+                SwapMatrixVideoClip();
+            }
+        }
+
+        private float _nextVideoSwapTime = 0f;
+
+        private void SwapMatrixVideoClip()
+        {
+            if (_matrixVideoPlayer == null || stage5VideoClips == null || stage5VideoClips.Length == 0) return;
+            VideoClip nextClip = stage5VideoClips[Random.Range(0, stage5VideoClips.Length)];
+            if (nextClip != null && _matrixVideoPlayer.clip != nextClip)
+            {
+                _matrixVideoPlayer.clip = nextClip;
+                _matrixVideoPlayer.Play();
             }
         }
 
@@ -160,10 +184,17 @@ namespace TheLastCompact.Wakeup
             _matrixVideoRenderTex.Create();
             _matrixVideoPlayer.targetTexture = _matrixVideoRenderTex;
 
+            if (stage5VideoClips != null && stage5VideoClips.Length > 0)
+            {
+                _matrixVideoPlayer.clip = stage5VideoClips[Random.Range(0, stage5VideoClips.Length)];
+            }
+            else
+            {
 #if UNITY_EDITOR
-            VideoClip clip = UnityEditor.AssetDatabase.LoadAssetAtPath<VideoClip>("Assets/For_You/Art/Stage5_Contemporary/Videos/video1.mp4");
-            if (clip != null) _matrixVideoPlayer.clip = clip;
+                VideoClip clip = UnityEditor.AssetDatabase.LoadAssetAtPath<VideoClip>("Assets/For_You/Art/Stage5_Contemporary/Videos/video1.mp4");
+                if (clip != null) _matrixVideoPlayer.clip = clip;
 #endif
+            }
 
             _matrixVideoPlayer.Play();
         }
