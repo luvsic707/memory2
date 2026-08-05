@@ -6,10 +6,8 @@ using TheLastCompact.Core;
 namespace TheLastCompact.Wakeup
 {
     /// <summary>
-    /// 高级多维 3D 走廊绑定器 (主动点击掌控 -> 掌控力丧失 -> 彻底失控 完整机制)
-    /// Phase 1: 玩家主动点击鼠标左键/Trigger 才能刷下一条 Feed（主动掌控感）
-    /// Phase 2: 算法开始剥夺控制权，即使不点击也会自动强制切屏，玩家点击开始卡顿/失灵
-    /// Phase 3: 玩家彻底失去控制权，点击完全无效，Feed 不受控制地狂乱抽搐！
+    /// 高级多维 3D 走廊绑定器 (双 VideoPlayer 双缓冲零白屏 + 5 种 @elfilter_a 艺术过渡)
+    /// 实现视频/图片无缝双缓冲（Double-Buffering），提前静默预加载 VideoClip，彻底解决切换白屏卡顿！
     /// </summary>
     public class CustomCorridorBinder : MonoBehaviour
     {
@@ -29,19 +27,21 @@ namespace TheLastCompact.Wakeup
         private Material _frontMat;
         private Material _wallMat;
 
-        // 视频播放组件
-        private VideoPlayer _videoPlayer;
-        private RenderTexture _videoRenderTexture;
+        // 双 VideoPlayer 预加载双缓冲系统 (彻底消灭白屏间断)
+        private VideoPlayer _videoPlayerA;
+        private VideoPlayer _videoPlayerB;
+        private RenderTexture _renderTexA;
+        private RenderTexture _renderTexB;
+        private bool _activePlayerIsA = true;
 
         private Texture _currentTex;
         private Texture _nextTex;
-        private bool _isNextMediaVideo = false;
 
         private float _switchTimer = 0f;
         private float _currentInterval = 1.8f;
         private float _transTimer = 0f;
         private bool _isTransitioning = false;
-        private int _currentModeIndex = 0; // 0: SlitScan, 1: Burst, 2: Feedback
+        private int _currentModeIndex = 0; // 0:Grid, 1:Strips, 2:Fluid, 3:Portal, 4:Data
 
         private Vector3[] _initialWallPositions;
         private Quaternion[] _initialWallRotations;
@@ -64,7 +64,7 @@ namespace TheLastCompact.Wakeup
                 Debug.Log("[CustomCorridorBinder] 已自动禁用散落卡片生成器，全面使用高级 3D 走廊！");
             }
 
-            SetupVideoPlayer();
+            SetupDoubleBufferedVideoPlayers();
 
             Shader frontShader = Shader.Find("Wakeup/CorridorFrontShader");
             if (frontShader == null) frontShader = Shader.Find("Universal Render Pipeline/Unlit");
@@ -98,18 +98,29 @@ namespace TheLastCompact.Wakeup
             ApplyTexturesToWalls();
         }
 
-        private void SetupVideoPlayer()
+        private void SetupDoubleBufferedVideoPlayers()
         {
-            GameObject vpGo = new GameObject("CorridorVideoPlayer");
-            vpGo.transform.SetParent(transform, false);
-            _videoPlayer = vpGo.AddComponent<VideoPlayer>();
-            _videoPlayer.playOnAwake = false;
-            _videoPlayer.isLooping = true;
-            _videoPlayer.renderMode = VideoRenderMode.RenderTexture;
+            // Player A
+            GameObject vpGoA = new GameObject("CorridorVideoPlayer_A");
+            vpGoA.transform.SetParent(transform, false);
+            _videoPlayerA = vpGoA.AddComponent<VideoPlayer>();
+            _videoPlayerA.playOnAwake = false;
+            _videoPlayerA.isLooping = true;
+            _videoPlayerA.renderMode = VideoRenderMode.RenderTexture;
+            _renderTexA = new RenderTexture(1024, 1024, 0, RenderTextureFormat.ARGB32);
+            _renderTexA.Create();
+            _videoPlayerA.targetTexture = _renderTexA;
 
-            _videoRenderTexture = new RenderTexture(1024, 1024, 0, RenderTextureFormat.ARGB32);
-            _videoRenderTexture.Create();
-            _videoPlayer.targetTexture = _videoRenderTexture;
+            // Player B
+            GameObject vpGoB = new GameObject("CorridorVideoPlayer_B");
+            vpGoB.transform.SetParent(transform, false);
+            _videoPlayerB = vpGoB.AddComponent<VideoPlayer>();
+            _videoPlayerB.playOnAwake = false;
+            _videoPlayerB.isLooping = true;
+            _videoPlayerB.renderMode = VideoRenderMode.RenderTexture;
+            _renderTexB = new RenderTexture(1024, 1024, 0, RenderTextureFormat.ARGB32);
+            _renderTexB.Create();
+            _videoPlayerB.targetTexture = _renderTexB;
         }
 
         private void Update()
@@ -120,13 +131,10 @@ namespace TheLastCompact.Wakeup
 
             float time = Time.time;
 
-            // 动态调节内容交替节奏
             UpdateRhythmTempo(phaseProgress);
-
-            // 1. 鼠标点击与主动/被动切屏逻辑 (Phase 1 必须点击 -> Phase 2 半自动 -> Phase 3 完全失控)
             HandleControlModeAndInput(phaseProgress);
 
-            // 2. 注视检测 (Phase 1 仅靠玩家手动点击，禁用自动加进度；Phase 2-3 启用注视与时间自动推进)
+            // 注视检测
             Camera cam = Camera.main;
             if (cam != null)
             {
@@ -135,7 +143,6 @@ namespace TheLastCompact.Wakeup
 
                 if (phaseProgress >= 0.35f && phaseProgress < 0.96f)
                 {
-                    // Phase 2->3: 注视尽头画面推进 Phase 进度
                     if (frontWallRenderer != null && Physics.Raycast(ray, out hit, 50f))
                     {
                         if (hit.transform == frontWallRenderer.transform && Stage5Controller.Instance != null)
@@ -147,12 +154,11 @@ namespace TheLastCompact.Wakeup
                 }
                 else if (phaseProgress >= 0.96f)
                 {
-                    // Phase 4 抉择时刻：检测玩家注视哪个选择终端
                     HandlePhase4ChoiceGaze(ray);
                 }
             }
 
-            // 3. Phase 4 抉择界面
+            // Phase 4 抉择界面
             if (phaseProgress >= 0.96f)
             {
                 if (_choiceContainer == null) CreatePhase4ChoiceTerminals();
@@ -163,14 +169,14 @@ namespace TheLastCompact.Wakeup
                 if (_choiceContainer != null) _choiceContainer.SetActive(false);
             }
 
-            // 4. 驱动 Front Wall 过渡与 Glitch
+            // 驱动 Front Wall 过渡
             if (_frontMat != null)
             {
                 float progress = 0f;
                 if (_isTransitioning)
                 {
                     _transTimer += Time.deltaTime;
-                    float transDur = phaseProgress > 0.70f ? 0.3f : 0.85f;
+                    float transDur = phaseProgress > 0.70f ? 0.3f : 0.75f;
                     progress = Mathf.Clamp01(_transTimer / transDur);
                     if (_transTimer >= transDur) _isTransitioning = false;
                 }
@@ -181,7 +187,7 @@ namespace TheLastCompact.Wakeup
                 _frontMat.SetFloat("_GlitchIntensity", glitch);
             }
 
-            // 5. 驱动 Side Walls 四周墙面多维流体 (Phase 1 绝对纯净 0 扭曲，Phase 2 逐渐加速侵蚀)
+            // 驱动 Side Walls 四周墙面多维流体
             if (_wallMat != null)
             {
                 bool isPhase1 = phaseProgress < 0.35f;
@@ -205,7 +211,7 @@ namespace TheLastCompact.Wakeup
                 _wallMat.SetFloat("_SliceOffset", sliceShift);
             }
 
-            // 6. 物理墙面震颤
+            // 物理墙面震颤
             if (sideWallRenderers != null && _initialWallPositions != null)
             {
                 float physIntensity = phaseProgress > 0.35f ? Mathf.InverseLerp(0.35f, 1.0f, phaseProgress) * physicalWarpIntensity : 0f;
@@ -227,34 +233,25 @@ namespace TheLastCompact.Wakeup
             }
         }
 
-        /// <summary>
-        /// 核心掌控力剥夺逻辑
-        /// Phase 1 (0 ~ 0.35): 必须按鼠标左键切屏（玩家完全掌控 Feed）
-        /// Phase 2 (0.35 ~ 0.70): 即使不按，计时器到期也会自动强制切屏，玩家按键反应迟钝
-        /// Phase 3 (0.70 ~ 0.96): 玩家按键彻底被忽略失灵，Feed 自动狂乱快切！
-        /// </summary>
         private void HandleControlModeAndInput(float phaseProgress)
         {
             bool playerClicked = Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.Space);
 
             if (phaseProgress < 0.35f)
             {
-                // Phase 1：玩家掌控，点击才切屏
                 if (playerClicked && !_isTransitioning)
                 {
                     TriggerNextMediaSwitch();
 
-                    // 每次主动刷屏，进度增加 1/24 (恰好点击 24 次进入 Phase 2，延长 200%)
                     if (Stage5Controller.Instance != null)
                     {
-                        Stage5Controller.Instance.phaseProgress += 0.35f / 24f; // 约 0.01458f 每击
+                        Stage5Controller.Instance.phaseProgress += 0.35f / 24f;
                         Stage5Controller.Instance.phaseProgress = Mathf.Clamp01(Stage5Controller.Instance.phaseProgress);
                     }
                 }
             }
             else if (phaseProgress < 0.70f)
             {
-                // Phase 2：半失控模式——支持点击，但即使不点也会自动倒计时强制切屏
                 _switchTimer += Time.deltaTime;
                 bool timerExpired = _switchTimer >= _currentInterval;
 
@@ -266,7 +263,6 @@ namespace TheLastCompact.Wakeup
             }
             else
             {
-                // Phase 3：完全失控模式——彻底忽略玩家点击！系统按狂乱节奏自动强切！
                 _switchTimer += Time.deltaTime;
                 if (_switchTimer >= _currentInterval && !_isTransitioning)
                 {
@@ -281,7 +277,7 @@ namespace TheLastCompact.Wakeup
             _isTransitioning = true;
             _transTimer = 0f;
 
-            // 从 5 种 @elfilter_a 风格艺术过渡模式中随机抽取 (0:Grid, 1:Strips, 2:Fluid, 3:Portal, 4:Data)
+            // 随机从 5 种 @elfilter_a 艺术模式中抽取
             _currentModeIndex = Random.Range(0, 5);
             _currentTex = _nextTex;
             PickNextMedia();
@@ -304,6 +300,10 @@ namespace TheLastCompact.Wakeup
             }
         }
 
+        /// <summary>
+        /// 双缓冲无缝预加载系统 (Double-Buffered Seamless Video Preloader)
+        /// 轮流使用 VideoPlayer A 和 VideoPlayer B，彻底消灭视频解压加载造成的白屏空档！
+        /// </summary>
         private void PickNextMedia()
         {
             if (mediaDatabase == null) return;
@@ -313,7 +313,6 @@ namespace TheLastCompact.Wakeup
                 : 0f;
 
             string theme = GetDominantTheme();
-
             bool wantVideo = phaseProgress < 0.35f ? (Random.value < 0.45f) : (Random.value < 0.20f);
 
             if (wantVideo)
@@ -324,15 +323,20 @@ namespace TheLastCompact.Wakeup
 
                 if (clip != null)
                 {
-                    _videoPlayer.clip = clip;
-                    _videoPlayer.Play();
-                    _nextTex = _videoRenderTexture;
-                    _isNextMediaVideo = true;
+                    // 切换备用 VideoPlayer 预加载播放
+                    _activePlayerIsA = !_activePlayerIsA;
+                    VideoPlayer activePlayer = _activePlayerIsA ? _videoPlayerA : _videoPlayerB;
+                    RenderTexture activeTex = _activePlayerIsA ? _renderTexA : _renderTexB;
+
+                    activePlayer.clip = clip;
+                    activePlayer.Play();
+
+                    _nextTex = activeTex;
                     return;
                 }
             }
 
-            _isNextMediaVideo = false;
+            // 静态图片素材无缝加载
             if (phaseProgress < 0.35f)
             {
                 _nextTex = mediaDatabase.GetEntertainmentTexture();
