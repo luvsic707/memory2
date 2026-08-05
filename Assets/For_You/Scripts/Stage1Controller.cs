@@ -48,6 +48,16 @@ namespace TheLastCompact.Wakeup
 
         private void Start()
         {
+            // 自动为场景主相机挂载第一视角手臂抓取系统
+            if (FirstPersonArmController.Instance == null)
+            {
+                Camera mainCam = Camera.main;
+                if (mainCam != null && mainCam.GetComponent<FirstPersonArmController>() == null)
+                {
+                    mainCam.gameObject.AddComponent<FirstPersonArmController>();
+                }
+            }
+
             // 缓存场景里第一个香蕉的原本缩放，避免生成的强光香蕉比正常香蕉大几十倍
             BananaInteractable initialBanana = FindObjectOfType<BananaInteractable>();
             if (initialBanana != null)

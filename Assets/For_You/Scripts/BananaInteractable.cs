@@ -78,6 +78,32 @@ namespace TheLastCompact.Wakeup
         // 实现 IInteractable 接口的方法
         public void Interact()
         {
+            // 自动确保场景里存在第一视角手臂管理器
+            if (FirstPersonArmController.Instance == null)
+            {
+                Camera mainCam = Camera.main;
+                if (mainCam != null)
+                {
+                    mainCam.gameObject.AddComponent<FirstPersonArmController>();
+                }
+            }
+
+            // 触发第一视角手部伸出抓取 ➔ 吃蕉动作
+            if (FirstPersonArmController.Instance != null)
+            {
+                FirstPersonArmController.Instance.PlayGrabAndEatMotion(transform.position, () =>
+                {
+                    ExecuteBananaEatLogic();
+                });
+            }
+            else
+            {
+                ExecuteBananaEatLogic();
+            }
+        }
+
+        private void ExecuteBananaEatLogic()
+        {
             // 特殊香蕉：直接吃掉通关
             if (isGlowingBanana)
             {
