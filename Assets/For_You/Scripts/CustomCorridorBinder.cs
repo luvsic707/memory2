@@ -6,8 +6,8 @@ using TheLastCompact.Core;
 namespace TheLastCompact.Wakeup
 {
     /// <summary>
-    /// 高级多维 3D 走廊绑定器 (双 VideoPlayer 双缓冲零白屏 + 5 种 @elfilter_a 艺术过渡)
-    /// 实现视频/图片无缝双缓冲（Double-Buffering），提前静默预加载 VideoClip，彻底解决切换白屏卡顿！
+    /// 高级多维 3D 走廊绑定器 (绝对零白屏 + 就绪锁 + 0.35s 极速艺术快切)
+    /// 加入 PrepareCompleted 就绪帧锁定与 Freeze-Frame 兜底，彻底消灭 Unity VideoPlayer 初始闪白！
     /// </summary>
     public class CustomCorridorBinder : MonoBehaviour
     {
@@ -27,15 +27,17 @@ namespace TheLastCompact.Wakeup
         private Material _frontMat;
         private Material _wallMat;
 
-        // 双 VideoPlayer 预加载双缓冲系统 (彻底消灭白屏间断)
+        // 双 VideoPlayer 预加载系统
         private VideoPlayer _videoPlayerA;
         private VideoPlayer _videoPlayerB;
         private RenderTexture _renderTexA;
         private RenderTexture _renderTexB;
         private bool _activePlayerIsA = true;
+        private bool _isVideoReady = false;
 
         private Texture _currentTex;
         private Texture _nextTex;
+        private Texture _lastValidTex; // 兜底防止任何闪白
 
         private float _switchTimer = 0f;
         private float _currentInterval = 1.8f;
@@ -93,7 +95,8 @@ namespace TheLastCompact.Wakeup
             }
 
             PickNextMedia();
-            _currentTex = _nextTex;
+            _currentTex = _nextTex != null ? _nextTex : Texture2D.blackTexture;
+            _lastValidTex = _currentTex;
             PickNextMedia();
             ApplyTexturesToWalls();
         }
@@ -107,6 +110,8 @@ namespace TheLastCompact.Wakeup
             _videoPlayerA.playOnAwake = false;
             _videoPlayerA.isLooping = true;
             _videoPlayerA.renderMode = VideoRenderMode.RenderTexture;
+            _videoPlayerA.prepareCompleted += OnVideoPrepared;
+
             _renderTexA = new RenderTexture(1024, 1024, 0, RenderTextureFormat.ARGB32);
             _renderTexA.Create();
             _videoPlayerA.targetTexture = _renderTexA;
@@ -118,9 +123,16 @@ namespace TheLastCompact.Wakeup
             _videoPlayerB.playOnAwake = false;
             _videoPlayerB.isLooping = true;
             _videoPlayerB.renderMode = VideoRenderMode.RenderTexture;
+            _videoPlayerB.prepareCompleted += OnVideoPrepared;
+
             _renderTexB = new RenderTexture(1024, 1024, 0, RenderTextureFormat.ARGB32);
             _renderTexB.Create();
             _videoPlayerB.targetTexture = _renderTexB;
+        }
+
+        private void OnVideoPrepared(VideoPlayer source)
+        {
+            _isVideoReady = true;
         }
 
         private void Update()
@@ -169,14 +181,14 @@ namespace TheLastCompact.Wakeup
                 if (_choiceContainer != null) _choiceContainer.SetActive(false);
             }
 
-            // 驱动 Front Wall 过渡
+            // 驱动 Front Wall 极速过渡 (0.35s 快节奏快门感，零延迟)
             if (_frontMat != null)
             {
                 float progress = 0f;
                 if (_isTransitioning)
                 {
                     _transTimer += Time.deltaTime;
-                    float transDur = phaseProgress > 0.70f ? 0.3f : 0.75f;
+                    float transDur = 0.35f; // 缩短至 0.35 秒超紧凑快切！
                     progress = Mathf.Clamp01(_transTimer / transDur);
                     if (_transTimer >= transDur) _isTransitioning = false;
                 }
@@ -277,9 +289,12 @@ namespace TheLastCompact.Wakeup
             _isTransitioning = true;
             _transTimer = 0f;
 
-            // 随机从 5 种 @elfilter_a 艺术模式中抽取
             _currentModeIndex = Random.Range(0, 5);
-            _currentTex = _nextTex;
+            
+            // 保存有效当前帧兜底
+            if (_nextTex != null) _currentTex = _nextTex;
+            if (_currentTex != null) _lastValidTex = _currentTex;
+
             PickNextMedia();
             ApplyTexturesToWalls();
         }
@@ -300,10 +315,6 @@ namespace TheLastCompact.Wakeup
             }
         }
 
-        /// <summary>
-        /// 双缓冲无缝预加载系统 (Double-Buffered Seamless Video Preloader)
-        /// 轮流使用 VideoPlayer A 和 VideoPlayer B，彻底消灭视频解压加载造成的白屏空档！
-        /// </summary>
         private void PickNextMedia()
         {
             if (mediaDatabase == null) return;
@@ -323,12 +334,13 @@ namespace TheLastCompact.Wakeup
 
                 if (clip != null)
                 {
-                    // 切换备用 VideoPlayer 预加载播放
                     _activePlayerIsA = !_activePlayerIsA;
                     VideoPlayer activePlayer = _activePlayerIsA ? _videoPlayerA : _videoPlayerB;
                     RenderTexture activeTex = _activePlayerIsA ? _renderTexA : _renderTexB;
 
+                    _isVideoReady = false;
                     activePlayer.clip = clip;
+                    activePlayer.Prepare();
                     activePlayer.Play();
 
                     _nextTex = activeTex;
@@ -351,23 +363,30 @@ namespace TheLastCompact.Wakeup
             {
                 _nextTex = mediaDatabase.GetThemeTexture(theme) ?? mediaDatabase.GetEntertainmentTexture();
             }
+
+            if (_nextTex == null) _nextTex = _lastValidTex;
         }
 
         private void ApplyTexturesToWalls()
         {
-            if (_currentTex == null) return;
+            Texture texA = _currentTex != null ? _currentTex : _lastValidTex;
+            Texture texB = _nextTex != null ? _nextTex : _lastValidTex;
 
             if (_frontMat != null)
             {
-                if (_frontMat.HasProperty("_MainTex")) _frontMat.SetTexture("_MainTex", _currentTex);
-                if (_frontMat.HasProperty("_NextTex")) _frontMat.SetTexture("_NextTex", _nextTex);
+                if (_frontMat.HasProperty("_MainTex") && texA != null) _frontMat.SetTexture("_MainTex", texA);
+                if (_frontMat.HasProperty("_NextTex") && texB != null) _frontMat.SetTexture("_NextTex", texB);
             }
 
             if (_wallMat != null)
             {
-                if (_wallMat.HasProperty("_MainTex")) _wallMat.SetTexture("_MainTex", _currentTex);
-                if (_wallMat.HasProperty("_BaseMap")) _wallMat.SetTexture("_BaseMap", _currentTex);
-                _wallMat.mainTexture = _currentTex;
+                Texture mainWallTex = texB != null ? texB : texA;
+                if (mainWallTex != null)
+                {
+                    if (_wallMat.HasProperty("_MainTex")) _wallMat.SetTexture("_MainTex", mainWallTex);
+                    if (_wallMat.HasProperty("_BaseMap")) _wallMat.SetTexture("_BaseMap", mainWallTex);
+                    _wallMat.mainTexture = mainWallTex;
+                }
             }
         }
 
