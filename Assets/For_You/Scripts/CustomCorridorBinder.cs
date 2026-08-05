@@ -25,8 +25,8 @@ namespace TheLastCompact.Wakeup
         public float physicalWarpIntensity = 0.15f;
 
         [Header("Phase 1 视频计数目标")]
-        [Tooltip("Phase 1 必须刷完的独立视频总数（默认 8 个以上）")]
-        public int requiredPhase1Videos = 8;
+        [Tooltip("Phase 1 必须刷完的独立视频总数（默认 16 个视频，可在 Inspector 自由微调）")]
+        public int requiredPhase1Videos = 16;
 
         private Material _frontMat;
         private Material _wallMat;
