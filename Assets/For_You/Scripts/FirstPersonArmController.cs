@@ -74,7 +74,6 @@ namespace TheLastCompact.Wakeup
                 {
                     armVisual = foundHolder.gameObject;
                     _armTransform = foundHolder;
-                    Debug.Log($"<color=green>[FirstPersonArm] 自动找到了场景中的 '{foundHolder.name}' 节点并成功绑定！</color>");
                 }
                 else
                 {
@@ -88,10 +87,12 @@ namespace TheLastCompact.Wakeup
                 }
             }
 
+            // 🌟 100% 严格记住玩家在 Unity Inspector 里调好的第一视角绝对位置与角度！
             if (_armTransform != null)
             {
                 _defaultLocalPos = _armTransform.localPosition;
                 _defaultLocalRot = _armTransform.localRotation;
+                Debug.Log($"<color=green>[FirstPersonArm] 锁定了你在 Inspector 中调好的手臂位置: {_defaultLocalPos}，旋转: {_defaultLocalRot.eulerAngles}</color>");
             }
         }
 
