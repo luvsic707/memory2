@@ -24,15 +24,15 @@ namespace TheLastCompact.Wakeup
         [Header("物理墙体震颤")]
         public float physicalWarpIntensity = 0.15f;
 
-        [Header("内容交互驱动配置")]
-        [Tooltip("Phase 1 必须刷完的视频总数（可在 Inspector 自由微调，会自动适应放置的内容）")]
-        public int requiredPhase1Videos = 16;
+        [Header("内容交互驱动配置 (已大幅拉长体验)")]
+        [Tooltip("Phase 1 必须刷完的视频总数（默认 20 个视频）")]
+        public int requiredPhase1Videos = 20;
 
-        [Tooltip("Phase 2 算法控制切屏的总内容张数")]
-        public int requiredPhase2Steps = 12;
+        [Tooltip("Phase 2 算法控制切屏的总内容张数（默认 35 张，大幅拉长）")]
+        public int requiredPhase2Steps = 35;
 
-        [Tooltip("Phase 3 狂乱抽搐霸屏的总内容张数")]
-        public int requiredPhase3Steps = 15;
+        [Tooltip("Phase 3 狂乱抽搐霸屏的总内容张数（默认 40 张，大幅拉长）")]
+        public int requiredPhase3Steps = 40;
 
         private Material _frontMat;
         private Material _wallMat;
@@ -313,15 +313,15 @@ namespace TheLastCompact.Wakeup
         {
             if (phaseProgress < 0.35f)
             {
-                _currentInterval = 3.5f;
+                _currentInterval = 4.0f;
             }
             else if (phaseProgress < 0.70f)
             {
-                _currentInterval = Mathf.Lerp(4.5f, 7.5f, Mathf.InverseLerp(0.35f, 0.70f, phaseProgress));
+                _currentInterval = Mathf.Lerp(4.5f, 7.0f, Mathf.InverseLerp(0.35f, 0.70f, phaseProgress));
             }
             else
             {
-                _currentInterval = Mathf.Lerp(1.2f, 0.7f, Mathf.InverseLerp(0.70f, 0.96f, phaseProgress));
+                _currentInterval = Mathf.Lerp(1.5f, 0.8f, Mathf.InverseLerp(0.70f, 0.96f, phaseProgress));
             }
         }
 
