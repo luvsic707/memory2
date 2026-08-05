@@ -6,8 +6,10 @@ using TheLastCompact.Core;
 namespace TheLastCompact.Wakeup
 {
     /// <summary>
-    /// 高级多维 3D 走廊绑定器 (纯交互与内容驱动版 - 彻底取消死板时间限制)
-    /// 整体体验时长不再硬编码，而是 100% 由玩家交互频次和数据库里的素材内容数量决定！
+    /// 5_Contemporary_1 专属高级 3D 走廊绑定器 (循序渐进算法渗透 + 崩坏狂点抗争突破机制)
+    /// Phase 1: 沉浸刷屏 (25+ 视频)
+    /// Phase 2: 算法丝滑渗透 (40 步，偏好权重 10%->90% 渐进，流体平缓加剧)
+    /// Phase 3&4 融合: 空间高潮崩坏与玩家点击抗争 (任由崩坏->重置Phase1轮回; 疯狂连击鼠标->突破至Stage6!)
     /// </summary>
     public class CustomCorridorBinder : MonoBehaviour
     {
@@ -22,17 +24,20 @@ namespace TheLastCompact.Wakeup
         public Renderer[] sideWallRenderers;
 
         [Header("物理墙体震颤")]
-        public float physicalWarpIntensity = 0.15f;
+        public float physicalWarpIntensity = 0.25f;
 
-        [Header("内容交互驱动配置 (已大幅拉长体验)")]
-        [Tooltip("Phase 1 必须刷完的视频总数（默认 20 个视频）")]
-        public int requiredPhase1Videos = 20;
+        [Header("Phase 1~3 节奏与步数配置 (全新扩展版)")]
+        [Tooltip("Phase 1 必须刷完的独立视频总数 (默认 25 个视频)")]
+        public int requiredPhase1Videos = 25;
 
-        [Tooltip("Phase 2 算法控制切屏的总内容张数（默认 35 张，大幅拉长）")]
-        public int requiredPhase2Steps = 35;
+        [Tooltip("Phase 2 算法渐进渗透的总切屏步数 (默认 40 步，极其循序渐进)")]
+        public int requiredPhase2Steps = 40;
 
-        [Tooltip("Phase 3 狂乱抽搐霸屏的总内容张数（默认 40 张，大幅拉长）")]
-        public int requiredPhase3Steps = 40;
+        [Tooltip("Phase 3 空间崩坏倒计时 (秒)，若不按鼠标将自动崩坏回到 Phase 1")]
+        public float collapseCountdown = 12f;
+
+        [Tooltip("Phase 3 觉醒突破所需的疯狂连击鼠标次数 (默认连击 15 次打破死循环)")]
+        public int requiredResistanceClicks = 15;
 
         private Material _frontMat;
         private Material _wallMat;
@@ -58,20 +63,16 @@ namespace TheLastCompact.Wakeup
         // 步数与历史索引
         private int _phase1VideoCount = 0;
         private int _phase2StepCount = 0;
-        private int _phase3StepCount = 0;
+        private float _collapseTimer = 0f;
+        private int _resistanceClickCount = 0;
         private int _lastVideoIndex = -1;
 
         private Vector3[] _initialWallPositions;
         private Quaternion[] _initialWallRotations;
 
-        // Phase 4 抉择终端组件
-        private GameObject _choiceContainer;
-        private GameObject _stayOptionGo;
-        private GameObject _continueOptionGo;
-        private TextMeshPro _stayTmp;
-        private TextMeshPro _continueTmp;
-        private float _gazeChoiceTimer = 0f;
-        private string _hoveredChoice = "";
+        // Phase 3/4 提示 UI Text
+        private GameObject _resistanceUiGo;
+        private TextMeshPro _resistanceTmp;
 
         private void Start()
         {
@@ -79,7 +80,7 @@ namespace TheLastCompact.Wakeup
             if (spawner != null)
             {
                 spawner.enabled = false;
-                Debug.Log("[CustomCorridorBinder] 已自动禁用散落卡片生成器，全面使用高级 3D 走廊！");
+                Debug.Log("[CustomCorridorBinder] 已自动禁用散落卡片生成器，全面使用 5_Contemporary_1 专属 3D 走廊！");
             }
 
             SetupDoubleBufferedVideoPlayers();
@@ -160,26 +161,7 @@ namespace TheLastCompact.Wakeup
             UpdateRhythmTempo(phaseProgress);
             HandleControlModeAndInput(phaseProgress);
 
-            // 注视检测 (Phase 4 选择分支)
-            Camera cam = Camera.main;
-            if (cam != null && phaseProgress >= 0.96f)
-            {
-                Ray ray = new Ray(cam.transform.position, cam.transform.forward);
-                HandlePhase4ChoiceGaze(ray);
-            }
-
-            // Phase 4 抉择界面
-            if (phaseProgress >= 0.96f)
-            {
-                if (_choiceContainer == null) CreatePhase4ChoiceTerminals();
-                if (_choiceContainer != null) _choiceContainer.SetActive(true);
-            }
-            else
-            {
-                if (_choiceContainer != null) _choiceContainer.SetActive(false);
-            }
-
-            // 驱动 Front Wall 极速艺术过渡 (0.35s 极速快切)
+            // 驱动 Front Wall 艺术过渡
             if (_frontMat != null)
             {
                 float progress = 0f;
@@ -191,25 +173,29 @@ namespace TheLastCompact.Wakeup
                     if (_transTimer >= transDur) _isTransitioning = false;
                 }
 
-                float glitch = phaseProgress > 0.35f ? Mathf.InverseLerp(0.35f, 0.96f, phaseProgress) * 0.85f : 0f;
+                float glitch = phaseProgress > 0.35f ? Mathf.InverseLerp(0.35f, 0.96f, phaseProgress) * 0.95f : 0f;
                 _frontMat.SetFloat("_TransitionProgress", progress);
                 _frontMat.SetFloat("_TransitionMode", (float)_currentModeIndex);
                 _frontMat.SetFloat("_GlitchIntensity", glitch);
             }
 
-            // 驱动 Side Walls 四周墙面多维流体
+            // 驱动 Side Walls 四周墙面多维流体 (Phase 2 极其循序渐进地平缓加剧)
             if (_wallMat != null)
             {
                 bool isPhase1 = phaseProgress < 0.35f;
 
-                float speed = isPhase1 ? 0.8f : (1.0f + phaseProgress * 2.5f);
-                float glitch = isPhase1 ? 0f : (Mathf.InverseLerp(0.35f, 0.96f, phaseProgress) * 0.85f);
-                float rgbShift = isPhase1 ? 0f : (Mathf.InverseLerp(0.35f, 0.96f, phaseProgress) * 0.04f);
-                float waveWarp = isPhase1 ? 0f : (Mathf.InverseLerp(0.35f, 0.96f, phaseProgress) * 1.5f);
+                // Phase 2 演进权重 0 -> 1
+                float p2Ratio = Mathf.InverseLerp(0.35f, 0.70f, phaseProgress);
+                float p3Ratio = Mathf.InverseLerp(0.70f, 1.00f, phaseProgress);
 
-                float angle = isPhase1 ? 0f : (Mathf.Sin(time * 0.4f) * 1.2f);
-                float vortex = isPhase1 ? 0f : (Mathf.InverseLerp(0.35f, 1.0f, phaseProgress) * 1.5f);
-                float sliceShift = isPhase1 ? 0f : (Mathf.InverseLerp(0.35f, 1.0f, phaseProgress) * 0.9f);
+                float speed = isPhase1 ? 0.6f : (0.8f + p2Ratio * 1.5f + p3Ratio * 2.0f);
+                float glitch = isPhase1 ? 0f : (p2Ratio * 0.4f + p3Ratio * 0.6f);
+                float rgbShift = isPhase1 ? 0f : (p2Ratio * 0.02f + p3Ratio * 0.03f); // 极其平缓色差
+                float waveWarp = isPhase1 ? 0f : (p2Ratio * 0.6f + p3Ratio * 1.2f);   // 循序渐进水波
+
+                float angle = isPhase1 ? 0f : (Mathf.Sin(time * 0.3f) * (0.5f + p2Ratio * 0.8f));
+                float vortex = isPhase1 ? 0f : (p2Ratio * 0.8f + p3Ratio * 1.2f);
+                float sliceShift = isPhase1 ? 0f : (p2Ratio * 0.4f + p3Ratio * 0.6f);
 
                 _wallMat.SetFloat("_FlowSpeed", speed);
                 _wallMat.SetFloat("_GlitchAmount", glitch);
@@ -221,34 +207,33 @@ namespace TheLastCompact.Wakeup
                 _wallMat.SetFloat("_SliceOffset", sliceShift);
             }
 
-            // 物理墙面震颤
+            // 物理墙面震颤 (Phase 3 空间严重崩溃时剧烈震动)
             if (sideWallRenderers != null && _initialWallPositions != null)
             {
-                float physIntensity = phaseProgress > 0.35f ? Mathf.InverseLerp(0.35f, 1.0f, phaseProgress) * physicalWarpIntensity : 0f;
+                float physIntensity = phaseProgress > 0.70f ? Mathf.InverseLerp(0.70f, 1.0f, phaseProgress) * physicalWarpIntensity : 0f;
                 for (int i = 0; i < sideWallRenderers.Length; i++)
                 {
                     if (sideWallRenderers[i] != null)
                     {
                         Vector3 waveOffset = new Vector3(
-                            Mathf.Sin(time * 2.5f + i) * 0.08f,
-                            Mathf.Cos(time * 2.1f + i) * 0.08f,
-                            Mathf.Sin(time * 1.8f + i) * 0.05f
+                            Mathf.Sin(time * 3.5f + i) * 0.12f,
+                            Mathf.Cos(time * 3.1f + i) * 0.12f,
+                            Mathf.Sin(time * 2.8f + i) * 0.08f
                         ) * physIntensity;
 
                         sideWallRenderers[i].transform.localPosition = _initialWallPositions[i] + waveOffset;
-                        float angleOffset = Mathf.Sin(time * 3.0f + i) * 1.5f * physIntensity;
+                        float angleOffset = Mathf.Sin(time * 4.0f + i) * 2.5f * physIntensity;
                         sideWallRenderers[i].transform.localRotation = _initialWallRotations[i] * Quaternion.Euler(angleOffset, 0f, angleOffset);
                     }
                 }
             }
         }
 
-        /// <summary>
-        /// 核心：纯交互与内容驱动逻辑（彻底取代死板的时间倒计时）
-        /// 进度从 0.0 -> 1.0 完全取决于玩家刷出的内容步数！
-        /// </summary>
-        private float _mediaPlayTimer = 0f; // 当前视频/素材在屏展现计时器
+        private float _mediaPlayTimer = 0f;
 
+        /// <summary>
+        /// 全新交互控制逻辑 (Phase 1 刷屏 ➔ Phase 2 循序渐进 ➔ Phase 3&4 点击抗争)
+        /// </summary>
         private void HandleControlModeAndInput(float phaseProgress)
         {
             _mediaPlayTimer += Time.deltaTime;
@@ -256,7 +241,7 @@ namespace TheLastCompact.Wakeup
 
             if (phaseProgress < 0.35f)
             {
-                // Phase 1: 防偷跑锁，每个视频必须至少稳定展现 2.2 秒以上才允许点击切下一个！
+                // Phase 1 (0.0 -> 0.35): 必须看完 25 个以上视频，每次展示至少 2.2 秒防偷跑
                 bool readyForNextClick = _mediaPlayTimer >= 2.2f && !_isTransitioning;
 
                 if (playerClicked && readyForNextClick)
@@ -271,7 +256,7 @@ namespace TheLastCompact.Wakeup
             }
             else if (phaseProgress < 0.70f)
             {
-                // Phase 2 (0.35 -> 0.70): 算法半自动控制，每次内容推移增加一个 step
+                // Phase 2 (0.35 -> 0.70): 算法半自动渐进推移 (40 步，每步 5~8s，偏好权重从 10% 逐步增加到 90%)
                 _switchTimer += Time.deltaTime;
                 bool timerExpired = _switchTimer >= _currentInterval;
 
@@ -285,18 +270,56 @@ namespace TheLastCompact.Wakeup
                     if (Stage5Controller.Instance != null) Stage5Controller.Instance.phaseProgress = p;
                 }
             }
-            else if (phaseProgress < 0.96f)
+            else
             {
-                // Phase 3 (0.70 -> 0.96): 狂乱失控，按高频步数推进
+                // Phase 3 & 4 融合高潮：空间高频崩坏 + 玩家连击抗争机制！
                 _switchTimer += Time.deltaTime;
                 if (_switchTimer >= _currentInterval && !_isTransitioning)
                 {
                     _switchTimer = 0f;
-                    _phase3StepCount++;
                     TriggerNextMediaSwitch();
+                }
 
-                    float p = 0.70f + Mathf.Clamp01((float)_phase3StepCount / Mathf.Max(1, requiredPhase3Steps)) * 0.26f;
-                    if (Stage5Controller.Instance != null) Stage5Controller.Instance.phaseProgress = p;
+                // 倒计时更新：如果玩家不动，崩坏计时归零回到 Phase 1 循环
+                _collapseTimer += Time.deltaTime;
+                EnsureResistanceUI();
+
+                if (_resistanceTmp != null)
+                {
+                    float remainTime = Mathf.Max(0f, collapseCountdown - _collapseTimer);
+                    _resistanceTmp.text = $"[ SYSTEM COLLAPSING... ]\nPRESS/CLICK TO BREAK FREE! ({_resistanceClickCount}/{requiredResistanceClicks})";
+                }
+
+                // 玩家疯狂连击抗争检测
+                if (playerClicked)
+                {
+                    _resistanceClickCount++;
+                    Debug.Log($"[抗争机制] 玩家点击抗争 +1，当前累计: {_resistanceClickCount}/{requiredResistanceClicks}");
+
+                    if (_resistanceClickCount >= requiredResistanceClicks)
+                    {
+                        // 成功觉醒突破！跨入 Stage 6！
+                        Debug.Log("<color=green>[觉醒突破] 玩家通过疯狂连击成功打破算法信息茧房死循环！进入 Stage 6！</color>");
+                        if (_resistanceUiGo != null) _resistanceUiGo.SetActive(false);
+                        if (Stage5Controller.Instance != null)
+                        {
+                            Stage5Controller.Instance.phaseProgress = 1.0f;
+                            Stage5Controller.Instance.StartCoroutine("TransitionSequence");
+                        }
+                        return;
+                    }
+                }
+
+                // 若倒计时结束仍未集满抗争连击，被动吞噬重置回 Phase 1
+                if (_collapseTimer >= collapseCountdown)
+                {
+                    Debug.Log("<color=red>[崩坏吞噬] 玩家未做出抗争，被算法信息茧房重置吞噬！回到 Phase 1 死循环！</color>");
+                    _collapseTimer = 0f;
+                    _resistanceClickCount = 0;
+                    _phase1VideoCount = 0;
+                    _phase2StepCount = 0;
+                    if (_resistanceUiGo != null) _resistanceUiGo.SetActive(false);
+                    if (Stage5Controller.Instance != null) Stage5Controller.Instance.phaseProgress = 0.02f;
                 }
             }
         }
@@ -307,7 +330,7 @@ namespace TheLastCompact.Wakeup
             _transTimer = 0f;
 
             _currentModeIndex = Random.Range(0, 5);
-            
+
             if (_nextTex != null) _currentTex = _nextTex;
             if (_currentTex != null) _lastValidTex = _currentTex;
 
@@ -323,14 +346,19 @@ namespace TheLastCompact.Wakeup
             }
             else if (phaseProgress < 0.70f)
             {
-                _currentInterval = Mathf.Lerp(4.5f, 7.0f, Mathf.InverseLerp(0.35f, 0.70f, phaseProgress));
+                // Phase 2: 循序渐进，时间从 5.5 秒逐渐加速到 3.5 秒
+                _currentInterval = Mathf.Lerp(5.5f, 3.5f, Mathf.InverseLerp(0.35f, 0.70f, phaseProgress));
             }
             else
             {
-                _currentInterval = Mathf.Lerp(1.5f, 0.8f, Mathf.InverseLerp(0.70f, 0.96f, phaseProgress));
+                // Phase 3: 狂乱高频 0.9s ~ 0.5s 切屏
+                _currentInterval = Mathf.Lerp(0.9f, 0.5f, Mathf.InverseLerp(0.70f, 1.00f, phaseProgress));
             }
         }
 
+        /// <summary>
+        /// 循序渐进的偏好算法渗透推流逻辑
+        /// </summary>
         private void PickNextMedia()
         {
             if (mediaDatabase == null) return;
@@ -341,16 +369,25 @@ namespace TheLastCompact.Wakeup
 
             string theme = GetDominantTheme();
 
-            VideoClip[] videoPool = null;
+            // 在 Phase 2 中，偏好算法推送权重从 10% 循序渐进增加到 90%
+            float themeWeight = 0f;
             if (phaseProgress < 0.35f)
             {
-                videoPool = mediaDatabase.entertainmentVideos;
+                themeWeight = 0.0f; // Phase 1 纯娱乐短视频
+            }
+            else if (phaseProgress < 0.70f)
+            {
+                themeWeight = Mathf.Lerp(0.10f, 0.90f, Mathf.InverseLerp(0.35f, 0.70f, phaseProgress));
             }
             else
             {
-                videoPool = GetThemeVideoPool(theme);
-                if (videoPool == null || videoPool.Length == 0) videoPool = mediaDatabase.entertainmentVideos;
+                themeWeight = 1.0f; // Phase 3 偏好强行霸屏
             }
+
+            bool pickThemeVideo = Random.value < themeWeight;
+
+            VideoClip[] videoPool = pickThemeVideo ? GetThemeVideoPool(theme) : mediaDatabase.entertainmentVideos;
+            if (videoPool == null || videoPool.Length == 0) videoPool = mediaDatabase.entertainmentVideos;
 
             if (videoPool != null && videoPool.Length > 0)
             {
@@ -378,19 +415,14 @@ namespace TheLastCompact.Wakeup
                 }
             }
 
+            // 静态图片兜底
             if (phaseProgress < 0.35f)
             {
                 _nextTex = mediaDatabase.GetEntertainmentTexture();
             }
-            else if (phaseProgress < 0.70f)
-            {
-                _nextTex = Random.value < 0.5f
-                    ? mediaDatabase.GetThemeTexture(theme)
-                    : mediaDatabase.GetEntertainmentTexture();
-            }
             else
             {
-                _nextTex = mediaDatabase.GetThemeTexture(theme) ?? mediaDatabase.GetEntertainmentTexture();
+                _nextTex = pickThemeVideo ? mediaDatabase.GetThemeTexture(theme) : mediaDatabase.GetEntertainmentTexture();
             }
 
             if (_nextTex == null) _nextTex = _lastValidTex;
@@ -432,125 +464,20 @@ namespace TheLastCompact.Wakeup
             }
         }
 
-        private void CreatePhase4ChoiceTerminals()
+        private void EnsureResistanceUI()
         {
-            if (frontWallRenderer == null) return;
-
-            _choiceContainer = new GameObject("Phase4_ChoiceTerminals");
-            _choiceContainer.transform.SetParent(frontWallRenderer.transform, false);
-            _choiceContainer.transform.localPosition = new Vector3(0f, 0f, -0.1f);
-
-            _stayOptionGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            _stayOptionGo.name = "StayOptionQuad";
-            _stayOptionGo.transform.SetParent(_choiceContainer.transform, false);
-            _stayOptionGo.transform.localPosition = new Vector3(-0.25f, 0f, 0f);
-            _stayOptionGo.transform.localScale = new Vector3(0.4f, 0.4f, 1f);
-            SetQuadColor(_stayOptionGo, new Color(0.1f, 0.75f, 1.0f, 0.95f));
-
-            GameObject stayTextGo = new GameObject("StayText");
-            stayTextGo.transform.SetParent(_stayOptionGo.transform, false);
-            stayTextGo.transform.localPosition = new Vector3(0f, 0f, -0.02f);
-            _stayTmp = stayTextGo.AddComponent<TextMeshPro>();
-            _stayTmp.text = "[ INFINITE LOOP ]\nSTAY HERE";
-            _stayTmp.alignment = TextAlignmentOptions.Center;
-            _stayTmp.fontSize = 0.35f;
-            _stayTmp.color = Color.white;
-
-            _continueOptionGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            _continueOptionGo.name = "ContinueOptionQuad";
-            _continueOptionGo.transform.SetParent(_choiceContainer.transform, false);
-            _continueOptionGo.transform.localPosition = new Vector3(0.25f, 0f, 0f);
-            _continueOptionGo.transform.localScale = new Vector3(0.4f, 0.4f, 1f);
-            SetQuadColor(_continueOptionGo, new Color(1.0f, 0.5f, 0.1f, 0.95f));
-
-            GameObject continueTextGo = new GameObject("ContinueText");
-            continueTextGo.transform.SetParent(_continueOptionGo.transform, false);
-            continueTextGo.transform.localPosition = new Vector3(0f, 0f, -0.02f);
-            _continueTmp = continueTextGo.AddComponent<TextMeshPro>();
-            _continueTmp.text = "[ BREAK THE LOOP ]\nFACE THE FUTURE";
-            _continueTmp.alignment = TextAlignmentOptions.Center;
-            _continueTmp.fontSize = 0.35f;
-            _continueTmp.color = Color.white;
-        }
-
-        private void HandlePhase4ChoiceGaze(Ray ray)
-        {
-            RaycastHit hit;
-            string hovered = "";
-
-            if (Physics.Raycast(ray, out hit, 50f))
+            if (_resistanceUiGo == null && frontWallRenderer != null)
             {
-                if (_stayOptionGo != null && (hit.transform == _stayOptionGo.transform || hit.transform.IsChildOf(_stayOptionGo.transform)))
-                {
-                    hovered = "stay";
-                }
-                else if (_continueOptionGo != null && (hit.transform == _continueOptionGo.transform || hit.transform.IsChildOf(_continueOptionGo.transform)))
-                {
-                    hovered = "continue";
-                }
+                _resistanceUiGo = new GameObject("Phase3_ResistanceUI");
+                _resistanceUiGo.transform.SetParent(frontWallRenderer.transform, false);
+                _resistanceUiGo.transform.localPosition = new Vector3(0f, 0.1f, -0.1f);
+
+                _resistanceTmp = _resistanceUiGo.AddComponent<TextMeshPro>();
+                _resistanceTmp.fontSize = 0.45f;
+                _resistanceTmp.alignment = TextAlignmentOptions.Center;
+                _resistanceTmp.color = new Color(1.0f, 0.2f, 0.2f, 1.0f);
             }
-
-            if (!string.IsNullOrEmpty(hovered))
-            {
-                if (_hoveredChoice != hovered)
-                {
-                    _hoveredChoice = hovered;
-                    _gazeChoiceTimer = 0f;
-                }
-
-                _gazeChoiceTimer += Time.deltaTime;
-
-                if (hovered == "stay" && _stayOptionGo != null)
-                    _stayOptionGo.transform.localScale = Vector3.Lerp(_stayOptionGo.transform.localScale, new Vector3(0.48f, 0.48f, 1f), Time.deltaTime * 10f);
-                if (hovered == "continue" && _continueOptionGo != null)
-                    _continueOptionGo.transform.localScale = Vector3.Lerp(_continueOptionGo.transform.localScale, new Vector3(0.48f, 0.48f, 1f), Time.deltaTime * 10f);
-
-                if (_gazeChoiceTimer >= 0.5f)
-                {
-                    TriggerChoiceAction(hovered);
-                }
-            }
-            else
-            {
-                _hoveredChoice = "";
-                _gazeChoiceTimer = 0f;
-                if (_stayOptionGo != null) _stayOptionGo.transform.localScale = Vector3.Lerp(_stayOptionGo.transform.localScale, new Vector3(0.40f, 0.40f, 1f), Time.deltaTime * 8f);
-                if (_continueOptionGo != null) _continueOptionGo.transform.localScale = Vector3.Lerp(_continueOptionGo.transform.localScale, new Vector3(0.40f, 0.40f, 1f), Time.deltaTime * 8f);
-            }
-        }
-
-        private void TriggerChoiceAction(string action)
-        {
-            if (Stage5Controller.Instance != null)
-            {
-                if (action == "continue")
-                {
-                    Debug.Log("[CustomCorridorBinder] 玩家看中 [BREAK THE LOOP]！进入 Stage 6！");
-                    Stage5Controller.Instance.StartCoroutine("TransitionSequence");
-                }
-                else if (action == "stay")
-                {
-                    Debug.Log("[CustomCorridorBinder] 玩家看中 [INFINITE LOOP]！重置进度回到 Phase 1 循环！");
-                    Stage5Controller.Instance.phaseProgress = 0.05f;
-                    _hoveredChoice = "";
-                    _gazeChoiceTimer = 0f;
-                    _phase1VideoCount = 0;
-                    _phase2StepCount = 0;
-                    _phase3StepCount = 0;
-                }
-            }
-        }
-
-        private void SetQuadColor(GameObject quad, Color color)
-        {
-            Renderer rend = quad.GetComponent<Renderer>();
-            if (rend == null) return;
-            Shader s = Shader.Find("Universal Render Pipeline/Unlit");
-            if (s == null) s = Shader.Find("Unlit/Color");
-            Material m = new Material(s);
-            if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", color);
-            if (m.HasProperty("_Color")) m.SetColor("_Color", color);
-            rend.material = m;
+            if (_resistanceUiGo != null) _resistanceUiGo.SetActive(true);
         }
 
         private string GetDominantTheme()
