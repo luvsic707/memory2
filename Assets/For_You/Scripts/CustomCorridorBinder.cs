@@ -253,8 +253,9 @@ namespace TheLastCompact.Wakeup
                 float vortex = isPhase1 ? 0f : (p2Ratio * 0.8f + p3Ratio * 1.6f);
                 float sliceShift = isPhase1 ? 0f : (p2Ratio * 0.2f + p3Ratio * 0.85f); // Phase 3 强切片撕裂
 
-                // 边界消融 (Phase 3&4 彻底消融 3D 盒子的硬直直角边界 - 参考图 1,2,3)
-                float borderFade = isPhase1 ? 0f : (p2Ratio * 0.2f + p3Ratio * 1.0f);
+                // 参考图 2 径向像素拖尾与参考图 3 液体抹平 (Phase 3&4 彻底擦除 3D 墙角硬棱线)
+                float radialBlur = isPhase1 ? 0f : (p2Ratio * 0.3f + p3Ratio * 1.0f);
+                float liquidWarp = isPhase1 ? 0.3f : (0.3f + p2Ratio * 0.5f + p3Ratio * 0.8f);
 
                 _wallMat.SetFloat("_JellyAmount", jelly);
                 _wallMat.SetFloat("_FlowSpeed", speed);
@@ -262,6 +263,8 @@ namespace TheLastCompact.Wakeup
                 _wallMat.SetFloat("_RGBShift", rgbShift);
                 _wallMat.SetFloat("_WaveWarp", waveWarp);
                 _wallMat.SetFloat("_BorderFade", borderFade);
+                _wallMat.SetFloat("_RadialMotionBlur", radialBlur);
+                _wallMat.SetFloat("_LiquidWarp", liquidWarp);
 
                 _wallMat.SetFloat("_FlowAngle", angle);
                 _wallMat.SetFloat("_VortexAmount", vortex);

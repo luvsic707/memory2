@@ -16,6 +16,10 @@ Shader "Wakeup/CorridorWallShader"
         _VortexAmount ("Vortex Shear Amount", Range(0, 2)) = 0
         _SliceOffset ("Slice Shift Offset", Range(0, 1)) = 0
         _BorderFade ("Border Feather & Melt Amount", Range(0, 1)) = 0
+
+        // 核心升级：参考图 2 径向像素拖尾与图 3 液体抹平
+        _RadialMotionBlur ("Radial Motion Blur Trailing (Pic 2)", Range(0, 1)) = 0
+        _LiquidWarp ("Organic Liquid Edge Softening (Pic 3)", Range(0, 1)) = 0
     }
     SubShader
     {
@@ -60,6 +64,8 @@ Shader "Wakeup/CorridorWallShader"
                 float _VortexAmount;
                 float _SliceOffset;
                 float _BorderFade;
+                float _RadialMotionBlur;
+                float _LiquidWarp;
             CBUFFER_END
 
             Varyings vert(Attributes input)
@@ -91,11 +97,19 @@ Shader "Wakeup/CorridorWallShader"
                 float2 uv = input.uv;
                 float time = _Time.y;
 
-                // 1. 基础 UV 与流体
+                // 1. 图 3 液体流线软体抹平 (Soft Organic Edge Morph)
+                if (_LiquidWarp > 0.01)
+                {
+                    float2 dist = uv - 0.5;
+                    float r = length(dist);
+                    float liquidWave = sin(r * 15.0 - time * 3.0) * 0.06 * _LiquidWarp;
+                    uv += dist * liquidWave;
+                }
+
                 float2 baseUV = uv;
                 baseUV.y = baseUV.y * _StretchScale - time * _FlowSpeed * 0.3;
 
-                // 2. 有机波动 (Phase 1&2)
+                // 2. 有机波动与水波
                 if (_WaveWarp > 0.001 || _JellyAmount > 0.01)
                 {
                     float waveFactor = _WaveWarp > 0.001 ? _WaveWarp : (_JellyAmount * 0.4);
@@ -104,7 +118,7 @@ Shader "Wakeup/CorridorWallShader"
                     baseUV += float2(wave1, wave2);
                 }
 
-                // 3. 动态切片与画中画交错
+                // 3. 画中画与切片
                 float sliceID = floor(uv.y * 8.0);
                 float isSubVideo = frac(sliceID * 0.382) > 0.5 ? 1.0 : 0.0;
                 float2 subUV = baseUV + float2(sin(sliceID * 1.5), cos(sliceID * 2.1)) * 0.1;
@@ -126,7 +140,7 @@ Shader "Wakeup/CorridorWallShader"
                     baseUV.x += shift * 0.25;
                 }
 
-                // 4. Phase 3 狂乱像素 Glitch 马赛克
+                // 4. Glitch 像素块
                 if (_GlitchAmount > 0.01)
                 {
                     float blocks = lerp(120.0, 18.0, _GlitchAmount);
@@ -140,41 +154,46 @@ Shader "Wakeup/CorridorWallShader"
                     }
                 }
 
-                // 🌟 核心防黑缝锁：强制 UV 镜像/循环 (frac)，100% 充盈充满，绝绝绝不再产生黑色缝隙！
                 baseUV = frac(abs(baseUV));
                 subUV = frac(abs(subUV));
 
-                // 5. 采样
-                float4 colMain;
-                float4 colSub;
-
-                if (_RGBShift > 0.0001)
+                // 🌟 5. 核心升级：参考图 2 径向像素拖尾 (Radial Motion Blur Trailing across Borders)
+                float4 col = float4(0, 0, 0, 1);
+                if (_RadialMotionBlur > 0.01)
                 {
-                    float2 shift = float2(_RGBShift, 0);
-                    float rA = _MainTex.Sample(sampler_MainTex, frac(baseUV + shift)).r;
-                    float gA = _MainTex.Sample(sampler_MainTex, baseUV).g;
-                    float bA = _MainTex.Sample(sampler_MainTex, frac(baseUV - shift)).b;
-                    colMain = float4(rA, gA, bA, 1.0);
+                    float2 dir = baseUV - float2(0.5, 0.5);
+                    float4 accumCol = float4(0, 0, 0, 0);
+                    int samples = 8;
+                    float blurScale = 0.03 * _RadialMotionBlur;
 
-                    float rB = _SubTex.Sample(sampler_SubTex, frac(subUV + shift)).r;
-                    float gB = _SubTex.Sample(sampler_SubTex, subUV).g;
-                    float bB = _SubTex.Sample(sampler_SubTex, frac(subUV - shift)).b;
-                    colSub = float4(rB, gB, bB, 1.0);
+                    for (int i = 0; i < samples; i++)
+                    {
+                        float2 sampleUV = frac(abs(baseUV - dir * (float)i * blurScale));
+                        accumCol += _MainTex.Sample(sampler_MainTex, sampleUV);
+                    }
+                    col = accumCol / (float)samples;
                 }
                 else
                 {
-                    colMain = _MainTex.Sample(sampler_MainTex, baseUV);
-                    colSub = _SubTex.Sample(sampler_SubTex, subUV);
+                    if (_RGBShift > 0.0001)
+                    {
+                        float2 shift = float2(_RGBShift, 0);
+                        float rA = _MainTex.Sample(sampler_MainTex, frac(baseUV + shift)).r;
+                        float gA = _MainTex.Sample(sampler_MainTex, baseUV).g;
+                        float bA = _MainTex.Sample(sampler_MainTex, frac(baseUV - shift)).b;
+                        col = float4(rA, gA, bA, 1.0);
+                    }
+                    else
+                    {
+                        col = _MainTex.Sample(sampler_MainTex, baseUV);
+                    }
                 }
 
-                float4 col = lerp(colMain, colSub, isSubVideo * 0.45);
-
-                // 6. Phase 3&4 边缘边界无缝融化漫溢 (Seamless Border Bleed)
+                // 6. 边缘消除与融入
                 if (_BorderFade > 0.01)
                 {
                     float edgeDist = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
-                    float edgeAlpha = smoothstep(0.0, 0.20 * _BorderFade, edgeDist);
-                    // 边缘以极具油彩感的方式横跨边界渗入下一块画面
+                    float edgeAlpha = smoothstep(0.0, 0.25 * _BorderFade, edgeDist);
                     float3 meltColor = lerp(col.rgb, col.gbr, 0.5 + 0.5 * sin(time * 2.5 + uv.x * 10.0));
                     col.rgb = lerp(meltColor, col.rgb, edgeAlpha);
                 }
