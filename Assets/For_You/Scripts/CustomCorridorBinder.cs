@@ -247,15 +247,21 @@ namespace TheLastCompact.Wakeup
         /// 核心：纯交互与内容驱动逻辑（彻底取代死板的时间倒计时）
         /// 进度从 0.0 -> 1.0 完全取决于玩家刷出的内容步数！
         /// </summary>
+        private float _mediaPlayTimer = 0f; // 当前视频/素材在屏展现计时器
+
         private void HandleControlModeAndInput(float phaseProgress)
         {
+            _mediaPlayTimer += Time.deltaTime;
             bool playerClicked = Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.Space);
 
             if (phaseProgress < 0.35f)
             {
-                // Phase 1 (0.0 -> 0.35): 纯靠玩家主动点击刷完 requiredPhase1Videos 个视频
-                if (playerClicked && !_isTransitioning)
+                // Phase 1: 防偷跑锁，每个视频必须至少稳定展现 2.2 秒以上才允许点击切下一个！
+                bool readyForNextClick = _mediaPlayTimer >= 2.2f && !_isTransitioning;
+
+                if (playerClicked && readyForNextClick)
                 {
+                    _mediaPlayTimer = 0f;
                     _phase1VideoCount++;
                     TriggerNextMediaSwitch();
 
