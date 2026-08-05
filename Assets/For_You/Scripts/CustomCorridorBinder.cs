@@ -6,8 +6,8 @@ using TheLastCompact.Core;
 namespace TheLastCompact.Wakeup
 {
     /// <summary>
-    /// 高级多维 3D 走廊绑定器 (绝对零白屏 + 就绪锁 + 0.35s 极速艺术快切)
-    /// 加入 PrepareCompleted 就绪帧锁定与 Freeze-Frame 兜底，彻底消灭 Unity VideoPlayer 初始闪白！
+    /// 高级多维 3D 走廊绑定器 (纯视频优先 + 至少 8+ 独立视频精准计数 + 5 种 @elfilter_a 艺术快切)
+    /// Phase 1 必须刷完至少 8 个全新的短视频才允许步入 Phase 2，确保每次点击都真切切换视频且特效丰富！
     /// </summary>
     public class CustomCorridorBinder : MonoBehaviour
     {
@@ -24,6 +24,10 @@ namespace TheLastCompact.Wakeup
         [Header("物理墙体震颤")]
         public float physicalWarpIntensity = 0.15f;
 
+        [Header("Phase 1 视频计数目标")]
+        [Tooltip("Phase 1 必须刷完的独立视频总数（默认 8 个以上）")]
+        public int requiredPhase1Videos = 8;
+
         private Material _frontMat;
         private Material _wallMat;
 
@@ -37,13 +41,17 @@ namespace TheLastCompact.Wakeup
 
         private Texture _currentTex;
         private Texture _nextTex;
-        private Texture _lastValidTex; // 兜底防止任何闪白
+        private Texture _lastValidTex;
 
         private float _switchTimer = 0f;
-        private float _currentInterval = 1.8f;
+        private float _currentInterval = 2.0f;
         private float _transTimer = 0f;
         private bool _isTransitioning = false;
         private int _currentModeIndex = 0; // 0:Grid, 1:Strips, 2:Fluid, 3:Portal, 4:Data
+
+        // 视频播放计数与历史索引
+        private int _phase1VideoCount = 0;
+        private int _lastVideoIndex = -1;
 
         private Vector3[] _initialWallPositions;
         private Quaternion[] _initialWallRotations;
@@ -181,14 +189,14 @@ namespace TheLastCompact.Wakeup
                 if (_choiceContainer != null) _choiceContainer.SetActive(false);
             }
 
-            // 驱动 Front Wall 极速过渡 (0.35s 快节奏快门感，零延迟)
+            // 驱动 Front Wall 极速艺术过渡 (0.35s 极速快切)
             if (_frontMat != null)
             {
                 float progress = 0f;
                 if (_isTransitioning)
                 {
                     _transTimer += Time.deltaTime;
-                    float transDur = 0.35f; // 缩短至 0.35 秒超紧凑快切！
+                    float transDur = 0.35f;
                     progress = Mathf.Clamp01(_transTimer / transDur);
                     if (_transTimer >= transDur) _isTransitioning = false;
                 }
@@ -251,14 +259,16 @@ namespace TheLastCompact.Wakeup
 
             if (phaseProgress < 0.35f)
             {
+                // Phase 1：必须刷完至少 requiredPhase1Videos (8+) 个视频才能进入 Phase 2
                 if (playerClicked && !_isTransitioning)
                 {
+                    _phase1VideoCount++;
                     TriggerNextMediaSwitch();
 
                     if (Stage5Controller.Instance != null)
                     {
-                        Stage5Controller.Instance.phaseProgress += 0.35f / 24f;
-                        Stage5Controller.Instance.phaseProgress = Mathf.Clamp01(Stage5Controller.Instance.phaseProgress);
+                        // 每次成功刷出一个视频，增加 1/requiredPhase1Videos 进度
+                        Stage5Controller.Instance.phaseProgress = Mathf.Clamp01((float)_phase1VideoCount / (float)requiredPhase1Videos * 0.35f);
                     }
                 }
             }
@@ -291,7 +301,6 @@ namespace TheLastCompact.Wakeup
 
             _currentModeIndex = Random.Range(0, 5);
             
-            // 保存有效当前帧兜底
             if (_nextTex != null) _currentTex = _nextTex;
             if (_currentTex != null) _lastValidTex = _currentTex;
 
@@ -303,7 +312,7 @@ namespace TheLastCompact.Wakeup
         {
             if (phaseProgress < 0.35f)
             {
-                _currentInterval = 3.2f;
+                _currentInterval = 3.5f;
             }
             else if (phaseProgress < 0.70f)
             {
@@ -315,6 +324,9 @@ namespace TheLastCompact.Wakeup
             }
         }
 
+        /// <summary>
+        /// 媒体抽取逻辑 (优先抽取视频，消灭抽空退回上张的问题)
+        /// </summary>
         private void PickNextMedia()
         {
             if (mediaDatabase == null) return;
@@ -324,14 +336,30 @@ namespace TheLastCompact.Wakeup
                 : 0f;
 
             string theme = GetDominantTheme();
-            bool wantVideo = phaseProgress < 0.35f ? (Random.value < 0.45f) : (Random.value < 0.20f);
 
-            if (wantVideo)
+            // 1. 获取可用视频列表
+            VideoClip[] videoPool = null;
+            if (phaseProgress < 0.35f)
             {
-                VideoClip clip = phaseProgress < 0.35f
-                    ? mediaDatabase.GetEntertainmentVideo()
-                    : mediaDatabase.GetThemeVideo(theme);
+                videoPool = mediaDatabase.entertainmentVideos;
+            }
+            else
+            {
+                videoPool = GetThemeVideoPool(theme);
+                if (videoPool == null || videoPool.Length == 0) videoPool = mediaDatabase.entertainmentVideos;
+            }
 
+            // 2. 如果有视频素材，100% 确保播放新的不重复视频！
+            if (videoPool != null && videoPool.Length > 0)
+            {
+                int nextIndex = Random.Range(0, videoPool.Length);
+                if (videoPool.Length > 1 && nextIndex == _lastVideoIndex)
+                {
+                    nextIndex = (nextIndex + 1) % videoPool.Length;
+                }
+                _lastVideoIndex = nextIndex;
+
+                VideoClip clip = videoPool[nextIndex];
                 if (clip != null)
                 {
                     _activePlayerIsA = !_activePlayerIsA;
@@ -348,7 +376,7 @@ namespace TheLastCompact.Wakeup
                 }
             }
 
-            // 静态图片素材无缝加载
+            // 3. 兜底静态图片
             if (phaseProgress < 0.35f)
             {
                 _nextTex = mediaDatabase.GetEntertainmentTexture();
@@ -365,6 +393,19 @@ namespace TheLastCompact.Wakeup
             }
 
             if (_nextTex == null) _nextTex = _lastValidTex;
+        }
+
+        private VideoClip[] GetThemeVideoPool(string theme)
+        {
+            if (mediaDatabase == null) return null;
+            switch (theme.ToLower())
+            {
+                case "banana": return mediaDatabase.bananaVideos;
+                case "prayer": return mediaDatabase.prayerVideos;
+                case "push": return mediaDatabase.pushVideos;
+                case "work": return mediaDatabase.workVideos;
+            }
+            return mediaDatabase.entertainmentVideos;
         }
 
         private void ApplyTexturesToWalls()
@@ -492,6 +533,7 @@ namespace TheLastCompact.Wakeup
                     Stage5Controller.Instance.phaseProgress = 0.05f;
                     _hoveredChoice = "";
                     _gazeChoiceTimer = 0f;
+                    _phase1VideoCount = 0;
                 }
             }
         }
