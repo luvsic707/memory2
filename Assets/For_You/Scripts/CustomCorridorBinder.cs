@@ -6,8 +6,8 @@ using TheLastCompact.Core;
 namespace TheLastCompact.Wakeup
 {
     /// <summary>
-    /// 高级多维 3D 走廊绑定器 (纯视频优先 + 至少 8+ 独立视频精准计数 + 5 种 @elfilter_a 艺术快切)
-    /// Phase 1 必须刷完至少 8 个全新的短视频才允许步入 Phase 2，确保每次点击都真切切换视频且特效丰富！
+    /// 高级多维 3D 走廊绑定器 (纯交互与内容驱动版 - 彻底取消死板时间限制)
+    /// 整体体验时长不再硬编码，而是 100% 由玩家交互频次和数据库里的素材内容数量决定！
     /// </summary>
     public class CustomCorridorBinder : MonoBehaviour
     {
@@ -24,9 +24,15 @@ namespace TheLastCompact.Wakeup
         [Header("物理墙体震颤")]
         public float physicalWarpIntensity = 0.15f;
 
-        [Header("Phase 1 视频计数目标")]
-        [Tooltip("Phase 1 必须刷完的独立视频总数（默认 16 个视频，可在 Inspector 自由微调）")]
+        [Header("内容交互驱动配置")]
+        [Tooltip("Phase 1 必须刷完的视频总数（可在 Inspector 自由微调，会自动适应放置的内容）")]
         public int requiredPhase1Videos = 16;
+
+        [Tooltip("Phase 2 算法控制切屏的总内容张数")]
+        public int requiredPhase2Steps = 12;
+
+        [Tooltip("Phase 3 狂乱抽搐霸屏的总内容张数")]
+        public int requiredPhase3Steps = 15;
 
         private Material _frontMat;
         private Material _wallMat;
@@ -49,8 +55,10 @@ namespace TheLastCompact.Wakeup
         private bool _isTransitioning = false;
         private int _currentModeIndex = 0; // 0:Grid, 1:Strips, 2:Fluid, 3:Portal, 4:Data
 
-        // 视频播放计数与历史索引
+        // 步数与历史索引
         private int _phase1VideoCount = 0;
+        private int _phase2StepCount = 0;
+        private int _phase3StepCount = 0;
         private int _lastVideoIndex = -1;
 
         private Vector3[] _initialWallPositions;
@@ -111,7 +119,6 @@ namespace TheLastCompact.Wakeup
 
         private void SetupDoubleBufferedVideoPlayers()
         {
-            // Player A
             GameObject vpGoA = new GameObject("CorridorVideoPlayer_A");
             vpGoA.transform.SetParent(transform, false);
             _videoPlayerA = vpGoA.AddComponent<VideoPlayer>();
@@ -124,7 +131,6 @@ namespace TheLastCompact.Wakeup
             _renderTexA.Create();
             _videoPlayerA.targetTexture = _renderTexA;
 
-            // Player B
             GameObject vpGoB = new GameObject("CorridorVideoPlayer_B");
             vpGoB.transform.SetParent(transform, false);
             _videoPlayerB = vpGoB.AddComponent<VideoPlayer>();
@@ -154,28 +160,12 @@ namespace TheLastCompact.Wakeup
             UpdateRhythmTempo(phaseProgress);
             HandleControlModeAndInput(phaseProgress);
 
-            // 注视检测
+            // 注视检测 (Phase 4 选择分支)
             Camera cam = Camera.main;
-            if (cam != null)
+            if (cam != null && phaseProgress >= 0.96f)
             {
                 Ray ray = new Ray(cam.transform.position, cam.transform.forward);
-                RaycastHit hit;
-
-                if (phaseProgress >= 0.35f && phaseProgress < 0.96f)
-                {
-                    if (frontWallRenderer != null && Physics.Raycast(ray, out hit, 50f))
-                    {
-                        if (hit.transform == frontWallRenderer.transform && Stage5Controller.Instance != null)
-                        {
-                            Stage5Controller.Instance.phaseProgress += Stage5Controller.Instance.progressPerSecond * Time.deltaTime * 1.5f;
-                            Stage5Controller.Instance.phaseProgress = Mathf.Clamp01(Stage5Controller.Instance.phaseProgress);
-                        }
-                    }
-                }
-                else if (phaseProgress >= 0.96f)
-                {
-                    HandlePhase4ChoiceGaze(ray);
-                }
+                HandlePhase4ChoiceGaze(ray);
             }
 
             // Phase 4 抉择界面
@@ -253,43 +243,54 @@ namespace TheLastCompact.Wakeup
             }
         }
 
+        /// <summary>
+        /// 核心：纯交互与内容驱动逻辑（彻底取代死板的时间倒计时）
+        /// 进度从 0.0 -> 1.0 完全取决于玩家刷出的内容步数！
+        /// </summary>
         private void HandleControlModeAndInput(float phaseProgress)
         {
             bool playerClicked = Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.Space);
 
             if (phaseProgress < 0.35f)
             {
-                // Phase 1：必须刷完至少 requiredPhase1Videos (8+) 个视频才能进入 Phase 2
+                // Phase 1 (0.0 -> 0.35): 纯靠玩家主动点击刷完 requiredPhase1Videos 个视频
                 if (playerClicked && !_isTransitioning)
                 {
                     _phase1VideoCount++;
                     TriggerNextMediaSwitch();
 
-                    if (Stage5Controller.Instance != null)
-                    {
-                        // 每次成功刷出一个视频，增加 1/requiredPhase1Videos 进度
-                        Stage5Controller.Instance.phaseProgress = Mathf.Clamp01((float)_phase1VideoCount / (float)requiredPhase1Videos * 0.35f);
-                    }
+                    float p = Mathf.Clamp01((float)_phase1VideoCount / Mathf.Max(1, requiredPhase1Videos)) * 0.35f;
+                    if (Stage5Controller.Instance != null) Stage5Controller.Instance.phaseProgress = p;
                 }
             }
             else if (phaseProgress < 0.70f)
             {
+                // Phase 2 (0.35 -> 0.70): 算法半自动控制，每次内容推移增加一个 step
                 _switchTimer += Time.deltaTime;
                 bool timerExpired = _switchTimer >= _currentInterval;
 
                 if ((playerClicked || timerExpired) && !_isTransitioning)
                 {
                     _switchTimer = 0f;
+                    _phase2StepCount++;
                     TriggerNextMediaSwitch();
+
+                    float p = 0.35f + Mathf.Clamp01((float)_phase2StepCount / Mathf.Max(1, requiredPhase2Steps)) * 0.35f;
+                    if (Stage5Controller.Instance != null) Stage5Controller.Instance.phaseProgress = p;
                 }
             }
-            else
+            else if (phaseProgress < 0.96f)
             {
+                // Phase 3 (0.70 -> 0.96): 狂乱失控，按高频步数推进
                 _switchTimer += Time.deltaTime;
                 if (_switchTimer >= _currentInterval && !_isTransitioning)
                 {
                     _switchTimer = 0f;
+                    _phase3StepCount++;
                     TriggerNextMediaSwitch();
+
+                    float p = 0.70f + Mathf.Clamp01((float)_phase3StepCount / Mathf.Max(1, requiredPhase3Steps)) * 0.26f;
+                    if (Stage5Controller.Instance != null) Stage5Controller.Instance.phaseProgress = p;
                 }
             }
         }
@@ -324,9 +325,6 @@ namespace TheLastCompact.Wakeup
             }
         }
 
-        /// <summary>
-        /// 媒体抽取逻辑 (优先抽取视频，消灭抽空退回上张的问题)
-        /// </summary>
         private void PickNextMedia()
         {
             if (mediaDatabase == null) return;
@@ -337,7 +335,6 @@ namespace TheLastCompact.Wakeup
 
             string theme = GetDominantTheme();
 
-            // 1. 获取可用视频列表
             VideoClip[] videoPool = null;
             if (phaseProgress < 0.35f)
             {
@@ -349,7 +346,6 @@ namespace TheLastCompact.Wakeup
                 if (videoPool == null || videoPool.Length == 0) videoPool = mediaDatabase.entertainmentVideos;
             }
 
-            // 2. 如果有视频素材，100% 确保播放新的不重复视频！
             if (videoPool != null && videoPool.Length > 0)
             {
                 int nextIndex = Random.Range(0, videoPool.Length);
@@ -376,7 +372,6 @@ namespace TheLastCompact.Wakeup
                 }
             }
 
-            // 3. 兜底静态图片
             if (phaseProgress < 0.35f)
             {
                 _nextTex = mediaDatabase.GetEntertainmentTexture();
@@ -534,6 +529,8 @@ namespace TheLastCompact.Wakeup
                     _hoveredChoice = "";
                     _gazeChoiceTimer = 0f;
                     _phase1VideoCount = 0;
+                    _phase2StepCount = 0;
+                    _phase3StepCount = 0;
                 }
             }
         }
