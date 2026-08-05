@@ -15,8 +15,6 @@ Shader "Wakeup/CorridorWallShader"
         _FlowAngle ("Flow Diagonal Angle", Range(-3.14, 3.14)) = 0.0
         _VortexAmount ("Vortex Shear Amount", Range(0, 2)) = 0
         _SliceOffset ("Slice Shift Offset", Range(0, 1)) = 0
-
-        // 边缘融化与消失控制 (Phase 3&4 消除僵硬边界 - 参考图 1,2,3)
         _BorderFade ("Border Feather & Melt Amount", Range(0, 1)) = 0
     }
     SubShader
@@ -95,16 +93,7 @@ Shader "Wakeup/CorridorWallShader"
 
                 // 1. 基础 UV 与流体
                 float2 baseUV = uv;
-                baseUV.y = frac(baseUV.y * _StretchScale - time * _FlowSpeed * 0.3);
-
-                // Phase 3&4 边缘边界消融扭曲 (Organic Border Bleed)
-                if (_BorderFade > 0.01)
-                {
-                    float edgeDist = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
-                    float borderMask = smoothstep(0.0, 0.25 * _BorderFade, edgeDist);
-                    float bleedNoise = sin(uv.x * 20.0 + time * 3.0) * cos(uv.y * 20.0 + time * 2.5) * (1.0 - borderMask) * _BorderFade;
-                    baseUV += float2(bleedNoise, bleedNoise * 0.7);
-                }
+                baseUV.y = baseUV.y * _StretchScale - time * _FlowSpeed * 0.3;
 
                 // 2. 有机波动 (Phase 1&2)
                 if (_WaveWarp > 0.001 || _JellyAmount > 0.01)
@@ -151,6 +140,10 @@ Shader "Wakeup/CorridorWallShader"
                     }
                 }
 
+                // 🌟 核心防黑缝锁：强制 UV 镜像/循环 (frac)，100% 充盈充满，绝绝绝不再产生黑色缝隙！
+                baseUV = frac(abs(baseUV));
+                subUV = frac(abs(subUV));
+
                 // 5. 采样
                 float4 colMain;
                 float4 colSub;
@@ -158,14 +151,14 @@ Shader "Wakeup/CorridorWallShader"
                 if (_RGBShift > 0.0001)
                 {
                     float2 shift = float2(_RGBShift, 0);
-                    float rA = _MainTex.Sample(sampler_MainTex, baseUV + shift).r;
+                    float rA = _MainTex.Sample(sampler_MainTex, frac(baseUV + shift)).r;
                     float gA = _MainTex.Sample(sampler_MainTex, baseUV).g;
-                    float bA = _MainTex.Sample(sampler_MainTex, baseUV - shift).b;
+                    float bA = _MainTex.Sample(sampler_MainTex, frac(baseUV - shift)).b;
                     colMain = float4(rA, gA, bA, 1.0);
 
-                    float rB = _SubTex.Sample(sampler_SubTex, subUV + shift).r;
+                    float rB = _SubTex.Sample(sampler_SubTex, frac(subUV + shift)).r;
                     float gB = _SubTex.Sample(sampler_SubTex, subUV).g;
-                    float bB = _SubTex.Sample(sampler_SubTex, subUV - shift).b;
+                    float bB = _SubTex.Sample(sampler_SubTex, frac(subUV - shift)).b;
                     colSub = float4(rB, gB, bB, 1.0);
                 }
                 else
@@ -176,13 +169,13 @@ Shader "Wakeup/CorridorWallShader"
 
                 float4 col = lerp(colMain, colSub, isSubVideo * 0.45);
 
-                // 6. Phase 3&4 边缘边界消融羽化 (Eliminate Hard Straight Lines - 参考图 1,2,3)
+                // 6. Phase 3&4 边缘边界无缝融化漫溢 (Seamless Border Bleed)
                 if (_BorderFade > 0.01)
                 {
                     float edgeDist = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
-                    float edgeAlpha = smoothstep(0.0, 0.15 * _BorderFade, edgeDist);
-                    // 边缘以极具艺术感的方式融入背景流体
-                    float3 meltColor = lerp(col.rgb, col.gbr, 0.5 + 0.5 * sin(time * 2.0));
+                    float edgeAlpha = smoothstep(0.0, 0.20 * _BorderFade, edgeDist);
+                    // 边缘以极具油彩感的方式横跨边界渗入下一块画面
+                    float3 meltColor = lerp(col.rgb, col.gbr, 0.5 + 0.5 * sin(time * 2.5 + uv.x * 10.0));
                     col.rgb = lerp(meltColor, col.rgb, edgeAlpha);
                 }
 
