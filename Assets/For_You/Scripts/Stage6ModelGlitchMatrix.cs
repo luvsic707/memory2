@@ -71,17 +71,19 @@ namespace TheLastCompact.Wakeup
                 // 🌟 核心升级：每次闪烁高潮瞬间，随机切换到列表里的下一个视频 Clip！
                 SwitchToRandomVideoClip();
 
-                // 随机选择一部分模型发生视频流暴露闪烁
+                // 随机选择一部分模型发生视频流暴露与湍流拉扯高潮 (图 1 湍流 & 图 2 连成一片)
                 float flickerDur = Random.Range(flickerDurationRange.x, flickerDurationRange.y);
                 float glitchIntensity = Random.Range(0.4f, 0.95f);
+                float smearStrength = Random.Range(1.8f, 3.8f); // 湍流拉伸强度
 
-                // 触发闪烁高潮
+                // 触发闪烁与湍流融合高潮
                 for (int i = 0; i < _glitchMaterials.Count; i++)
                 {
-                    if (_glitchMaterials[i] != null && Random.value > 0.25f)
+                    if (_glitchMaterials[i] != null && Random.value > 0.2f)
                     {
                         _glitchMaterials[i].SetFloat("_GlitchBlend", 1.0f);
                         _glitchMaterials[i].SetFloat("_GlitchIntensity", glitchIntensity);
+                        _glitchMaterials[i].SetFloat("_SmearTurbulence", smearStrength);
                     }
                 }
 
@@ -94,6 +96,7 @@ namespace TheLastCompact.Wakeup
                     {
                         _glitchMaterials[i].SetFloat("_GlitchBlend", ambientVideoBlend);
                         _glitchMaterials[i].SetFloat("_GlitchIntensity", 0.05f);
+                        _glitchMaterials[i].SetFloat("_SmearTurbulence", 0f);
                     }
                 }
             }
