@@ -18,14 +18,14 @@ namespace TheLastCompact.Wakeup
         public GameObject armVisual;
 
         [Header("抓取动画参数")]
-        [Tooltip("手臂伸出抓取的目标前伸距离")]
-        public float reachDistance = 0.85f;
+        [Tooltip("手臂伸出抓取的目标前伸距离 (调小至 0.22 保持优雅在视野内)")]
+        public float reachDistance = 0.22f;
 
-        [Tooltip("手臂伸出与收回的动画速度")]
-        public float grabSpeed = 8.5f;
+        [Tooltip("手臂伸出与收回的动画速度 (调缓至 4.8f 顺滑不刺眼)")]
+        public float grabSpeed = 4.8f;
 
         [Tooltip("手臂在视角右下角的自然呼吸摇摆幅度")]
-        public float swayAmount = 0.015f;
+        public float swayAmount = 0.012f;
 
         private Vector3 _defaultLocalPos;
         private Quaternion _defaultLocalRot;
@@ -135,9 +135,9 @@ namespace TheLastCompact.Wakeup
             if (reachDir == Vector3.zero) reachDir = Vector3.forward;
 
             Vector3 grabLocalPos = startLocalPos + reachDir * reachDistance;
-            Quaternion grabLocalRot = Quaternion.LookRotation(reachDir) * Quaternion.Euler(30f, -10f, 15f);
+            Quaternion grabLocalRot = startLocalRot * Quaternion.Euler(12f, -5f, 8f);
 
-            // 1. 手臂伸出向目标 (Reach Out)
+            // 1. 手臂优雅伸出向目标 (Reach Out)
             float t = 0f;
             while (t < 1f)
             {
@@ -151,14 +151,14 @@ namespace TheLastCompact.Wakeup
             // 抓到物体后的逻辑回调
             onGrabbedCallback?.Invoke();
 
-            // 2. 手臂快速拉回嘴边 (Pull to Mouth)
-            Vector3 mouthLocalPos = _defaultLocalPos + new Vector3(-0.25f, 0.15f, -0.2f);
-            Quaternion mouthLocalRot = Quaternion.Euler(45f, -10f, 30f);
+            // 2. 手臂平缓拉回嘴边 (Pull to Mouth)
+            Vector3 mouthLocalPos = _defaultLocalPos + new Vector3(-0.08f, 0.06f, -0.05f);
+            Quaternion mouthLocalRot = startLocalRot * Quaternion.Euler(18f, -8f, 12f);
 
             t = 0f;
             while (t < 1f)
             {
-                t += Time.deltaTime * (grabSpeed * 0.9f);
+                t += Time.deltaTime * (grabSpeed * 0.85f);
                 float easeT = t * t * (3f - 2f * t);
                 _armTransform.localPosition = Vector3.Lerp(grabLocalPos, mouthLocalPos, easeT);
                 _armTransform.localRotation = Quaternion.Slerp(grabLocalRot, mouthLocalRot, easeT);
@@ -167,10 +167,10 @@ namespace TheLastCompact.Wakeup
 
             // 3. 轻微吞咽抖动
             float eatShake = 0f;
-            while (eatShake < 0.16f)
+            while (eatShake < 0.12f)
             {
                 eatShake += Time.deltaTime;
-                _armTransform.localPosition = mouthLocalPos + Random.insideUnitSphere * 0.012f;
+                _armTransform.localPosition = mouthLocalPos + Random.insideUnitSphere * 0.006f;
                 yield return null;
             }
 
