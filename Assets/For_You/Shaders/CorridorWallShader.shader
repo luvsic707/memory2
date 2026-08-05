@@ -15,6 +15,9 @@ Shader "Wakeup/CorridorWallShader"
         _FlowAngle ("Flow Diagonal Angle", Range(-3.14, 3.14)) = 0.0
         _VortexAmount ("Vortex Shear Amount", Range(0, 2)) = 0
         _SliceOffset ("Slice Shift Offset", Range(0, 1)) = 0
+
+        // 边缘融化与消失控制 (Phase 3&4 消除僵硬边界 - 参考图 1,2,3)
+        _BorderFade ("Border Feather & Melt Amount", Range(0, 1)) = 0
     }
     SubShader
     {
@@ -58,6 +61,7 @@ Shader "Wakeup/CorridorWallShader"
                 float _FlowAngle;
                 float _VortexAmount;
                 float _SliceOffset;
+                float _BorderFade;
             CBUFFER_END
 
             Varyings vert(Attributes input)
@@ -89,11 +93,20 @@ Shader "Wakeup/CorridorWallShader"
                 float2 uv = input.uv;
                 float time = _Time.y;
 
-                // 1. 保留具象视频比例 (适度拉伸，绝不过度扯成单条线条)
+                // 1. 基础 UV 与流体
                 float2 baseUV = uv;
                 baseUV.y = frac(baseUV.y * _StretchScale - time * _FlowSpeed * 0.3);
 
-                // 2. 有机波动 (Phase 1&2 浪漫水波)
+                // Phase 3&4 边缘边界消融扭曲 (Organic Border Bleed)
+                if (_BorderFade > 0.01)
+                {
+                    float edgeDist = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
+                    float borderMask = smoothstep(0.0, 0.25 * _BorderFade, edgeDist);
+                    float bleedNoise = sin(uv.x * 20.0 + time * 3.0) * cos(uv.y * 20.0 + time * 2.5) * (1.0 - borderMask) * _BorderFade;
+                    baseUV += float2(bleedNoise, bleedNoise * 0.7);
+                }
+
+                // 2. 有机波动 (Phase 1&2)
                 if (_WaveWarp > 0.001 || _JellyAmount > 0.01)
                 {
                     float waveFactor = _WaveWarp > 0.001 ? _WaveWarp : (_JellyAmount * 0.4);
@@ -102,12 +115,11 @@ Shader "Wakeup/CorridorWallShader"
                     baseUV += float2(wave1, wave2);
                 }
 
-                // 3. 多重视频片段夹杂拼贴 (Interleaved Video Sub-Clips)
+                // 3. 动态切片与画中画交错
                 float sliceID = floor(uv.y * 8.0);
                 float isSubVideo = frac(sliceID * 0.382) > 0.5 ? 1.0 : 0.0;
                 float2 subUV = baseUV + float2(sin(sliceID * 1.5), cos(sliceID * 2.1)) * 0.1;
 
-                // 4. 漩涡与切片
                 if (_VortexAmount > 0.01)
                 {
                     float2 dist = uv - 0.5;
@@ -125,7 +137,7 @@ Shader "Wakeup/CorridorWallShader"
                     baseUV.x += shift * 0.25;
                 }
 
-                // 5. Phase 3 狂乱像素 Glitch 马赛克
+                // 4. Phase 3 狂乱像素 Glitch 马赛克
                 if (_GlitchAmount > 0.01)
                 {
                     float blocks = lerp(120.0, 18.0, _GlitchAmount);
@@ -139,7 +151,7 @@ Shader "Wakeup/CorridorWallShader"
                     }
                 }
 
-                // 6. 双视频/图像交错采样 (Main Video vs Sub Video)
+                // 5. 采样
                 float4 colMain;
                 float4 colSub;
 
@@ -164,7 +176,17 @@ Shader "Wakeup/CorridorWallShader"
 
                 float4 col = lerp(colMain, colSub, isSubVideo * 0.45);
 
-                // Phase 3 像素彩虹杂色贴花
+                // 6. Phase 3&4 边缘边界消融羽化 (Eliminate Hard Straight Lines - 参考图 1,2,3)
+                if (_BorderFade > 0.01)
+                {
+                    float edgeDist = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
+                    float edgeAlpha = smoothstep(0.0, 0.15 * _BorderFade, edgeDist);
+                    // 边缘以极具艺术感的方式融入背景流体
+                    float3 meltColor = lerp(col.rgb, col.gbr, 0.5 + 0.5 * sin(time * 2.0));
+                    col.rgb = lerp(meltColor, col.rgb, edgeAlpha);
+                }
+
+                // Phase 3 像素彩虹杂色
                 if (_GlitchAmount > 0.2)
                 {
                     float2 glitchBlock = floor(uv * float2(30.0, 20.0));
