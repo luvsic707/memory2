@@ -218,17 +218,17 @@ namespace TheLastCompact.Wakeup
                 float p2Ratio = Mathf.InverseLerp(0.35f, 0.70f, phaseProgress);
                 float p3Ratio = Mathf.InverseLerp(0.70f, 1.00f, phaseProgress);
 
-                // Phase 1&2 软体圆润与浪漫水波
+                // Phase 1&2 软体波纹，Phase 3 极致 Glitch 马赛克与切片撕裂
                 float jelly = isPhase1 ? 0.6f : Mathf.Lerp(0.6f, 0.1f, p2Ratio);
 
-                float speed = isPhase1 ? 0.6f : (0.8f + p2Ratio * 1.5f + p3Ratio * 2.0f);
-                float glitch = isPhase1 ? 0f : (p2Ratio * 0.4f + p3Ratio * 0.6f);
-                float rgbShift = isPhase1 ? 0f : (p2Ratio * 0.02f + p3Ratio * 0.03f);
-                float waveWarp = isPhase1 ? 0.2f : (0.2f + p2Ratio * 0.6f + p3Ratio * 1.2f);
+                float speed = isPhase1 ? 0.6f : (0.8f + p2Ratio * 1.5f + p3Ratio * 3.5f);
+                float glitch = isPhase1 ? 0f : (p2Ratio * 0.2f + p3Ratio * 0.95f);      // Phase 3 暴增至 0.95 Glitch!
+                float rgbShift = isPhase1 ? 0f : (p2Ratio * 0.015f + p3Ratio * 0.045f); // 强烈 RGB 色差拖尾
+                float waveWarp = isPhase1 ? 0.2f : (0.2f + p2Ratio * 0.6f + p3Ratio * 1.5f);
 
                 float angle = isPhase1 ? 0f : (Mathf.Sin(time * 0.3f) * (0.5f + p2Ratio * 0.8f));
-                float vortex = isPhase1 ? 0f : (p2Ratio * 0.8f + p3Ratio * 1.2f);
-                float sliceShift = isPhase1 ? 0f : (p2Ratio * 0.4f + p3Ratio * 0.6f);
+                float vortex = isPhase1 ? 0f : (p2Ratio * 0.8f + p3Ratio * 1.6f);
+                float sliceShift = isPhase1 ? 0f : (p2Ratio * 0.2f + p3Ratio * 0.85f); // Phase 3 强切片撕裂
 
                 _wallMat.SetFloat("_JellyAmount", jelly);
                 _wallMat.SetFloat("_FlowSpeed", speed);
