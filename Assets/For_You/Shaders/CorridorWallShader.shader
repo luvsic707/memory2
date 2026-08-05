@@ -140,16 +140,18 @@ Shader "Wakeup/CorridorWallShader"
                     baseUV.x += shift * 0.25;
                 }
 
-                // 4. Glitch 像素块
+                // 4. Glitch 像素块 (Phase 1&2 梦幻柔和，Phase 3 剧烈爆发)
                 if (_GlitchAmount > 0.01)
                 {
-                    float blocks = lerp(120.0, 18.0, _GlitchAmount);
+                    float blocks = lerp(180.0, 20.0, _GlitchAmount);
                     float2 blockUV = floor(uv * blocks) / blocks;
-                    float n = hash(blockUV + floor(time * 15.0));
+                    float timeSpeed = lerp(4.0, 18.0, _GlitchAmount); // Phase 1 极为缓慢的舒缓呼吸
+                    float n = hash(blockUV + floor(time * timeSpeed));
 
-                    if (n < _GlitchAmount * 0.6)
+                    if (n < _GlitchAmount * 0.5)
                     {
-                        float2 glitchShift = float2(sin(n * 6.28), cos(n * 6.28)) * 0.12 * _GlitchAmount;
+                        float glitchIntensity = lerp(0.02, 0.12, _GlitchAmount);
+                        float2 glitchShift = float2(sin(n * 6.28), cos(n * 6.28)) * glitchIntensity;
                         baseUV += glitchShift;
                     }
                 }

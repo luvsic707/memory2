@@ -245,14 +245,14 @@ namespace TheLastCompact.Wakeup
 
                 float speed = isPhase1 ? 0.6f : (0.8f + p2Ratio * 1.5f + p3Ratio * 3.5f);
 
-                // 贯穿 Phase 1~3 的炫酷彩虹 Glitch 马赛克与切片错位！
-                float glitch = isPhase1 ? 0.25f : (0.25f + p2Ratio * 0.35f + p3Ratio * 0.40f); // Phase 1 即自带 0.25 浪漫 Glitch！
-                float rgbShift = isPhase1 ? 0.01f : (0.01f + p2Ratio * 0.02f + p3Ratio * 0.03f); // 色差重影
-                float waveWarp = isPhase1 ? 0.25f : (0.25f + p2Ratio * 0.55f + p3Ratio * 1.0f);
+                // 梦幻轻柔 Phase 1&2 (Dreamy Soft Pastel Aura) ➔ 狂乱高潮 Phase 3
+                float glitch = isPhase1 ? 0.08f : (0.08f + p2Ratio * 0.22f + p3Ratio * 0.65f); // Phase 1 极轻微梦幻！
+                float rgbShift = isPhase1 ? 0.006f : (0.006f + p2Ratio * 0.015f + p3Ratio * 0.035f); // 柔和梦幻光晕
+                float waveWarp = isPhase1 ? 0.15f : (0.15f + p2Ratio * 0.45f + p3Ratio * 1.0f);
 
-                float angle = isPhase1 ? 0.2f : (0.2f + Mathf.Sin(time * 0.3f) * (0.5f + p2Ratio * 0.8f));
-                float vortex = isPhase1 ? 0.1f : (0.1f + p2Ratio * 0.7f + p3Ratio * 1.2f);
-                float sliceShift = isPhase1 ? 0.2f : (0.2f + p2Ratio * 0.3f + p3Ratio * 0.45f); // Phase 1 充满切片错位
+                float angle = isPhase1 ? 0.1f : (0.1f + Mathf.Sin(time * 0.3f) * (0.4f + p2Ratio * 0.6f));
+                float vortex = isPhase1 ? 0.05f : (0.05f + p2Ratio * 0.6f + p3Ratio * 1.2f);
+                float sliceShift = isPhase1 ? 0.06f : (0.06f + p2Ratio * 0.2f + p3Ratio * 0.65f); // 轻柔水波切片
                 // 参考图 2 径向像素拖尾与参考图 3 液体抹平 (Phase 3&4 彻底擦除 3D 墙角硬棱线)
                 float borderFade = isPhase1 ? 0f : (p2Ratio * 0.2f + p3Ratio * 1.0f);
                 float radialBlur = isPhase1 ? 0f : (p2Ratio * 0.3f + p3Ratio * 1.0f);
