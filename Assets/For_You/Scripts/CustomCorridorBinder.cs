@@ -125,11 +125,25 @@ namespace TheLastCompact.Wakeup
                 }
             }
 
+            CreateInvisibleGroundFloor();
+
             PickNextMedia();
             _currentTex = _nextTex != null ? _nextTex : Texture2D.blackTexture;
             _lastValidTex = _currentTex;
             PickNextMedia();
             ApplyTexturesToWalls();
+        }
+
+        private void CreateInvisibleGroundFloor()
+        {
+            GameObject ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            ground.name = "Invisible_Static_Safety_Floor";
+            ground.transform.position = new Vector3(0f, -0.5f, 0f);
+            ground.transform.localScale = new Vector3(50f, 1f, 100f);
+            
+            // 隐藏 Renderer 保持透明，仅保留 BoxCollider 坚固托住玩家
+            Renderer r = ground.GetComponent<Renderer>();
+            if (r != null) r.enabled = false;
         }
 
         private void SetupDoubleBufferedVideoPlayers()
