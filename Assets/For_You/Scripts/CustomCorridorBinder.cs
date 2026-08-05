@@ -254,6 +254,7 @@ namespace TheLastCompact.Wakeup
                 float sliceShift = isPhase1 ? 0f : (p2Ratio * 0.2f + p3Ratio * 0.85f); // Phase 3 强切片撕裂
 
                 // 参考图 2 径向像素拖尾与参考图 3 液体抹平 (Phase 3&4 彻底擦除 3D 墙角硬棱线)
+                float borderFade = isPhase1 ? 0f : (p2Ratio * 0.2f + p3Ratio * 1.0f);
                 float radialBlur = isPhase1 ? 0f : (p2Ratio * 0.3f + p3Ratio * 1.0f);
                 float liquidWarp = isPhase1 ? 0.3f : (0.3f + p2Ratio * 0.5f + p3Ratio * 0.8f);
 
