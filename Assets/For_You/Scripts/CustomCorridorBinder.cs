@@ -75,6 +75,19 @@ namespace TheLastCompact.Wakeup
         private GameObject _resistanceUiGo;
         private TextMeshPro _resistanceTmp;
 
+        private static CustomCorridorBinder _instance;
+
+        private void Awake()
+        {
+            if (_instance != null && _instance != this)
+            {
+                Debug.LogWarning("[CustomCorridorBinder] 检测到场景中存在重复的 Binder 实例，已自动销毁多余实例！");
+                Destroy(this.gameObject);
+                return;
+            }
+            _instance = this;
+        }
+
         private void Start()
         {
             ContentCardSpawner spawner = FindObjectOfType<ContentCardSpawner>();

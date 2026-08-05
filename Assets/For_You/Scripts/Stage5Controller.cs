@@ -549,9 +549,13 @@ namespace TheLastCompact.Wakeup
                     GameObject binderGo = new GameObject("CustomCorridorBinder_Auto");
                     binderGo.transform.SetParent(transform, false);
                     binder = binderGo.AddComponent<CustomCorridorBinder>();
+                    binder.mediaDatabase = mediaDatabase;
+                    Debug.Log("[Stage5] 自动创建手工 3D 走廊绑定器。");
                 }
-                binder.mediaDatabase = mediaDatabase;
-                Debug.Log("[Stage5] 已成功启动手工 3D 走廊绑定器！");
+                else
+                {
+                    Debug.Log("[Stage5] 检测到场景中已存在 CustomCorridorBinder，直接绑定使用！");
+                }
             }
             else
             {
