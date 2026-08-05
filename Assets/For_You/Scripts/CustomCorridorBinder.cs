@@ -193,24 +193,27 @@ namespace TheLastCompact.Wakeup
                 _frontMat.SetFloat("_GlitchIntensity", glitch);
             }
 
-            // 驱动 Side Walls 四周墙面多维流体 (Phase 2 极其循序渐进地平缓加剧)
+            // 5. 驱动 Side Walls 四周墙面多维流体 (Phase 1&2 轻松有趣、浪漫圆润)
             if (_wallMat != null)
             {
                 bool isPhase1 = phaseProgress < 0.35f;
 
-                // Phase 2 演进权重 0 -> 1
                 float p2Ratio = Mathf.InverseLerp(0.35f, 0.70f, phaseProgress);
                 float p3Ratio = Mathf.InverseLerp(0.70f, 1.00f, phaseProgress);
 
+                // Phase 1&2 软体圆润与浪漫水波
+                float jelly = isPhase1 ? 0.6f : Mathf.Lerp(0.6f, 0.1f, p2Ratio);
+
                 float speed = isPhase1 ? 0.6f : (0.8f + p2Ratio * 1.5f + p3Ratio * 2.0f);
                 float glitch = isPhase1 ? 0f : (p2Ratio * 0.4f + p3Ratio * 0.6f);
-                float rgbShift = isPhase1 ? 0f : (p2Ratio * 0.02f + p3Ratio * 0.03f); // 极其平缓色差
-                float waveWarp = isPhase1 ? 0f : (p2Ratio * 0.6f + p3Ratio * 1.2f);   // 循序渐进水波
+                float rgbShift = isPhase1 ? 0f : (p2Ratio * 0.02f + p3Ratio * 0.03f);
+                float waveWarp = isPhase1 ? 0.2f : (0.2f + p2Ratio * 0.6f + p3Ratio * 1.2f);
 
                 float angle = isPhase1 ? 0f : (Mathf.Sin(time * 0.3f) * (0.5f + p2Ratio * 0.8f));
                 float vortex = isPhase1 ? 0f : (p2Ratio * 0.8f + p3Ratio * 1.2f);
                 float sliceShift = isPhase1 ? 0f : (p2Ratio * 0.4f + p3Ratio * 0.6f);
 
+                _wallMat.SetFloat("_JellyAmount", jelly);
                 _wallMat.SetFloat("_FlowSpeed", speed);
                 _wallMat.SetFloat("_GlitchAmount", glitch);
                 _wallMat.SetFloat("_RGBShift", rgbShift);
@@ -221,19 +224,30 @@ namespace TheLastCompact.Wakeup
                 _wallMat.SetFloat("_SliceOffset", sliceShift);
             }
 
-            // 物理墙面震颤 (Phase 3 空间严重崩溃时剧烈震动)
+            // 物理 Cube (1)~(5) 墙面圆润软弹形变 (Phase 1&2 软糖级 3D 物理弹性呼吸)
             if (sideWallRenderers != null && _initialWallPositions != null)
             {
+                bool isPhase1 = phaseProgress < 0.35f;
                 float physIntensity = phaseProgress > 0.70f ? Mathf.InverseLerp(0.70f, 1.0f, phaseProgress) * physicalWarpIntensity : 0f;
+
                 for (int i = 0; i < sideWallRenderers.Length; i++)
                 {
                     if (sideWallRenderers[i] != null)
                     {
+                        // Phase 1&2 轻松软弹呼吸 Squash & Stretch
+                        Vector3 jellyScale = Vector3.one;
+                        if (phaseProgress < 0.70f)
+                        {
+                            float breathe = Mathf.Sin(time * 1.8f + i * 0.8f) * 0.06f;
+                            jellyScale = new Vector3(1.0f + breathe, 1.0f - breathe * 0.8f, 1.0f + breathe * 0.5f);
+                        }
+                        sideWallRenderers[i].transform.localScale = jellyScale;
+
                         Vector3 waveOffset = new Vector3(
-                            Mathf.Sin(time * 3.5f + i) * 0.12f,
-                            Mathf.Cos(time * 3.1f + i) * 0.12f,
-                            Mathf.Sin(time * 2.8f + i) * 0.08f
-                        ) * physIntensity;
+                            Mathf.Sin(time * 2.2f + i) * 0.08f,
+                            Mathf.Cos(time * 1.8f + i) * 0.08f,
+                            Mathf.Sin(time * 1.5f + i) * 0.05f
+                        ) * (isPhase1 ? 0.3f : (0.3f + physIntensity));
 
                         sideWallRenderers[i].transform.localPosition = _initialWallPositions[i] + waveOffset;
                         float angleOffset = Mathf.Sin(time * 4.0f + i) * 2.5f * physIntensity;
