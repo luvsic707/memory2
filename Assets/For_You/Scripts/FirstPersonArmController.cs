@@ -17,6 +17,9 @@ namespace TheLastCompact.Wakeup
         [Tooltip("你在 Unity 场景中调好位置的第一视角手臂 GameObject/Prefab")]
         public GameObject armVisual;
 
+        [Tooltip("全局默认吃香蕉/咀嚼音效文件 (.mp3/.wav/.ogg)")]
+        public AudioClip defaultEatSound;
+
         [Header("抓取动画参数")]
         [Tooltip("手臂伸出抓取的目标前伸距离 (调小至 0.22 保持优雅在视野内)")]
         public float reachDistance = 0.22f;

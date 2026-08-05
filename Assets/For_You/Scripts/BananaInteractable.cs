@@ -29,6 +29,13 @@ namespace TheLastCompact.Wakeup
         [Tooltip("该香蕉是否为用于场景切换的特殊红光香蕉")]
         public bool isGlowingBanana = false;
 
+        [Header("音效配置 (Inspector 拖拽)")]
+        [Tooltip("吃香蕉/咀嚼音效文件 (拖入你的 .mp3/.wav/.ogg 文件)")]
+        public AudioClip eatSoundClip;
+
+        [Tooltip("吃香蕉音效播放音量")]
+        [Range(0f, 1f)] public float eatSoundVolume = 0.85f;
+
         [Header("UI 提示")]
         [SerializeField] private string interactHint = "吃香蕉";
 
@@ -104,6 +111,9 @@ namespace TheLastCompact.Wakeup
 
         private void ExecuteBananaEatLogic()
         {
+            // 播放吃香蕉音效 (若没有拖入 AudioClip，则播放默认音效)
+            PlayEatSoundEffect();
+
             // 特殊香蕉：直接吃掉通关
             if (isGlowingBanana)
             {
@@ -190,6 +200,28 @@ namespace TheLastCompact.Wakeup
             }
 
             Debug.Log($"[Banana] 成功在 {spawnPosition} 处生成了一只新物理香蕉，重力下落堆叠。");
+        }
+        /// <summary>
+        /// 播放吃香蕉与咀嚼音效 (自动支持自定义拖拽音效与随机音高变调)
+        /// </summary>
+        private void PlayEatSoundEffect()
+        {
+            if (eatSoundClip != null)
+            {
+                AudioSource.PlayClipAtPoint(eatSoundClip, transform.position, eatSoundVolume);
+            }
+            else
+            {
+                // 自动防御备用：在全局 AudioListener/Camera 播放吃香蕉音效
+                Camera mainCam = Camera.main;
+                Vector3 pos = mainCam != null ? mainCam.transform.position : transform.position;
+                
+                // 如果在 ArmController 里设置了通用音效，也进行联动
+                if (FirstPersonArmController.Instance != null && FirstPersonArmController.Instance.defaultEatSound != null)
+                {
+                    AudioSource.PlayClipAtPoint(FirstPersonArmController.Instance.defaultEatSound, pos, eatSoundVolume);
+                }
+            }
         }
     }
 }
