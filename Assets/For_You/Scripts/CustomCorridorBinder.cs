@@ -507,11 +507,17 @@ namespace TheLastCompact.Wakeup
             if (_wallMat != null)
             {
                 Texture mainWallTex = texB != null ? texB : texA;
+                Texture subWallTex = texA != null ? texA : texB;
+
                 if (mainWallTex != null)
                 {
                     if (_wallMat.HasProperty("_MainTex")) _wallMat.SetTexture("_MainTex", mainWallTex);
                     if (_wallMat.HasProperty("_BaseMap")) _wallMat.SetTexture("_BaseMap", mainWallTex);
                     _wallMat.mainTexture = mainWallTex;
+                }
+                if (subWallTex != null && _wallMat.HasProperty("_SubTex"))
+                {
+                    _wallMat.SetTexture("_SubTex", subWallTex);
                 }
             }
         }

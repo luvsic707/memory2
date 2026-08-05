@@ -2,16 +2,17 @@ Shader "Wakeup/CorridorWallShader"
 {
     Properties
     {
-        _MainTex ("Fluid Base Texture", 2D) = "white" {}
+        _MainTex ("Current Video Texture", 2D) = "white" {}
+        _SubTex ("Last Video/Media Texture", 2D) = "white" {}
         _FlowSpeed ("Fluid Flow Speed", Float) = 0.8
-        _StretchScale ("Depth Stretch Scale", Float) = 4.0
+        _StretchScale ("Depth Stretch Scale", Float) = 1.2
         _GlitchAmount ("Pixel Glitch Intensity", Range(0, 1)) = 0
         _RGBShift ("RGB Chromatic Shift", Range(0, 0.05)) = 0.0
-        _WaveWarp ("Wave Warp Distortion", Range(0, 2)) = 0.0
+        _WaveWarp ("Wave Warp Distortion", Range(0, 2)) = 0.2
         
         _JellyAmount ("Jelly Soft Deformation", Range(0, 1)) = 0.4
         _CuteWaveFreq ("Cute Wave Frequency", Float) = 3.14
-        _FlowAngle ("Flow Diagonal Angle", Range(-3.14, 3.14)) = 0.785
+        _FlowAngle ("Flow Diagonal Angle", Range(-3.14, 3.14)) = 0.0
         _VortexAmount ("Vortex Shear Amount", Range(0, 2)) = 0
         _SliceOffset ("Slice Shift Offset", Range(0, 1)) = 0
     }
@@ -42,6 +43,8 @@ Shader "Wakeup/CorridorWallShader"
 
             Texture2D _MainTex;
             SamplerState sampler_MainTex;
+            Texture2D _SubTex;
+            SamplerState sampler_SubTex;
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _MainTex_ST;
@@ -67,7 +70,7 @@ Shader "Wakeup/CorridorWallShader"
                 {
                     float waveX = sin(posOS.y * _CuteWaveFreq + time * 1.5) * cos(posOS.z * 1.2 + time * 1.2);
                     float waveY = cos(posOS.x * _CuteWaveFreq + time * 1.3) * sin(posOS.z * 1.5 + time * 1.1);
-                    posOS.xy += float2(waveX, waveY) * 0.12 * _JellyAmount;
+                    posOS.xy += float2(waveX, waveY) * 0.08 * _JellyAmount;
                 }
 
                 output.positionWS = TransformObjectToWorld(posOS);
@@ -86,26 +89,25 @@ Shader "Wakeup/CorridorWallShader"
                 float2 uv = input.uv;
                 float time = _Time.y;
 
-                // 1. 基础旋转与流体
-                float sinA = sin(_FlowAngle);
-                float cosA = cos(_FlowAngle);
-                float2 rotatedUV = float2(
-                    uv.x * cosA - uv.y * sinA,
-                    uv.x * sinA + uv.y * cosA
-                );
+                // 1. 保留具象视频比例 (适度拉伸，绝不过度扯成单条线条)
+                float2 baseUV = uv;
+                baseUV.y = frac(baseUV.y * _StretchScale - time * _FlowSpeed * 0.3);
 
-                float2 depthUV = float2(rotatedUV.x, rotatedUV.y * _StretchScale - time * _FlowSpeed);
-
-                // 2. 有机波动 (Phase 1&2)
+                // 2. 有机波动 (Phase 1&2 浪漫水波)
                 if (_WaveWarp > 0.001 || _JellyAmount > 0.01)
                 {
-                    float waveFactor = _WaveWarp > 0.001 ? _WaveWarp : (_JellyAmount * 0.3);
-                    float wave1 = sin(depthUV.y * 3.14 + time * 2.0) * 0.08 * waveFactor;
-                    float wave2 = cos(depthUV.x * 4.0 - time * 1.8) * 0.06 * waveFactor;
-                    depthUV += float2(wave1, wave2);
+                    float waveFactor = _WaveWarp > 0.001 ? _WaveWarp : (_JellyAmount * 0.4);
+                    float wave1 = sin(uv.y * 6.28 + time * 2.0) * 0.04 * waveFactor;
+                    float wave2 = cos(uv.x * 6.28 - time * 1.8) * 0.04 * waveFactor;
+                    baseUV += float2(wave1, wave2);
                 }
 
-                // 3. 切片错位与漩涡 (Phase 2)
+                // 3. 多重视频片段夹杂拼贴 (Interleaved Video Sub-Clips)
+                float sliceID = floor(uv.y * 8.0);
+                float isSubVideo = frac(sliceID * 0.382) > 0.5 ? 1.0 : 0.0;
+                float2 subUV = baseUV + float2(sin(sliceID * 1.5), cos(sliceID * 2.1)) * 0.1;
+
+                // 4. 漩涡与切片
                 if (_VortexAmount > 0.01)
                 {
                     float2 dist = uv - 0.5;
@@ -113,18 +115,17 @@ Shader "Wakeup/CorridorWallShader"
                     float angle = radius * _VortexAmount;
                     float s = sin(angle);
                     float c = cos(angle);
-                    depthUV += float2(dist.x * c - dist.y * s, dist.x * s + dist.y * c) * 0.2;
+                    baseUV += float2(dist.x * c - dist.y * s, dist.x * s + dist.y * c) * 0.15;
                 }
 
                 if (_SliceOffset > 0.01)
                 {
-                    float sliceID = floor(uv.y * 16.0);
                     float r = hash(float2(sliceID, floor(time * 8.0)));
                     float shift = (r - 0.5) * 2.0 * _SliceOffset;
-                    depthUV.x += shift * 0.35;
+                    baseUV.x += shift * 0.25;
                 }
 
-                // 4. Phase 3 狂乱像素 Glitch 马赛克腐蚀 (High-Frequency Glitch Pixel Corruption)
+                // 5. Phase 3 狂乱像素 Glitch 马赛克
                 if (_GlitchAmount > 0.01)
                 {
                     float blocks = lerp(120.0, 18.0, _GlitchAmount);
@@ -133,28 +134,37 @@ Shader "Wakeup/CorridorWallShader"
 
                     if (n < _GlitchAmount * 0.6)
                     {
-                        // 随机像素块错位拉伸
-                        float2 glitchShift = float2(sin(n * 6.28), cos(n * 6.28)) * 0.15 * _GlitchAmount;
-                        depthUV += glitchShift;
+                        float2 glitchShift = float2(sin(n * 6.28), cos(n * 6.28)) * 0.12 * _GlitchAmount;
+                        baseUV += glitchShift;
                     }
                 }
 
-                // 5. 色差重影 RGB Shift 采样
-                float4 col;
+                // 6. 双视频/图像交错采样 (Main Video vs Sub Video)
+                float4 colMain;
+                float4 colSub;
+
                 if (_RGBShift > 0.0001)
                 {
                     float2 shift = float2(_RGBShift, 0);
-                    float r = _MainTex.Sample(sampler_MainTex, depthUV + shift).r;
-                    float g = _MainTex.Sample(sampler_MainTex, depthUV).g;
-                    float b = _MainTex.Sample(sampler_MainTex, depthUV - shift).b;
-                    col = float4(r, g, b, 1.0);
+                    float rA = _MainTex.Sample(sampler_MainTex, baseUV + shift).r;
+                    float gA = _MainTex.Sample(sampler_MainTex, baseUV).g;
+                    float bA = _MainTex.Sample(sampler_MainTex, baseUV - shift).b;
+                    colMain = float4(rA, gA, bA, 1.0);
+
+                    float rB = _SubTex.Sample(sampler_SubTex, subUV + shift).r;
+                    float gB = _SubTex.Sample(sampler_SubTex, subUV).g;
+                    float bB = _SubTex.Sample(sampler_SubTex, subUV - shift).b;
+                    colSub = float4(rB, gB, bB, 1.0);
                 }
                 else
                 {
-                    col = _MainTex.Sample(sampler_MainTex, depthUV);
+                    colMain = _MainTex.Sample(sampler_MainTex, baseUV);
+                    colSub = _SubTex.Sample(sampler_SubTex, subUV);
                 }
 
-                // Phase 3 像素块彩虹杂色贴花 (Rainbow Glitch Noise Blocks)
+                float4 col = lerp(colMain, colSub, isSubVideo * 0.45);
+
+                // Phase 3 像素彩虹杂色贴花
                 if (_GlitchAmount > 0.2)
                 {
                     float2 glitchBlock = floor(uv * float2(30.0, 20.0));
