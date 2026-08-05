@@ -21,15 +21,15 @@ namespace TheLastCompact.Wakeup
         // Stage5Controller 不再使用 Auto-Bootstrap。
         // 请手动将此脚本挂载到 5_Contemporary 场景中的一个 GameObject 上。
 
-        [Header("Phase 进度（精准调校 150% 延长版 135s 叙事体验）")]
+        [Header("Phase 进度（精准调校 200% 延长版 180s 叙事体验）")]
         [Tooltip("当前阶段进度 0→1，Inspector 中可观测")]
         [Range(0f, 1f)] public float phaseProgress = 0f;
 
         [Tooltip("注视/点击卡片时，单次增加的 phaseProgress 增量")]
-        public float progressPerGaze = 0.008f;
+        public float progressPerGaze = 0.006f;
 
-        [Tooltip("每秒自然增加的 phaseProgress（放慢至 150% 时长，约 135 秒完成体验）")]
-        public float progressPerSecond = 0.00433f;
+        [Tooltip("每秒自然增加的 phaseProgress（放慢至 200% 时长，约 180 秒完成体验）")]
+        public float progressPerSecond = 0.0032f;
 
         [Header("单曲 BGM + 实时 DSP 滤镜 + 嘈杂人声图层")]
         [Tooltip("贯穿全程的单曲 BGM 音轨（留空将自动加载备用音轨）")]
