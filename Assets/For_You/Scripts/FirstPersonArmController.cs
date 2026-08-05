@@ -52,27 +52,39 @@ namespace TheLastCompact.Wakeup
 
         private void SetupArmReferences()
         {
-            // 优先使用玩家在 Inspector 里手动拖入的 armVisual
+            // 1. 优先使用玩家在 Inspector 里手动拖入的 armVisual
             if (armVisual != null)
             {
                 _armTransform = armVisual.transform;
             }
             else
             {
-                // 如果场景里有同名的 "FPS_Arm_Holder" 或子物体，自动寻找
+                // 2. 智能自动寻找 Main Camera 或 Player 下建好的 FPS_Arm_Holder 节点！
                 Transform foundHolder = transform.Find("FPS_Arm_Holder");
+                if (foundHolder == null && transform.parent != null)
+                {
+                    foundHolder = transform.parent.Find("FPS_Arm_Holder");
+                }
+                if (foundHolder == null)
+                {
+                    foundHolder = GameObject.Find("FPS_Arm_Holder")?.transform;
+                }
+
                 if (foundHolder != null)
                 {
+                    armVisual = foundHolder.gameObject;
                     _armTransform = foundHolder;
+                    Debug.Log($"<color=green>[FirstPersonArm] 自动找到了场景中的 '{foundHolder.name}' 节点并成功绑定！</color>");
                 }
                 else
                 {
-                    // 若玩家完全没有手动配置，创建一个简单的占位容器供测试
+                    // 若完全没有创建，新建占位 Holder
                     GameObject holderGo = new GameObject("FPS_Arm_Holder");
                     holderGo.transform.SetParent(transform, false);
                     holderGo.transform.localPosition = new Vector3(0.35f, -0.35f, 0.6f);
                     holderGo.transform.localRotation = Quaternion.Euler(20f, -25f, 10f);
                     _armTransform = holderGo.transform;
+                    armVisual = holderGo;
                 }
             }
 
