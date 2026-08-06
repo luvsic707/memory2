@@ -32,6 +32,9 @@ namespace TheLastCompact.Wakeup
         [Tooltip("高清清晰投影触发概率 (0~1)")]
         [Range(0f, 1f)] public float crispChance = 0.25f;
 
+        [Tooltip("正常状态下视频矩阵的常驻渗透比例 (0 表示平时完全正常，1 表示完全变成视频流)")]
+        [Range(0f, 1f)] public float ambientVideoBlend = 0.15f;
+
         private List<Renderer> _targetRenderers = new List<Renderer>();
         private List<Material> _glitchMaterials = new List<Material>();
         private VideoPlayer _videoPlayer;
