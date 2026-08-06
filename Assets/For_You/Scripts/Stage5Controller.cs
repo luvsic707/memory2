@@ -74,6 +74,22 @@ namespace TheLastCompact.Wakeup
         public float transitionDelay = 2f;
         public string nextSceneName = "6_Future";
 
+        [Header("🔧 Stage 5 测试调试接口 (Debug Overrides)")]
+        [Tooltip("勾选后将开启调试模式，使用下方手动填写的 4 个 Stage 交互数值")]
+        public bool overrideBehaviorData = false;
+
+        [Tooltip("【测试用】Stage 1 香蕉交互次数")]
+        public int debugBananaCount = 12;
+
+        [Tooltip("【测试用】Stage 2 祈祷/眼皮交互次数")]
+        public int debugPrayerCount = 5;
+
+        [Tooltip("【测试用】Stage 3 莫比乌斯推石次数")]
+        public int debugPushCount = 8;
+
+        [Tooltip("【测试用】Stage 4 办公室打字/字模交互次数")]
+        public int debugWorkCount = 42;
+
         // 子系统引用
         private ContentCardSpawner _spawner;
         private FeedEnvironment _environment;
@@ -476,6 +492,21 @@ namespace TheLastCompact.Wakeup
 
         private void Update()
         {
+            // 🔧 实时同步测试接口：将 Inspector 里填写的调试数值写进 PlayerBehaviorData
+            if (overrideBehaviorData && PlayerBehaviorData.Instance != null)
+            {
+                PlayerBehaviorData.Instance.bananaCount = debugBananaCount;
+                PlayerBehaviorData.Instance.prayerCount = debugPrayerCount;
+                PlayerBehaviorData.Instance.pushCount = debugPushCount;
+                PlayerBehaviorData.Instance.workCount = debugWorkCount;
+            }
+
+            // 按下 F1 快速开启/切换测试模式
+            if (Input.GetKeyDown(KeyCode.F1))
+            {
+                overrideBehaviorData = !overrideBehaviorData;
+                Debug.Log($"<color=yellow>[Stage5 Debug] 快捷键 F1 切换行为数据测试覆盖: {overrideBehaviorData}</color>");
+            }
             // 快捷键调试：按数字键 1~5 直接切到对应 Phase
             if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1))
             {
