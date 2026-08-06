@@ -82,31 +82,34 @@ namespace TheLastCompact.Wakeup
                 {
                     if (_glitchMaterials[i] != null && Random.value > 0.15f)
                     {
-                        // 判定是否触发高清清晰投影 Mode
-                        bool isCrisp = enableCrispProjection && (Random.value < crispChance);
+                        // 🌟 随机分配 4 种视效模式：
+                        // 0: 纯 Material 纹理投影 Glitch
+                        // 1: 高清视频投影 Mode
+                        // 2: 湍流连成一片 Mode
+                        // 3: 彩虹视频矩阵 Mode
+                        int glitchMode = Random.Range(0, 4);
 
-                        if (isCrisp)
+                        _glitchMaterials[i].SetFloat("_GlitchBlend", 1.0f);
+                        _glitchMaterials[i].SetFloat("_PureMatGlitch", 0f);
+                        _glitchMaterials[i].SetFloat("_CrispProjection", 0f);
+                        _glitchMaterials[i].SetFloat("_GlitchIntensity", 0f);
+                        _glitchMaterials[i].SetFloat("_SmearTurbulence", 0f);
+
+                        if (glitchMode == 0) // 纯 Material 纹理投影
                         {
-                            _glitchMaterials[i].SetFloat("_GlitchBlend", 1.0f);
-                            _glitchMaterials[i].SetFloat("_CrispProjection", 1.0f);
-                            _glitchMaterials[i].SetFloat("_GlitchIntensity", 0f);
-                            _glitchMaterials[i].SetFloat("_SmearTurbulence", 0f);
+                            _glitchMaterials[i].SetFloat("_PureMatGlitch", 1.0f);
                         }
-                        else
+                        else if (glitchMode == 1 && enableCrispProjection) // 高清视频投影
                         {
-                            _glitchMaterials[i].SetFloat("_CrispProjection", 0.0f);
-
-                            // 随机分配 3 种艺术模式
-                            int glitchMode = Random.Range(0, 3); // 0: 经典视频矩阵, 1: 湍流连成一片, 2: 组合高潮
-                            float glitchIntensity = Random.Range(0.4f, 0.95f);
-                            float smearStrength = 0f;
-
-                            if (glitchMode == 1) smearStrength = Random.Range(2.0f, 4.2f);
-                            else if (glitchMode == 2) smearStrength = Random.Range(1.5f, 3.5f);
-
-                            _glitchMaterials[i].SetFloat("_GlitchBlend", 1.0f);
-                            _glitchMaterials[i].SetFloat("_GlitchIntensity", glitchIntensity);
-                            _glitchMaterials[i].SetFloat("_SmearTurbulence", smearStrength);
+                            _glitchMaterials[i].SetFloat("_CrispProjection", 1.0f);
+                        }
+                        else if (glitchMode == 2) // 湍流连成一片
+                        {
+                            _glitchMaterials[i].SetFloat("_SmearTurbulence", Random.Range(2.0f, 4.2f));
+                        }
+                        else // 彩虹视频矩阵
+                        {
+                            _glitchMaterials[i].SetFloat("_GlitchIntensity", Random.Range(0.4f, 0.95f));
                         }
                     }
                 }
@@ -122,6 +125,7 @@ namespace TheLastCompact.Wakeup
                         _glitchMaterials[i].SetFloat("_GlitchIntensity", 0.05f);
                         _glitchMaterials[i].SetFloat("_SmearTurbulence", 0f);
                         _glitchMaterials[i].SetFloat("_CrispProjection", 0f);
+                        _glitchMaterials[i].SetFloat("_PureMatGlitch", 0f);
                     }
                 }
             }

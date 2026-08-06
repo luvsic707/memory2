@@ -8,6 +8,7 @@ Shader "Wakeup/Stage6VideoGlitchShader"
         _GlitchIntensity ("Pixel Corruption Intensity", Range(0, 1)) = 0
         _SmearTurbulence ("Turbulence Smear Strength", Range(0, 5)) = 0
         _CrispProjection ("Crisp HD Projection Mode", Range(0, 1)) = 0
+        _PureMatGlitch ("Pure Material Projection Glitch", Range(0, 1)) = 0
         _RGBShift ("RGB Shift", Range(0, 0.08)) = 0.02
         _WaveSpeed ("Matrix Wave Speed", Float) = 2.5
     }
@@ -48,6 +49,7 @@ Shader "Wakeup/Stage6VideoGlitchShader"
                 float _GlitchIntensity;
                 float _SmearTurbulence;
                 float _CrispProjection;
+                float _PureMatGlitch;
                 float _RGBShift;
                 float _WaveSpeed;
             CBUFFER_END
@@ -63,8 +65,8 @@ Shader "Wakeup/Stage6VideoGlitchShader"
                 float3 posWS = TransformObjectToWorld(input.positionOS.xyz);
                 float time = _Time.y;
 
-                // 顶点湍流拉伸 (仅在非高清模式下触发)
-                if (_SmearTurbulence > 0.01 && _CrispProjection < 0.5)
+                // 顶点湍流拉伸 (仅在湍流模式下触发)
+                if (_SmearTurbulence > 0.01 && _CrispProjection < 0.5 && _PureMatGlitch < 0.5)
                 {
                     float smearNoise = hash(posWS.xz * 0.1 + floor(time * 8.0));
                     float3 dir = normalize(float3(-posWS.z, sin(posWS.x * 2.0 + time * 3.0), posWS.x));
@@ -83,19 +85,38 @@ Shader "Wakeup/Stage6VideoGlitchShader"
                 float time = _Time.y;
                 float blend = saturate(_GlitchBlend);
 
-                // 🌟 核心新功能：高清清晰投影 Mode
-                if (_CrispProjection > 0.5 && blend > 0.1)
+                // 🌟 1. 纯 Material 纹理投影 Glitch (Pure Material Glitch Mode)
+                if (_PureMatGlitch > 0.5 && blend > 0.1)
                 {
-                    // 高清直接采样视频贴图，保持纹理细节完全清晰！
-                    float4 colCrispVideo = _VideoTex.Sample(sampler_VideoTex, uv);
-                    float4 colNormal = _MainTex.Sample(sampler_MainTex, uv);
+                    float2 matUV = uv;
+                    // 纯材质纹理的切割与平移错位
+                    float block = floor(matUV.y * 10.0);
+                    float noiseShift = hash(float2(block, floor(time * 12.0)));
+                    if (noiseShift > 0.5)
+                    {
+                        matUV.x += (noiseShift - 0.5) * 0.25;
+                    }
+                    float4 colPureMat = _MainTex.Sample(sampler_MainTex, matUV);
                     
-                    // 带有极微弱的高清荧幕发光与细节叠加
-                    float4 finalCrisp = lerp(colNormal, colCrispVideo, blend);
-                    return finalCrisp;
+                    // 伴随极轻微的 RGB 边缘错位
+                    float2 shift = float2(0.015, 0);
+                    float r = _MainTex.Sample(sampler_MainTex, matUV + shift).r;
+                    float b = _MainTex.Sample(sampler_MainTex, matUV - shift).b;
+                    colPureMat.r = r;
+                    colPureMat.b = b;
+
+                    return colPureMat;
                 }
 
-                // 湍流线条拉丝 Mode
+                // 🌟 2. 高清清晰视频投影 Mode
+                if (_CrispProjection > 0.5 && blend > 0.1)
+                {
+                    float4 colCrispVideo = _VideoTex.Sample(sampler_VideoTex, uv);
+                    float4 colNormal = _MainTex.Sample(sampler_MainTex, uv);
+                    return lerp(colNormal, colCrispVideo, blend);
+                }
+
+                // 🌟 3. 湍流线条拉丝 Mode
                 if (_SmearTurbulence > 0.05)
                 {
                     float smearFactor = sin(input.positionWS.y * 3.0 + time * _WaveSpeed) * 0.5 + 0.5;
@@ -105,7 +126,7 @@ Shader "Wakeup/Stage6VideoGlitchShader"
 
                 float4 colNormal = _MainTex.Sample(sampler_MainTex, uv);
 
-                // Stage 5 视频矩阵采样
+                // 🌟 4. Stage 5 视频矩阵采样 Mode
                 float2 videoUV = uv;
                 videoUV.y = frac(videoUV.y * 1.5 - time * _WaveSpeed * 0.3);
 
@@ -122,7 +143,6 @@ Shader "Wakeup/Stage6VideoGlitchShader"
 
                 videoUV = frac(abs(videoUV));
 
-                // 视频 RGB 色差
                 float4 colVideo;
                 float2 shift = float2(_RGBShift * (1.0 + _SmearTurbulence * 0.5), 0);
                 float r = _VideoTex.Sample(sampler_VideoTex, frac(videoUV + shift)).r;
@@ -132,7 +152,6 @@ Shader "Wakeup/Stage6VideoGlitchShader"
 
                 float4 finalCol = lerp(colNormal, colVideo, blend);
 
-                // 彩虹像素湍流闪烁
                 if (_SmearTurbulence > 0.2 || _GlitchIntensity > 0.2)
                 {
                     float2 glitchBlock = floor(uv * float2(30.0, 10.0));
