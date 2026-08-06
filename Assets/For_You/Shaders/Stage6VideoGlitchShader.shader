@@ -7,6 +7,7 @@ Shader "Wakeup/Stage6VideoGlitchShader"
         _GlitchBlend ("Matrix Blend Factor", Range(0, 1)) = 0
         _GlitchIntensity ("Pixel Corruption Intensity", Range(0, 1)) = 0
         _SmearTurbulence ("Turbulence Smear Strength", Range(0, 5)) = 0
+        _CrispProjection ("Crisp HD Projection Mode", Range(0, 1)) = 0
         _RGBShift ("RGB Shift", Range(0, 0.08)) = 0.02
         _WaveSpeed ("Matrix Wave Speed", Float) = 2.5
     }
@@ -46,6 +47,7 @@ Shader "Wakeup/Stage6VideoGlitchShader"
                 float _GlitchBlend;
                 float _GlitchIntensity;
                 float _SmearTurbulence;
+                float _CrispProjection;
                 float _RGBShift;
                 float _WaveSpeed;
             CBUFFER_END
@@ -61,9 +63,8 @@ Shader "Wakeup/Stage6VideoGlitchShader"
                 float3 posWS = TransformObjectToWorld(input.positionOS.xyz);
                 float time = _Time.y;
 
-                // 🌟 1. 顶点湍流拉伸 (Vertex Smear Turbulence - 图 1 效果)
-                // 当 Glitch 触发时，沿环形与法线方向剧烈拉伸，让相邻模型熔融连成一片！
-                if (_SmearTurbulence > 0.01)
+                // 顶点湍流拉伸 (仅在非高清模式下触发)
+                if (_SmearTurbulence > 0.01 && _CrispProjection < 0.5)
                 {
                     float smearNoise = hash(posWS.xz * 0.1 + floor(time * 8.0));
                     float3 dir = normalize(float3(-posWS.z, sin(posWS.x * 2.0 + time * 3.0), posWS.x));
@@ -82,7 +83,19 @@ Shader "Wakeup/Stage6VideoGlitchShader"
                 float time = _Time.y;
                 float blend = saturate(_GlitchBlend);
 
-                // 🌟 2. 湍流线条拉丝 (Turbulent Pixel Smearing - 图 1 湍流拉丝)
+                // 🌟 核心新功能：高清清晰投影 Mode
+                if (_CrispProjection > 0.5 && blend > 0.1)
+                {
+                    // 高清直接采样视频贴图，保持纹理细节完全清晰！
+                    float4 colCrispVideo = _VideoTex.Sample(sampler_VideoTex, uv);
+                    float4 colNormal = _MainTex.Sample(sampler_MainTex, uv);
+                    
+                    // 带有极微弱的高清荧幕发光与细节叠加
+                    float4 finalCrisp = lerp(colNormal, colCrispVideo, blend);
+                    return finalCrisp;
+                }
+
+                // 湍流线条拉丝 Mode
                 if (_SmearTurbulence > 0.05)
                 {
                     float smearFactor = sin(input.positionWS.y * 3.0 + time * _WaveSpeed) * 0.5 + 0.5;
@@ -90,7 +103,6 @@ Shader "Wakeup/Stage6VideoGlitchShader"
                     uv.x += sin(uv.y * 30.0 + time * 8.0) * 0.04 * _SmearTurbulence;
                 }
 
-                // 正常材质采样
                 float4 colNormal = _MainTex.Sample(sampler_MainTex, uv);
 
                 // Stage 5 视频矩阵采样
@@ -110,7 +122,7 @@ Shader "Wakeup/Stage6VideoGlitchShader"
 
                 videoUV = frac(abs(videoUV));
 
-                // 3. 视频 RGB 色差与湍流混合
+                // 视频 RGB 色差
                 float4 colVideo;
                 float2 shift = float2(_RGBShift * (1.0 + _SmearTurbulence * 0.5), 0);
                 float r = _VideoTex.Sample(sampler_VideoTex, frac(videoUV + shift)).r;
@@ -118,10 +130,9 @@ Shader "Wakeup/Stage6VideoGlitchShader"
                 float b = _VideoTex.Sample(sampler_VideoTex, frac(videoUV - shift)).b;
                 colVideo = float4(r, g, b, 1.0);
 
-                // 4. 正常材质与视频矩阵拉丝混合
                 float4 finalCol = lerp(colNormal, colVideo, blend);
 
-                // 5. 彩虹像素湍流闪烁
+                // 彩虹像素湍流闪烁
                 if (_SmearTurbulence > 0.2 || _GlitchIntensity > 0.2)
                 {
                     float2 glitchBlock = floor(uv * float2(30.0, 10.0));
