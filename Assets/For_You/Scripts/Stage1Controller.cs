@@ -98,8 +98,9 @@ namespace TheLastCompact.Wakeup
 
         /// <summary>
         /// 每次普通香蕉被交互/吃掉时调用
+        /// spawnPos: 香蕉生前的位置， spawnPrefab: 生成新香蕉用的 Prefab
         /// </summary>
-        public void OnBananaEaten(BananaInteractable eatenBanana)
+        public void OnBananaEaten(Vector3 spawnPos, GameObject spawnPrefab)
         {
             eatenCount++;
             Debug.Log($"[Stage1] 吃掉香蕉。当前计数：{eatenCount}/{targetBananaCount}");
@@ -115,8 +116,36 @@ namespace TheLastCompact.Wakeup
             int mitosisSpawnCount = Mathf.Clamp(eatenCount / 4 + 1, 1, 6);
             for (int i = 0; i < mitosisSpawnCount; i++)
             {
-                eatenBanana.SpawnNewBanana();
+                SpawnBananaAt(spawnPos, spawnPrefab);
             }
+        }
+
+        /// <summary>
+        /// 在指定位置生成一个新香蕉（不依赖原香蕉对象）
+        /// </summary>
+        private void SpawnBananaAt(Vector3 basePos, GameObject prefab)
+        {
+            if (prefab == null) return;
+
+            Vector3 randomOffset = new Vector3(
+                Random.Range(-0.4f, 0.4f),
+                1.2f,
+                Random.Range(-0.4f, 0.4f)
+            );
+            Vector3 spawnPosition = basePos + randomOffset;
+            Quaternion spawnRotation = Random.rotation;
+
+            GameObject newBanana = Instantiate(prefab, spawnPosition, spawnRotation);
+            newBanana.name = "SpawningBanana_Prop";
+
+            // 使用模板缩放 + 正确比例
+            float distFactor = GetCurrentDistortionFactor();
+            newBanana.transform.localScale = templateScale * (1f + distFactor * 0.35f);
+
+            // 添加扭曲变形组件
+            BananaDistorter distorter = newBanana.GetComponent<BananaDistorter>();
+            if (distorter == null) distorter = newBanana.AddComponent<BananaDistorter>();
+            distorter.distortionFactor = distFactor;
         }
 
         /// <summary>
