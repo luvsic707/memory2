@@ -85,33 +85,37 @@ namespace TheLastCompact.Wakeup
         // 实现 IInteractable 接口的方法
         public void Interact()
         {
-            // 防止重复点击（已经在播放动画时忽略）
-            BananaEatEffect effect = GetComponent<BananaEatEffect>();
-            if (effect == null)
+            // 自动确保场景里存在第一视角手臂管理器
+            if (FirstPersonArmController.Instance == null)
             {
-                effect = gameObject.AddComponent<BananaEatEffect>();
+                Camera mainCam = Camera.main;
+                if (mainCam != null)
+                {
+                    mainCam.gameObject.AddComponent<FirstPersonArmController>();
+                }
             }
 
-            // 提前缓存位置和 Prefab，因为 GameObject 在动画结束时会被销毁
-            Vector3 cachedPos = transform.position;
-            GameObject cachedPrefab = bananaPrefab;
-            bool cachedIsGlowing = isGlowingBanana;
-
-            // 播放飞向镜头 → Squash → 咬缺口 → 消失的完整 Juice 动画
-            // 动画完成后再执行计数/生成等逻辑（由 effect 的 onComplete 回调触发）
-            effect.PlayEatSequence(() =>
+            // 触发第一视角手部伸出抓取 ➔ 吃蕉动作
+            if (FirstPersonArmController.Instance != null)
             {
-                ExecuteBananaEatLogic(cachedPos, cachedPrefab, cachedIsGlowing);
-            });
+                FirstPersonArmController.Instance.PlayGrabAndEatMotion(transform.position, () =>
+                {
+                    ExecuteBananaEatLogic();
+                });
+            }
+            else
+            {
+                ExecuteBananaEatLogic();
+            }
         }
 
-        private void ExecuteBananaEatLogic(Vector3 cachedPos, GameObject cachedPrefab, bool cachedIsGlowing)
+        private void ExecuteBananaEatLogic()
         {
-            // 播放吃香蕉音效
+            // 播放吃香蕉音效 (若没有拖入 AudioClip，则播放默认音效)
             PlayEatSoundEffect();
 
             // 特殊香蕉：直接吃掉通关
-            if (cachedIsGlowing)
+            if (isGlowingBanana)
             {
                 Debug.Log("[Banana] 玩家吃下了特殊的通关香蕉！");
                 if (Stage1Controller.Instance != null)
@@ -120,6 +124,7 @@ namespace TheLastCompact.Wakeup
                 }
                 else
                 {
+                    // 优雅降级：直接触发通关
                     EventBus.RaiseAnnouncement("You ate the glowing banana. Loading next stage...");
                     EventBus.RaiseSceneComplete();
                 }
@@ -137,10 +142,9 @@ namespace TheLastCompact.Wakeup
             }
 
             // 2. 通知 Stage1Controller 累积关卡进度并执行有丝分裂分裂
-            // 注意：此时 GameObject 可能已被 BananaEatEffect 销毁，传位置和 Prefab 而非 this
             if (Stage1Controller.Instance != null)
             {
-                Stage1Controller.Instance.OnBananaEaten(cachedPos, cachedPrefab);
+                Stage1Controller.Instance.OnBananaEaten(this);
             }
             else
             {
