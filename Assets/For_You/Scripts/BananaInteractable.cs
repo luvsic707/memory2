@@ -85,28 +85,40 @@ namespace TheLastCompact.Wakeup
         // 实现 IInteractable 接口的方法
         public void Interact()
         {
-            // 自动确保场景里存在第一视角手臂管理器
-            if (FirstPersonArmController.Instance == null)
-            {
-                Camera mainCam = Camera.main;
-                if (mainCam != null)
-                {
-                    mainCam.gameObject.AddComponent<FirstPersonArmController>();
-                }
-            }
+            // ── Juice：先播放 Squash/Wobble 动画，动画中途触发核心逻辑 ──
+            // 如果组件不存在就自动挂载，完全非破坏性
+            BananaJuice juice = GetComponent<BananaJuice>();
+            if (juice == null) juice = gameObject.AddComponent<BananaJuice>();
 
-            // 触发第一视角手部伸出抓取 ➔ 吃蕉动作
-            if (FirstPersonArmController.Instance != null)
+            juice.PlayJuice(() =>
             {
-                FirstPersonArmController.Instance.PlayGrabAndEatMotion(transform.position, () =>
+                // ── 震屏（在逻辑触发的同一帧启动）──────────────────────
+                StartCoroutine(BananaJuice.ShakeMainCamera(juice.shakeIntensity, juice.shakeDuration));
+
+                // ── 原有完整逻辑，一行未改 ──────────────────────────────
+                // 自动确保场景里存在第一视角手臂管理器
+                if (FirstPersonArmController.Instance == null)
+                {
+                    Camera mainCam = Camera.main;
+                    if (mainCam != null)
+                    {
+                        mainCam.gameObject.AddComponent<FirstPersonArmController>();
+                    }
+                }
+
+                // 触发第一视角手部伸出抓取 ➔ 吃蕉动作
+                if (FirstPersonArmController.Instance != null)
+                {
+                    FirstPersonArmController.Instance.PlayGrabAndEatMotion(transform.position, () =>
+                    {
+                        ExecuteBananaEatLogic();
+                    });
+                }
+                else
                 {
                     ExecuteBananaEatLogic();
-                });
-            }
-            else
-            {
-                ExecuteBananaEatLogic();
-            }
+                }
+            });
         }
 
         private void ExecuteBananaEatLogic()
