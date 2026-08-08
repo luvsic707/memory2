@@ -102,6 +102,12 @@ namespace TheLastCompact.Wakeup
                 Debug.Log("[Stage4] 环境光已设为黑色，舞台准备就绪。");
             }
 
+            // 自动装配 Stage 4 走出去切关控制器
+            if (Stage4WalkOutExitController.Instance == null && GetComponent<Stage4WalkOutExitController>() == null)
+            {
+                gameObject.AddComponent<Stage4WalkOutExitController>();
+            }
+
             Debug.Log("[Stage4] 关卡初始化完成。点击鼠标左键开始工作...");
         }
 
@@ -151,6 +157,10 @@ namespace TheLastCompact.Wakeup
 
             // 驱动所有 Office 向内坍塌
             officeCollapse?.OnClick();
+
+            // 驱动 Stage4WalkOutExitController 坍塌计数
+            if (Stage4WalkOutExitController.Instance != null)
+                Stage4WalkOutExitController.Instance.OnWorkClick();
 
             // 记录行为数据
             if (PlayerBehaviorData.Instance != null)
