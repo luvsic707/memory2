@@ -27,14 +27,8 @@ namespace TheLastCompact.Wakeup
 
         // ── 变异香蕉系统 ──────────────────────────────────────────────────
         [Header("🧬 变异香蕉系统")]
-        [Tooltip("每次生成新香蕉时，出现变异香蕉的概率 (0=从不, 1=全部变异)")]
+        [Tooltip("每次生成新香蕉时，出现变异香蕉的概率 (0.15 表示 15% 几率变异。只要玩家与任意变异香蕉交互，即可通关进入 Stage 2)")]
         [Range(0f, 1f)] public float mutantChance = 0.15f;
-
-        [Tooltip("吃了多少个香蕉后，变异香蕉才有可能成为 Exit 通关香蕉 (设为 0 表示从第 1 次分裂起即可产生)")]
-        public int exitBananaMinCount = 0;
-
-        [Tooltip("在变异香蕉中，成为 Exit 通关香蕉的概率 (例如 0.25 即 25% 的变异香蕉为 Exit 香蕉)")]
-        [Range(0f, 1f)] public float exitBananaChance = 0.25f;
 
         // ── Prefab ────────────────────────────────────────────────────────
         [Header("香蕉 Prefab")]
@@ -180,20 +174,12 @@ namespace TheLastCompact.Wakeup
             );
             Vector3 spawnPos  = source.transform.position + offset;
 
-            // ── 决定变异/Exit ────────────────────────────────────────────
+            // ── 决定变异 ──────────────────────────────────────────────────
             bool isMutant = Random.value < mutantChance;
-            bool isExit   = false;
-            if (isMutant && eatenCount >= exitBananaMinCount && !hasSpawnedExitBanana)
-            {
-                isExit = Random.value < exitBananaChance;
-                if (isExit) hasSpawnedExitBanana = true;
-            }
 
             // ── 实例化 ───────────────────────────────────────────────────
             GameObject newBanana = Instantiate(prefab, spawnPos, Random.rotation);
-            newBanana.name = isMutant
-                ? (isExit ? "ExitBanana_Mutant" : "Banana_Mutant")
-                : "Banana_Normal";
+            newBanana.name = isMutant ? "Banana_Mutant" : "Banana_Normal";
 
             // 基础缩放（使用缓存的场景原始香蕉缩放作为参考）
             newBanana.transform.localScale = templateScale;
@@ -202,6 +188,18 @@ namespace TheLastCompact.Wakeup
             {
                 // 变异香蕉：应用夸张视觉效果
                 ApplyMutantVisuals(newBanana);
+
+                // 🌟 核心规则：只要是变异香蕉，吃掉即触发通关进入 Stage 2！
+                BananaInteractable bi = newBanana.GetComponent<BananaInteractable>();
+                if (bi == null)
+                {
+                    bi = newBanana.AddComponent<BananaInteractable>();
+                    bi.bananaPrefab       = prefab;
+                    bi.spawnAsInteractive = true;
+                }
+                bi.isGlowingBanana = true;
+
+                Debug.Log("<color=yellow>[Stage1] 生成了一只变异香蕉！与其交互即可通关进入 Stage 2。</color>");
             }
             else
             {
@@ -212,34 +210,13 @@ namespace TheLastCompact.Wakeup
                     BananaDistorter d = newBanana.GetComponent<BananaDistorter>() ?? newBanana.AddComponent<BananaDistorter>();
                     d.distortionFactor = distFactor;
                 }
-                // 正常香蕉也随计数轻微变大（比之前温和，只乘 0.2 而非 0.35）
                 newBanana.transform.localScale = templateScale * (1f + distFactor * 0.2f);
-            }
 
-            // ── Exit 香蕉：标记为可通关，防止重力滚落 ───────────────────
-            if (isExit)
-            {
-                BananaInteractable bi = newBanana.GetComponent<BananaInteractable>();
-                if (bi == null)
+                if (!source.spawnAsInteractive)
                 {
-                    bi = newBanana.AddComponent<BananaInteractable>();
-                    bi.bananaPrefab      = prefab;
-                    bi.spawnAsInteractive = true;
+                    var bi = newBanana.GetComponent<BananaInteractable>();
+                    if (bi != null) Destroy(bi);
                 }
-                bi.isGlowingBanana = true;
-
-                // Kinematic：防止滚落让玩家找不到
-                Rigidbody rb = newBanana.GetComponent<Rigidbody>()
-                            ?? newBanana.GetComponentInChildren<Rigidbody>();
-                if (rb != null) { rb.isKinematic = true; rb.useGravity = false; }
-
-                Debug.Log("<color=yellow>[Stage1] 产生了 Exit 变异香蕉！玩家需要找到并与之交互以进入 Stage 2。</color>");
-            }
-            else if (!source.spawnAsInteractive)
-            {
-                // 非 Exit 且 source 设置不可交互：移除 BananaInteractable
-                var bi = newBanana.GetComponent<BananaInteractable>();
-                if (bi != null) Destroy(bi);
             }
         }
 
