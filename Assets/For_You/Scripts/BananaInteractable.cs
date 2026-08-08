@@ -45,6 +45,9 @@ namespace TheLastCompact.Wakeup
         private void Awake()
         {
             AutoFitCollider();
+            // 提前挂载 BananaJuice，让 Inspector 在进入场景后就能看到并调整参数
+            if (GetComponent<BananaJuice>() == null)
+                gameObject.AddComponent<BananaJuice>();
         }
 
         private void AutoFitCollider()

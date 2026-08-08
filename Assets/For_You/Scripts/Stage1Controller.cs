@@ -29,6 +29,22 @@ namespace TheLastCompact.Wakeup
         [Tooltip("普通香蕉的预制体（我们将动态用代码为其添加红光光晕做成特殊香蕉）")]
         public GameObject bananaPrefab;
 
+        [Header("🍌 香蕉 Juice 参数（统一控制所有香蕉的手感）")]
+        [Tooltip("Y 轴压缩幅度，0=无，0.3=明显压扁")]
+        [Range(0f, 0.5f)] public float juiceSquashY = 0.28f;
+
+        [Tooltip("弹回时的超出倍率（1=不超出，1.2=弹性感强）")]
+        [Range(1f, 1.5f)] public float juiceOvershoot = 1.12f;
+
+        [Tooltip("随机晃动角度（度）")]
+        [Range(0f, 45f)] public float juiceWobbleAngle = 18f;
+
+        [Tooltip("摄像机震屏强度")]
+        [Range(0f, 0.1f)] public float juiceShakeIntensity = 0.025f;
+
+        [Tooltip("横向弹出位移")]
+        [Range(0f, 0.15f)] public float juicePunchDistance = 0.04f;
+
         private int eatenCount = 0;
         private bool hasSpawnedSpecialBanana = false;
 
@@ -63,6 +79,26 @@ namespace TheLastCompact.Wakeup
             if (initialBanana != null)
             {
                 templateScale = initialBanana.transform.lossyScale;
+            }
+
+            // 将 Juice 参数推送给场景中所有香蕉（统一控制手感，无需逐个设置）
+            PushJuiceSettingsToAllBananas();
+        }
+
+        /// <summary>
+        /// 把 Stage1Controller Inspector 上的 Juice 参数同步推送给场景内所有 BananaJuice 组件
+        /// 运行时也可以调用此方法刷新（比如动态生成新香蕉后）
+        /// </summary>
+        public void PushJuiceSettingsToAllBananas()
+        {
+            BananaJuice[] allJuice = FindObjectsOfType<BananaJuice>(true);
+            foreach (var j in allJuice)
+            {
+                j.squashY        = juiceSquashY;
+                j.overshoot      = juiceOvershoot;
+                j.wobbleAngle    = juiceWobbleAngle;
+                j.shakeIntensity = juiceShakeIntensity;
+                j.punchDistance  = juicePunchDistance;
             }
         }
 
