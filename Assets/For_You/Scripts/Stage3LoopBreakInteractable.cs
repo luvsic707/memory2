@@ -7,15 +7,14 @@ namespace TheLastCompact.Wakeup
     /// <summary>
     /// Stage 3 (莫比乌斯/西西弗斯 3_Rock) 循环解脱与缝合线交互器 (结合方案 2+4)
     /// 哲学概念：加缪《西西弗斯神话》—— 意识到了无限循环的荒谬，选择放弃推石，解开莫比乌斯曲面的缝合线。
-    /// 交互设计：
-    /// 1. 按 Q 键继续进行无限西西弗斯推球；
-    /// 2. 随时按 E 键 或 用鼠标直接点击场景中的发光缝合环 ➔ 触发 "放弃推动 (踏出循环)" 动画！
-    /// 3. 巨石定格化灰 + 莫比乌斯缝合线剧烈撕裂 + 转场进入 Stage 4 (4_Modern) 办公室！
+    /// 1. 自动在莫比乌斯环扭转处/斜坡山顶渲染发光的莫比乌斯缝合线 (Glowing Mobius Seam)。
+    /// 2. 实现 IInteractable 接口，提示 "放弃推动 (踏出循环)"。
+    /// 3. 按 Q 交互时：巨石冻结化灰 + 莫比乌斯缝合线拉开撕裂 + 自动触发 Stage 4 转场！
     /// </summary>
     public class Stage3LoopBreakInteractable : MonoBehaviour, IInteractable
     {
         [Header("交互提示")]
-        [SerializeField] private string interactHint = "按 E 键 / 点击缝合线：放弃推动 (踏出循环)";
+        [SerializeField] private string interactHint = "放弃推动 (踏出循环)";
 
         [Header("缝合线光晕视觉")]
         [Tooltip("莫比乌斯缝合线的发光颜色")]
@@ -25,7 +24,7 @@ namespace TheLastCompact.Wakeup
         public float seamRadius = 2.5f;
 
         [Header("转场延迟")]
-        [Tooltip("按下 E 键或点击后，巨石定格与缝线拉开的时长（秒）")]
+        [Tooltip("按下 Q 后，巨石定格与缝线拉开的时长（秒）")]
         public float dissolveDuration = 1.8f;
 
         [Header("音效 (可选)")]
@@ -39,7 +38,6 @@ namespace TheLastCompact.Wakeup
         private LineRenderer _seamLine;
         private Material _seamMaterial;
         private AudioSource _audioSource;
-        private GUIStyle _guiStyle;
 
         private void Awake()
         {
@@ -58,10 +56,14 @@ namespace TheLastCompact.Wakeup
             if (GetComponent<Collider>() == null)
             {
                 SphereCollider sphere = gameObject.AddComponent<SphereCollider>();
-                sphere.radius = seamRadius * 1.5f;
+                sphere.radius = 2.0f;
+                sphere.isTrigger = true;
             }
         }
 
+        /// <summary>
+        /// 程序化渲染莫比乌斯环缝合线光晕
+        /// </summary>
         private void SetupSeamVisual()
         {
             GameObject lineGo = new GameObject("MobiusSeamVisual");
@@ -77,13 +79,15 @@ namespace TheLastCompact.Wakeup
             _seamMaterial = new Material(shader);
             _seamMaterial.color = seamGlowColor;
             _seamLine.material = _seamMaterial;
-            _seamLine.startWidth = 0.3f;
-            _seamLine.endWidth = 0.3f;
+            _seamLine.startWidth = 0.25f;
+            _seamLine.endWidth = 0.25f;
 
+            // 绘制一个带有扭转感的 3D 缝合线环
             for (int i = 0; i < segments; i++)
             {
                 float t = (float)i / segments;
                 float angle = t * Mathf.PI * 2f;
+                // 带有莫比乌斯 8 字扭曲立体的光环
                 float x = Mathf.Sin(angle) * seamRadius;
                 float y = Mathf.Sin(angle * 2f) * 0.4f;
                 float z = Mathf.Cos(angle) * seamRadius;
@@ -93,68 +97,16 @@ namespace TheLastCompact.Wakeup
 
         private void Update()
         {
-            if (_isTriggered) return;
-
-            // 1. 缝合线自转与脉冲
-            if (_seamLine != null)
+            // 缝合线自转与脉冲
+            if (_seamLine != null && !_isTriggered)
             {
-                float pulse = 0.7f + Mathf.Sin(Time.time * 3.5f) * 0.3f;
+                float pulse = 0.7f + Mathf.Sin(Time.time * 3f) * 0.3f;
                 if (_seamMaterial != null)
                 {
                     _seamMaterial.color = new Color(seamGlowColor.r, seamGlowColor.g, seamGlowColor.b, seamGlowColor.a * pulse);
                 }
-                transform.Rotate(Vector3.up, 18f * Time.deltaTime);
+                transform.Rotate(Vector3.up, 15f * Time.deltaTime);
             }
-
-            // 2. 键盘快捷键监听：按 E 键直接触发放弃推动并踏出循环
-            if (Input.GetKeyDown(KeyCode.E))
-            {
-                Debug.Log("[Stage3] 玩家按下了 E 键：触发放弃推动，踏出循环！");
-                Interact();
-                return;
-            }
-
-            // 3. 鼠标直接点击 3D 空间中的发光缝合环判定
-            if (Input.GetMouseButtonDown(0))
-            {
-                Camera cam = Camera.main;
-                if (cam != null)
-                {
-                    Ray ray = cam.ScreenPointToRay(Input.mousePosition);
-                    if (Physics.Raycast(ray, out RaycastHit hit, 200f))
-                    {
-                        if (hit.transform == transform || hit.transform.IsChildOf(transform))
-                        {
-                            Debug.Log("[Stage3] 玩家用鼠标直接点击了莫比乌斯缝合线！");
-                            Interact();
-                        }
-                    }
-                }
-            }
-        }
-
-        // 在屏幕上渲染清晰的解脱操作 UI 提示
-        private void OnGUI()
-        {
-            if (_isTriggered) return;
-
-            if (_guiStyle == null)
-            {
-                _guiStyle = new GUIStyle();
-                _guiStyle.fontSize = 20;
-                _guiStyle.fontStyle = FontStyle.Bold;
-                _guiStyle.normal.textColor = new Color(0.4f, 0.9f, 1.0f, 0.95f);
-                _guiStyle.alignment = TextAnchor.MiddleCenter;
-            }
-
-            // 在屏幕下方中央渲染操作提示
-            float width = 450f;
-            float height = 40f;
-            float x = (Screen.width - width) * 0.5f;
-            float y = Screen.height - 80f;
-
-            GUI.Box(new Rect(x - 10, y - 5, width + 20, height + 10), "");
-            GUI.Label(new Rect(x, y, width, height), "💡 按 【E】 键放弃推动，解开莫比乌斯循环 (进入下一阶段)", _guiStyle);
         }
 
         // ── IInteractable 接口实现 ─────────────────────────────────────────
@@ -173,7 +125,7 @@ namespace TheLastCompact.Wakeup
             // 1. 广播叙事通告
             EventBus.RaiseAnnouncement("You stopped pushing the rock. The Mobius loop unraveled.");
 
-            // 2. 找到场上的 SisyphusRock / BallOnMobius 并将其定格（冻结运动）
+            // 2. 找到场上的 SisyphusRock 巨石并将其定格（冻结物理，停止滚落/推动）
             SisyphusRock rock = FindObjectOfType<SisyphusRock>();
             if (rock != null)
             {
@@ -181,15 +133,10 @@ namespace TheLastCompact.Wakeup
                 if (rb != null)
                 {
                     rb.isKinematic = true;
+                    rb.linearVelocity = Vector3.zero;
+                    rb.angularVelocity = Vector3.zero;
                 }
                 StartCoroutine(DissolveRockRoutine(rock.gameObject));
-            }
-
-            BallOnMobius ball = FindObjectOfType<BallOnMobius>();
-            if (ball != null)
-            {
-                ball.enabled = false;
-                StartCoroutine(DissolveRockRoutine(ball.gameObject));
             }
 
             // 3. 播放解开缝合线音效
@@ -198,7 +145,7 @@ namespace TheLastCompact.Wakeup
             // 4. 莫比乌斯缝合线剧烈扩大亮起
             float elapsed = 0f;
             Vector3 startScale = transform.localScale;
-            Vector3 targetScale = startScale * 5f;
+            Vector3 targetScale = startScale * 4f;
 
             Camera mainCam = Camera.main;
             Vector3 camStartPos = mainCam != null ? mainCam.transform.localPosition : Vector3.zero;
@@ -214,9 +161,10 @@ namespace TheLastCompact.Wakeup
                     _seamMaterial.color = Color.Lerp(seamGlowColor, Color.white, easeIn);
                 }
 
+                // 相机产生微弱的解拉链震撼震动
                 if (mainCam != null)
                 {
-                    mainCam.transform.localPosition = camStartPos + (Vector3)Random.insideUnitCircle * (0.05f * t);
+                    mainCam.transform.localPosition = camStartPos + (Vector3)Random.insideUnitCircle * (0.04f * t);
                 }
 
                 elapsed += Time.deltaTime;
@@ -225,7 +173,7 @@ namespace TheLastCompact.Wakeup
 
             if (mainCam != null) mainCam.transform.localPosition = camStartPos;
 
-            // 5. 触发 Stage 3 控制器执行转场 -> Stage 4 (4_Modern)
+            // 5. 触发 Stage 3 控制器执行转场 -> Stage 4
             if (Stage3Controller.Instance != null)
             {
                 Stage3Controller.Instance.TriggerSceneComplete();
@@ -236,22 +184,24 @@ namespace TheLastCompact.Wakeup
             }
         }
 
-        private IEnumerator DissolveRockRoutine(GameObject go)
+        // 巨石平影化散
+        private IEnumerator DissolveRockRoutine(GameObject rockGo)
         {
-            Vector3 origScale = go.transform.localScale;
+            Vector3 origScale = rockGo.transform.localScale;
             float elapsed = 0f;
             float dur = dissolveDuration * 0.9f;
 
             while (elapsed < dur)
             {
                 float t = elapsed / dur;
-                go.transform.localScale = Vector3.Lerp(origScale, Vector3.zero, t * t);
+                rockGo.transform.localScale = Vector3.Lerp(origScale, Vector3.zero, t * t);
                 elapsed += Time.deltaTime;
                 yield return null;
             }
-            go.transform.localScale = Vector3.zero;
+            rockGo.transform.localScale = Vector3.zero;
         }
 
+        // 缝线拉开音效
         private void PlayUnzipSound()
         {
             if (seamUnzipClip != null)
@@ -260,6 +210,7 @@ namespace TheLastCompact.Wakeup
             }
             else
             {
+                // 程序化合成渐强微光声
                 _audioSource.PlayOneShot(CreateSynthUnzipClip(), soundVolume * 0.7f);
             }
         }
@@ -278,7 +229,7 @@ namespace TheLastCompact.Wakeup
             {
                 float time = (float)i / sampleRate;
                 float t = time / duration;
-                float freq = Mathf.Lerp(150f, 650f, t * t);
+                float freq = Mathf.Lerp(150f, 650f, t * t); // 频率从低向高向上扫频（拉链拉开感）
                 float env = Mathf.Sin(t * Mathf.PI);
                 float wave = Mathf.Sin(2f * Mathf.PI * freq * time);
                 data[i] = wave * env * 0.35f;

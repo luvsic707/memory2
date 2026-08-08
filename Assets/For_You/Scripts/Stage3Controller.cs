@@ -88,17 +88,19 @@ namespace TheLastCompact.Wakeup
         {
             if (FindObjectOfType<Stage3LoopBreakInteractable>() != null) return;
 
-            Vector3 spawnPos = new Vector3(0f, 2f, 10f);
-            Camera mainCam = Camera.main;
-            if (mainCam != null)
-            {
-                spawnPos = mainCam.transform.position + mainCam.transform.forward * 8.5f - mainCam.transform.up * 1.2f;
-            }
-
+            // 寻找山顶或巨石作为生成位置
+            Vector3 spawnPos = new Vector3(0f, 6f, 15f);
             SisyphusRock rock = FindObjectOfType<SisyphusRock>();
-            if (rock != null && rock.topOfSlope != null)
+            if (rock != null)
             {
-                spawnPos = rock.topOfSlope.position;
+                if (rock.topOfSlope != null)
+                {
+                    spawnPos = rock.topOfSlope.position;
+                }
+                else
+                {
+                    spawnPos = rock.transform.position + Vector3.up * 2f + Vector3.forward * 8f;
+                }
             }
 
             GameObject breakGo = new GameObject("Stage3_LoopBreakInteractable");
