@@ -189,8 +189,12 @@ namespace TheLastCompact.Wakeup
 #if UNITY_EDITOR
             if (FindAnyObjectByType<SceneTransitionManager>() == null)
             {
-                Debug.LogWarning($"[Stage4Controller] 单关测试模式：直接加载 {nextSceneName}");
-                SceneManager.LoadScene(nextSceneName);
+                string targetScene = (string.IsNullOrEmpty(nextSceneName) || nextSceneName == "5_Contemporary")
+                    ? "5_Contemporary_1"
+                    : nextSceneName;
+
+                Debug.LogWarning($"[Stage4Controller] 单关测试模式：直接加载 {targetScene}");
+                SceneManager.LoadScene(targetScene);
             }
 #endif
         }
