@@ -68,7 +68,7 @@ namespace TheLastCompact.Wakeup
 
         [Header("转场参数")]
         public float transitionDelay = 2f;
-        public string nextSceneName = "5_Contemporary";
+        public string nextSceneName = "5_Contemporary_1";
 
         private AudioSource _bgmAudioSource;
         private bool _isTransitioning = false;
