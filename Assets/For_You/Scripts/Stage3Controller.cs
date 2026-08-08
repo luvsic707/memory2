@@ -81,32 +81,16 @@ namespace TheLastCompact.Wakeup
         private void Start()
         {
             SetupBGM();
-            EnsureLoopBreakInteractable();
+            EnsureInactionBreakController();
         }
 
-        private void EnsureLoopBreakInteractable()
+        private void EnsureInactionBreakController()
         {
-            if (FindObjectOfType<Stage3LoopBreakInteractable>() != null) return;
-
-            // 寻找山顶或巨石作为生成位置
-            Vector3 spawnPos = new Vector3(0f, 6f, 15f);
-            SisyphusRock rock = FindObjectOfType<SisyphusRock>();
-            if (rock != null)
+            if (Stage3InactionBreakController.Instance == null && FindObjectOfType<Stage3InactionBreakController>() == null)
             {
-                if (rock.topOfSlope != null)
-                {
-                    spawnPos = rock.topOfSlope.position;
-                }
-                else
-                {
-                    spawnPos = rock.transform.position + Vector3.up * 2f + Vector3.forward * 8f;
-                }
+                gameObject.AddComponent<Stage3InactionBreakController>();
+                Debug.Log("[Stage3] 自动挂载了 Stage3InactionBreakController '放弃交互打破循环' 控制器。");
             }
-
-            GameObject breakGo = new GameObject("Stage3_LoopBreakInteractable");
-            breakGo.transform.position = spawnPos;
-            breakGo.AddComponent<Stage3LoopBreakInteractable>();
-            Debug.Log($"[Stage3] 自动为场景在 {spawnPos} 处生成了 '放弃推动 (踏出循环)' 缝合线交互点！");
         }
 
         private void SetupBGM()
