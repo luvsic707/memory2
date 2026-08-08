@@ -7,33 +7,46 @@ namespace TheLastCompact.Wakeup
     /// <summary>
     /// 第 1 阶段（猩猩关卡 1_Ape）总控制器
     /// 1. 采用单例模式，协调关卡流程。
-    /// 2. 追踪吃香蕉进度。随着吃蕉增多，扭曲因子（distortionFactor）不断提升，分裂（mitosis）出的香蕉数量和扭曲度递增。
-    /// 3. 当计数达到目标值（约 20 次）时，将场上所有普通香蕉“灰质化”并禁用交互，同时在终点生成一个带红光光晕的特殊通关香蕉。
-    /// 4. 吃掉特殊香蕉后广播事件并触发加载下一场景。
+    /// 2. 追踪吃香蕉进度，随交互次数增加，分裂数量递增（每4个多生一只，最多6倍）。
+    /// 3. 大多数新生香蕉外观正常（轻微扭曲随计数增长）。
+    ///    约 mutantChance（默认15%）的新生香蕉为"变异香蕉"：色彩/尺寸/形状夸张。
+    /// 4. 吃满 exitBananaMinCount 后，变异香蕉有概率成为 Exit 香蕉（isGlowingBanana=true）。
+    ///    玩家与 Exit 香蕉交互 → 触发通关。无固定触发时机，完全由玩家探索发现。
     /// </summary>
     public class Stage1Controller : MonoBehaviour
     {
         public static Stage1Controller Instance { get; private set; }
 
+        // ── 关卡参数 ──────────────────────────────────────────────────────
         [Header("关卡参数")]
-        [Tooltip("触发通关香蕉出现的吃蕉目标数")]
-        public int targetBananaCount = 20;
+        [Tooltip("正常香蕉的扭曲度在此数量时达到最大（与通关无关，仅影响普通香蕉变形程度）")]
+        public int distortionMaxCount = 50;
 
-        [Tooltip("最大扭曲度上限")]
-        public float maxDistortionFactor = 1.5f;
+        [Tooltip("正常香蕉最大扭曲度上限（保持在 0.6 以下避免形变过于夸张）")]
+        public float maxDistortionFactor = 0.6f;
 
-        [Header("特殊香蕉生成设置")]
-        [Tooltip("特殊香蕉的生成位置，若为空则在玩家出生点附近或场景原点生成")]
-        public Transform glowingBananaSpawnPoint;
+        // ── 变异香蕉系统 ──────────────────────────────────────────────────
+        [Header("🧬 变异香蕉系统")]
+        [Tooltip("每次生成新香蕉时，出现变异香蕉的概率 (0=从不, 1=全部变异)")]
+        [Range(0f, 1f)] public float mutantChance = 0.15f;
 
-        [Tooltip("普通香蕉的预制体（我们将动态用代码为其添加红光光晕做成特殊香蕉）")]
+        [Tooltip("吃了多少个香蕉后，变异香蕉才有可能成为 Exit 通关香蕉 (设为 0 表示从第 1 次分裂起即可产生)")]
+        public int exitBananaMinCount = 0;
+
+        [Tooltip("在变异香蕉中，成为 Exit 通关香蕉的概率 (例如 0.25 即 25% 的变异香蕉为 Exit 香蕉)")]
+        [Range(0f, 1f)] public float exitBananaChance = 0.25f;
+
+        // ── Prefab ────────────────────────────────────────────────────────
+        [Header("香蕉 Prefab")]
+        [Tooltip("普通香蕉预制体（分裂生成与 Exit 香蕉共用此 Prefab）")]
         public GameObject bananaPrefab;
 
+        // ── Juice 参数（集中控制，推送到所有 BananaJuice 组件） ─────────
         [Header("🍌 香蕉 Juice 参数（统一控制所有香蕉的手感）")]
-        [Tooltip("Y 轴压缩幅度，0=无，0.3=明显压扁")]
+        [Tooltip("Y 轴压缩幅度")]
         [Range(0f, 0.5f)] public float juiceSquashY = 0.28f;
 
-        [Tooltip("弹回时的超出倍率（1=不超出，1.2=弹性感强）")]
+        [Tooltip("弹回时的超出倍率")]
         [Range(1f, 1.5f)] public float juiceOvershoot = 1.12f;
 
         [Tooltip("随机晃动角度（度）")]
@@ -45,22 +58,20 @@ namespace TheLastCompact.Wakeup
         [Tooltip("横向弹出位移")]
         [Range(0f, 0.15f)] public float juicePunchDistance = 0.04f;
 
-        private int eatenCount = 0;
-        private bool hasSpawnedSpecialBanana = false;
+        // ── 内部状态 ──────────────────────────────────────────────────────
+        private int   eatenCount           = 0;
+        private bool  hasSpawnedExitBanana = false;
+        private Vector3 templateScale      = Vector3.one;
 
+        /// <summary>变异香蕉视觉类型</summary>
+        private enum MutantType { Color, ScaleBig, ScaleSmall, Distortion }
+
+        // ─────────────────────────────────────────────────────────────────
         private void Awake()
         {
-            if (Instance == null)
-            {
-                Instance = this;
-            }
-            else
-            {
-                Destroy(gameObject);
-            }
+            if (Instance == null) Instance = this;
+            else Destroy(gameObject);
         }
-
-        private Vector3 templateScale = Vector3.one;
 
         private void Start()
         {
@@ -69,26 +80,44 @@ namespace TheLastCompact.Wakeup
             {
                 Camera mainCam = Camera.main;
                 if (mainCam != null && mainCam.GetComponent<FirstPersonArmController>() == null)
-                {
                     mainCam.gameObject.AddComponent<FirstPersonArmController>();
-                }
             }
 
-            // 缓存场景里第一个香蕉的原本缩放，避免生成的强光香蕉比正常香蕉大几十倍
+            // 缓存场景里第一个香蕉的原本缩放，避免生成的香蕉比例错误
             BananaInteractable initialBanana = FindObjectOfType<BananaInteractable>();
-            if (initialBanana != null)
-            {
-                templateScale = initialBanana.transform.lossyScale;
-            }
+            if (initialBanana != null) templateScale = initialBanana.transform.lossyScale;
 
-            // 将 Juice 参数推送给场景中所有香蕉（统一控制手感，无需逐个设置）
+            // 将 Juice 参数推送给场景中所有香蕉
             PushJuiceSettingsToAllBananas();
         }
 
-        /// <summary>
-        /// 把 Stage1Controller Inspector 上的 Juice 参数同步推送给场景内所有 BananaJuice 组件
-        /// 运行时也可以调用此方法刷新（比如动态生成新香蕉后）
-        /// </summary>
+        private void Update()
+        {
+#if UNITY_EDITOR
+            // 单关测试模式：按 P 键直接跳过该关
+            if (Input.GetKeyDown(KeyCode.P) && FindObjectOfType<SceneTransitionManager>() == null)
+            {
+                Debug.Log("[Debug] 玩家在单关测试模式下按下了 P 键，正在手动跳过当前关卡...");
+                PerformSceneTransition();
+            }
+#endif
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Public API
+
+        /// <summary>获取当前正常香蕉的扭曲度因子</summary>
+        public float GetCurrentDistortionFactor()
+        {
+            if (distortionMaxCount <= 0) return 0f;
+            float ratio = Mathf.Min((float)eatenCount / distortionMaxCount, 1f);
+            return ratio * maxDistortionFactor;
+        }
+
+        /// <summary>查询是否已产生过 Exit 香蕉</summary>
+        public bool HasSpawnedExitBanana() => hasSpawnedExitBanana;
+
+        /// <summary>把 Inspector 上的 Juice 参数同步推送给场景内所有 BananaJuice 组件</summary>
         public void PushJuiceSettingsToAllBananas()
         {
             BananaJuice[] allJuice = FindObjectsOfType<BananaJuice>(true);
@@ -102,176 +131,195 @@ namespace TheLastCompact.Wakeup
             }
         }
 
-        private void Update()
-        {
-#if UNITY_EDITOR
-            // 如果是在单关测试模式（没有 SceneTransitionManager），按 P 键可以直接跳过该关进入下一关
-            if (Input.GetKeyDown(KeyCode.P) && FindObjectOfType<SceneTransitionManager>() == null)
-            {
-                Debug.Log("[Debug] 玩家在单关测试模式下按下了 P 键，正在手动跳过当前关卡...");
-                PerformSceneTransition();
-            }
-#endif
-        }
-
-        /// <summary>
-        /// 获取当前的网格扭曲度因子 (由 BananaInteractable 调用传递给新生成的香蕉)
-        /// </summary>
-        public float GetCurrentDistortionFactor()
-        {
-            if (targetBananaCount <= 0) return 0f;
-            float ratio = (float)eatenCount / targetBananaCount;
-            return Mathf.Min(ratio * maxDistortionFactor, maxDistortionFactor);
-        }
-
-        /// <summary>
-        /// 提供给外部查询当前是否已生成特殊红光香蕉
-        /// </summary>
-        public bool HasSpawnedSpecialBanana()
-        {
-            return hasSpawnedSpecialBanana;
-        }
-
-        /// <summary>
-        /// 每次普通香蕉被交互/吃掉时调用
-        /// </summary>
+        /// <summary>每次普通香蕉被交互/吃掉时调用（由 BananaInteractable 触发）</summary>
         public void OnBananaEaten(BananaInteractable eatenBanana)
         {
             eatenCount++;
-            Debug.Log($"[Stage1] 吃掉香蕉。当前计数：{eatenCount}/{targetBananaCount}");
+            Debug.Log($"[Stage1] 吃掉香蕉。当前计数：{eatenCount}");
 
-            if (eatenCount >= targetBananaCount && !hasSpawnedSpecialBanana)
+            // 有丝分裂：随计数增多，每次生成数量增加（每4个+1，上限6）
+            int mitosisCount = Mathf.Clamp(eatenCount / 4 + 1, 1, 6);
+            for (int i = 0; i < mitosisCount; i++)
             {
-                hasSpawnedSpecialBanana = true;
-                // 触发转场前奏：生成强光特殊香蕉
-                StartCoroutine(TriggerClimaxSequence());
-            }
-
-            // 无论是否触发了红光香蕉，都继续进行有丝分裂分裂与计数
-            int mitosisSpawnCount = Mathf.Clamp(eatenCount / 4 + 1, 1, 6);
-            for (int i = 0; i < mitosisSpawnCount; i++)
-            {
-                eatenBanana.SpawnNewBanana();
+                SpawnBananaFromSource(eatenBanana);
             }
         }
 
         /// <summary>
-        /// 触发特殊通关香蕉出现序列
+        /// 玩家吃掉 Exit 香蕉（isGlowingBanana=true）时触发通关
+        /// 保持与 BananaInteractable.ExecuteBananaEatLogic() 中调用的方法名一致
         /// </summary>
-        private IEnumerator TriggerClimaxSequence()
+        public void EatGlowingBanana()
         {
-            Debug.Log("<color=yellow>[Stage1] 达到目标吃蕉数，正在生成特殊红光香蕉...</color>");
+            Debug.Log("<color=green>[Stage1] 玩家成功吃下 Exit 变异香蕉！触发转场加载阶段 2...</color>");
+            EventBus.RaiseAnnouncement("The strange banana tasted wrong... You lost consciousness.");
+            Invoke("PerformSceneTransition", 1.2f);
+        }
 
-            yield return new WaitForSeconds(0.2f);
+        // ─────────────────────────────────────────────────────────────────
+        // Internal: Spawn Logic
 
-            // 2. 确定特殊香蕉的生成位置
-            Vector3 spawnPos = Vector3.zero;
-            Quaternion spawnRot = Quaternion.identity;
-
-            if (glowingBananaSpawnPoint != null)
+        /// <summary>
+        /// 在被吃香蕉附近生成一个新香蕉。
+        /// 按 mutantChance 决定是否为变异香蕉，再按 exitBananaChance 决定是否为 Exit 香蕉。
+        /// </summary>
+        private void SpawnBananaFromSource(BananaInteractable source)
+        {
+            GameObject prefab = source.bananaPrefab != null ? source.bananaPrefab : bananaPrefab;
+            if (prefab == null)
             {
-                spawnPos = glowingBananaSpawnPoint.position;
-                spawnRot = glowingBananaSpawnPoint.rotation;
+                Debug.LogError("[Stage1] 未指定 bananaPrefab！无法生成新香蕉。");
+                return;
+            }
+
+            // 随机偏移位置（沿用 source 的 spawnRadius/spawnHeightOffset）
+            Vector3 offset = new Vector3(
+                Random.Range(-source.spawnRadius, source.spawnRadius),
+                source.spawnHeightOffset,
+                Random.Range(-source.spawnRadius, source.spawnRadius)
+            );
+            Vector3 spawnPos  = source.transform.position + offset;
+
+            // ── 决定变异/Exit ────────────────────────────────────────────
+            bool isMutant = Random.value < mutantChance;
+            bool isExit   = false;
+            if (isMutant && eatenCount >= exitBananaMinCount && !hasSpawnedExitBanana)
+            {
+                isExit = Random.value < exitBananaChance;
+                if (isExit) hasSpawnedExitBanana = true;
+            }
+
+            // ── 实例化 ───────────────────────────────────────────────────
+            GameObject newBanana = Instantiate(prefab, spawnPos, Random.rotation);
+            newBanana.name = isMutant
+                ? (isExit ? "ExitBanana_Mutant" : "Banana_Mutant")
+                : "Banana_Normal";
+
+            // 基础缩放（使用缓存的场景原始香蕉缩放作为参考）
+            newBanana.transform.localScale = templateScale;
+
+            if (isMutant)
+            {
+                // 变异香蕉：应用夸张视觉效果
+                ApplyMutantVisuals(newBanana);
             }
             else
             {
-                // 备用位置：玩家主摄像机面前 3.5 米 (比 GameObject.FindWithTag("Player") 更加百分之百可靠)
-                Camera mainCam = Camera.main;
-                if (mainCam != null)
+                // 正常香蕉：轻微扭曲随计数增长
+                float distFactor = GetCurrentDistortionFactor();
+                if (distFactor > 0.05f)
                 {
-                    spawnPos = mainCam.transform.position + mainCam.transform.forward * 3.5f;
+                    BananaDistorter d = newBanana.GetComponent<BananaDistorter>() ?? newBanana.AddComponent<BananaDistorter>();
+                    d.distortionFactor = distFactor;
                 }
-                else
-                {
-                    GameObject player = GameObject.FindWithTag("Player");
-                    if (player != null)
-                    {
-                        spawnPos = player.transform.position + player.transform.forward * 3.5f + Vector3.up * 1f;
-                    }
-                    else
-                    {
-                        spawnPos = new Vector3(0, 1.5f, 0);
-                    }
-                }
+                // 正常香蕉也随计数轻微变大（比之前温和，只乘 0.2 而非 0.35）
+                newBanana.transform.localScale = templateScale * (1f + distFactor * 0.2f);
             }
 
-            // 3. 实例化特殊香蕉并动态添加红光提示
-            if (bananaPrefab != null)
+            // ── Exit 香蕉：标记为可通关，防止重力滚落 ───────────────────
+            if (isExit)
             {
-                GameObject glowingGo = Instantiate(bananaPrefab, spawnPos, spawnRot);
-                glowingGo.name = "GlowingBanana_Portal";
-                
-                // 应用和场景一致的缩放大小，防止由于预制体导入缩放比例偏大导致香蕉过大
-                glowingGo.transform.localScale = templateScale;
-
-                // 移除自带的扭曲组件，通关香蕉保持完美形态
-                BananaDistorter distorter = glowingGo.GetComponentInChildren<BananaDistorter>();
-                if (distorter != null) Destroy(distorter);
-
-                // 配置并确保存在交互属性 (以防因为模板组件被 Destroy 而丢失)
-                BananaInteractable bi = glowingGo.GetComponent<BananaInteractable>();
+                BananaInteractable bi = newBanana.GetComponent<BananaInteractable>();
                 if (bi == null)
                 {
-                    bi = glowingGo.AddComponent<BananaInteractable>();
-                    bi.bananaPrefab = bananaPrefab;
+                    bi = newBanana.AddComponent<BananaInteractable>();
+                    bi.bananaPrefab      = prefab;
                     bi.spawnAsInteractive = true;
                 }
                 bi.isGlowingBanana = true;
 
-                // 防御重力下坠：设置刚体为 kinematic，使其静止漂浮在半空中，防止滚落遗失导致玩家点不到
-                Rigidbody rb = glowingGo.GetComponent<Rigidbody>();
-                if (rb == null) rb = glowingGo.GetComponentInChildren<Rigidbody>();
-                if (rb != null)
-                {
-                    rb.isKinematic = true;
-                    rb.useGravity = false;
-                }
+                // Kinematic：防止滚落让玩家找不到
+                Rigidbody rb = newBanana.GetComponent<Rigidbody>()
+                            ?? newBanana.GetComponentInChildren<Rigidbody>();
+                if (rb != null) { rb.isKinematic = true; rb.useGravity = false; }
 
-                // 动态构建红色光源以散发红光光晕
-                GameObject lightGo = new GameObject("RedGlowLight");
-                lightGo.transform.SetParent(glowingGo.transform, false);
-                lightGo.transform.localPosition = Vector3.zero;
-
-                Light pointLight = lightGo.AddComponent<Light>();
-                pointLight.type = LightType.Point;
-                pointLight.color = Color.red;
-                pointLight.intensity = 15f;
-                pointLight.range = 6f;
-                pointLight.shadows = LightShadows.Soft;
-
-                Debug.Log($"[Stage1] 成功在 {spawnPos} 处生成了特殊红色光晕香蕉！");
-                EventBus.RaiseAnnouncement("A strange glowing banana appeared in the distance...");
+                Debug.Log("<color=yellow>[Stage1] 产生了 Exit 变异香蕉！玩家需要找到并与之交互以进入 Stage 2。</color>");
             }
-            else
+            else if (!source.spawnAsInteractive)
             {
-                Debug.LogError("[Stage1] 未指定 bananaPrefab！无法生成通关香蕉。");
-                // 应急防御：如果没填预制体，直接切关
-                EventBus.RaiseSceneComplete();
+                // 非 Exit 且 source 设置不可交互：移除 BananaInteractable
+                var bi = newBanana.GetComponent<BananaInteractable>();
+                if (bi != null) Destroy(bi);
             }
         }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Internal: Mutant Visual System
 
         /// <summary>
-        /// 当玩家吃掉红色特殊香蕉时触发
+        /// 对变异香蕉应用随机夸张视觉效果。
+        /// 从四种变异类型中随机选一种：色彩、极大、极小、高度扭曲。
         /// </summary>
-        public void EatGlowingBanana()
+        private void ApplyMutantVisuals(GameObject banana)
         {
-            Debug.Log("<color=green>[Stage1] 玩家成功吃下红色特殊香蕉！触发转场加载阶段 2...</color>");
-            EventBus.RaiseAnnouncement("The glowing banana tasted strange... You lost consciousness.");
-            
-            // 延迟一秒转场以让玩家看到提示
-            Invoke("PerformSceneTransition", 1.2f);
+            MutantType type = (MutantType)Random.Range(0, System.Enum.GetValues(typeof(MutantType)).Length);
+            Renderer[] renderers = banana.GetComponentsInChildren<Renderer>(true);
+
+            switch (type)
+            {
+                // ── 色彩异变：极度饱和的随机彩色 ──────────────────────────
+                case MutantType.Color:
+                {
+                    Color vibrant = Color.HSVToRGB(Random.value, 0.95f, 1.0f);
+                    foreach (var r in renderers)
+                    {
+                        r.material.color = vibrant;
+                        // 尝试添加自发光（URP/Standard 均兼容）
+                        if (r.material.HasProperty("_EmissionColor"))
+                        {
+                            r.material.EnableKeyword("_EMISSION");
+                            r.material.SetColor("_EmissionColor", vibrant * 0.35f);
+                        }
+                    }
+                    break;
+                }
+
+                // ── 尺寸异变：极度放大（3~5x） ─────────────────────────────
+                case MutantType.ScaleBig:
+                {
+                    banana.transform.localScale = templateScale * Random.Range(3f, 5.5f);
+                    // 同时加一点颜色区分
+                    Color bigColor = Color.HSVToRGB(Random.value, 0.7f, 1f);
+                    foreach (var r in renderers) r.material.color = bigColor;
+                    break;
+                }
+
+                // ── 尺寸异变：极度缩小（8%~25%） ───────────────────────────
+                case MutantType.ScaleSmall:
+                {
+                    banana.transform.localScale = templateScale * Random.Range(0.08f, 0.25f);
+                    // 鲜艳小香蕉
+                    Color smallColor = Color.HSVToRGB(Random.value, 0.9f, 1f);
+                    foreach (var r in renderers) r.material.color = smallColor;
+                    break;
+                }
+
+                // ── 形状异变：极度扭曲 + 诡异配色 ─────────────────────────
+                case MutantType.Distortion:
+                {
+                    BananaDistorter d = banana.GetComponent<BananaDistorter>() ?? banana.AddComponent<BananaDistorter>();
+                    d.distortionFactor = Random.Range(2.5f, 5f);
+                    d.twistRate        = Random.Range(8f,  20f);
+                    d.bendRate         = Random.Range(0.8f, 2f);
+
+                    Color distortColor = Color.HSVToRGB(Random.value, 0.85f, 0.9f);
+                    foreach (var r in renderers) r.material.color = distortColor;
+                    break;
+                }
+            }
         }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Scene Transition
 
         private void PerformSceneTransition()
         {
             EventBus.RaiseSceneComplete();
 
-            // 额外防御：如果在编辑器中独立运行当前场景（没有通过 0_Bootstrap 启动），则没有 SceneTransitionManager。
-            // 为了让单关测试顺畅，我们直接在此处通过 SceneManager 载入下一个场景！
 #if UNITY_EDITOR
             if (FindObjectOfType<SceneTransitionManager>() == null)
             {
-                Debug.LogWarning("[Stage1Controller] 未检测到 SceneTransitionManager（可能是单关测试模式）。正在自动载入 2_God 场景进行单关测试过渡。");
+                Debug.LogWarning("[Stage1Controller] 未检测到 SceneTransitionManager，自动载入 2_God。");
                 UnityEngine.SceneManagement.SceneManager.LoadScene("2_God");
             }
 #endif

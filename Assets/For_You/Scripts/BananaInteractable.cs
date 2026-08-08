@@ -39,8 +39,8 @@ namespace TheLastCompact.Wakeup
         [Header("UI 提示")]
         [SerializeField] private string interactHint = "吃香蕉";
 
-        // 实现 IInteractable 接口的属性
-        public string InteractHint => isGlowingBanana ? "吃下强光香蕉" : interactHint;
+        // 实现 IInteractable 接口的属性 (保持统一提示 "吃香蕉"，方便融入变异香蕉供玩家探索)
+        public string InteractHint => interactHint;
 
         private void Awake()
         {
