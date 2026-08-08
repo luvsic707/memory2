@@ -78,6 +78,12 @@ namespace TheLastCompact.Wakeup
             // 自动配置 BGM 背景音乐
             SetupBGM();
 
+            // 自动装配 Stage 2 Juice 效果组件
+            if (Stage2JuiceEffects.Instance == null && GetComponent<Stage2JuiceEffects>() == null)
+            {
+                gameObject.AddComponent<Stage2JuiceEffects>();
+            }
+
             // 自动寻找石台
             if (floatingIsland == null)
             {
@@ -175,6 +181,13 @@ namespace TheLastCompact.Wakeup
                     PlayerBehaviorData.Instance.AddPrayer();
                 }
 
+                // 触发 Stage 2 Juice 反馈（神圣光环 + 视角扣击 + 低沉神钟音效）
+                if (Stage2JuiceEffects.Instance != null)
+                {
+                    Vector3 origin = player != null ? player.transform.position : transform.position;
+                    Stage2JuiceEffects.Instance.TriggerPrayerJuice(origin);
+                }
+
                 Debug.Log($"[Stage2] 玩家祈祷稳定石台。当前晃动度: {currentShakeIntensity}");
             }
 
@@ -261,8 +274,12 @@ namespace TheLastCompact.Wakeup
         {
             Debug.Log("<color=red>[Stage2] 检测到玩家坠落深渊！启动 3 秒倒计时转场...</color>");
             
-            // 触发跌落通告
+            // 触发跌落通告与失重 FOV 视角动画
             EventBus.RaiseAnnouncement("You lost balance and fell from the grace of divinity...");
+            if (Stage2JuiceEffects.Instance != null)
+            {
+                Stage2JuiceEffects.Instance.TriggerFallEuphoriaSequence();
+            }
 
             yield return new WaitForSeconds(3.0f);
 

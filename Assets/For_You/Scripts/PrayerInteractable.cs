@@ -40,8 +40,13 @@ namespace TheLastCompact.Wakeup
                 Debug.LogWarning("[Prayer] 找不到 PlayerBehaviorData 持久化实例！无法进行祈祷计数。");
             }
 
-            // 2. 没有任何物理、音效或动画回应 (静默完成)
-            Debug.Log("[Prayer] 玩家进行了一次祈祷，但神像毫无反应...");
+            // 2. 触发神圣平息 Juice 反馈（冲击波 + 音效）
+            if (Stage2JuiceEffects.Instance != null)
+            {
+                Stage2JuiceEffects.Instance.TriggerPrayerJuice(transform.position);
+            }
+
+            Debug.Log("[Prayer] 玩家进行了一次祈祷，石台平息恢复稳定...");
         }
     }
 }
