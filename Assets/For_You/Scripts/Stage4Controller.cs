@@ -128,6 +128,16 @@ namespace TheLastCompact.Wakeup
                 Debug.Log("[Stage4] 环境光已设为黑色，舞台准备就绪。");
             }
 
+            // 自动清理多余的 EventSystem 实例，保持控制台 100% 干净
+            UnityEngine.EventSystems.EventSystem[] eventSystems = FindObjectsOfType<UnityEngine.EventSystems.EventSystem>();
+            if (eventSystems.Length > 1)
+            {
+                for (int i = 1; i < eventSystems.Length; i++)
+                {
+                    Destroy(eventSystems[i].gameObject);
+                }
+            }
+
             // 自动装配 Stage 4 走出去切关控制器
             if (Stage4WalkOutExitController.Instance == null && GetComponent<Stage4WalkOutExitController>() == null)
             {
