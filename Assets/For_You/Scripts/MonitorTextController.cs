@@ -19,27 +19,24 @@ namespace TheLastCompact.Wakeup
         public string[] textSequence = new string[]
         {
             "Please complete your daily task report...",
-            "Reminder: Deadline is approaching.",
-            "Re: Please review the Q3 report again.",
-            "URGENT: Re: Re: Please re-review the Q3 report.",
-            "Your performance review is scheduled for review.",
-            "Note: The review of your review has been reviewed.",
-            "TASK_7741: PROCESSING...",
-            "TASK_7741: PROCESSING... TASK_7741: PROCESSING...",
-            "ERROR: STACK OVERFLOW — TASK_7741",
-            "You have been here before.\nYou will be here again.",
-            "There is no exit in this directory.",
-            "TASK_7741: RUNNING\nTASK_7741: RUNNING\nTASK_7741: RUNNING",
-            "CRITICAL: Your absence has been noted.\nYour presence has also been noted.",
-            "The report is due.\nThe report is always due.",
-            "> _",
+            "Reminder: Deadline is TODAY.",
+            "Re: Please review Q3 report again.",
+            "URGENT: Re: Re: Please re-review Q3 report.",
+            "Note: Your review has been reviewed.",
+            "WARNING: Structural Integrity Failing...\nWalls are closing in.",
+            "ERROR: Workplace boundary collapsing.",
+            "Notice: Desk space reduced to 25%.",
+            "CRITICAL: System Collapsed.\nWhy are you still typing?",
+            "[SYSTEM ALERT]:\nThe office has completely collapsed.",
+            "[GUIDANCE]:\nSTOP WORKING.\nStep away from your desk.",
+            "[GUIDANCE]:\nWalk out of the ruins to enter Stage 5 ->"
         };
 
         [Tooltip("每次点击切换到下一条文字的点击间隔")]
-        public int clicksPerMessage = 4;
+        public int clicksPerMessage = 1;
 
         [Tooltip("文字打字机效果速度（字/秒）")]
-        public float typeSpeed = 25f;
+        public float typeSpeed = 35f;
 
         [Header("3D 屏幕自适应偏置")]
         [Tooltip("微调 Canvas 在屏幕上的位置偏置（相对于屏幕 local 空间）")]
@@ -161,8 +158,17 @@ namespace TheLastCompact.Wakeup
         {
             if (_tmp == null || index >= textSequence.Length) return;
             _lastShownIndex = index;
+            SetCustomMessage(textSequence[index]);
+        }
+
+        /// <summary>
+        /// 公共接口：外部脚本直接向 3D 屏幕写入指定的绿色终端文字
+        /// </summary>
+        public void SetCustomMessage(string message)
+        {
+            if (_tmp == null) return;
             if (_typeCoroutine != null) StopCoroutine(_typeCoroutine);
-            _typeCoroutine = StartCoroutine(TypeText(textSequence[index]));
+            _typeCoroutine = StartCoroutine(TypeText(message));
         }
 
         private IEnumerator TypeText(string message)

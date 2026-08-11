@@ -88,7 +88,14 @@ namespace TheLastCompact.Wakeup
             // 1. 广播剧情字幕通告
             EventBus.RaiseAnnouncement("The office has collapsed. Walk out of the ruins.");
 
-            // 2. 更新玩家初始位置参照
+            // 2. 将引导文字直接写入场景 3D 绿色终端显示屏，不触发任何 2D UI
+            MonitorTextController monitor = FindObjectOfType<MonitorTextController>();
+            if (monitor != null)
+            {
+                monitor.SetCustomMessage("[CRITICAL FAILURE]:\nWorkplace Has Collapsed.\n\n[GUIDANCE]:\nSTOP WORKING.\nWalk out of the ruins to enter Stage 5 ->");
+            }
+
+            // 3. 更新玩家初始位置参照
             if (_playerGo != null)
             {
                 _initialPlayerPos = _playerGo.transform.position;
@@ -139,26 +146,6 @@ namespace TheLastCompact.Wakeup
             }
         }
 
-        private void OnGUI()
-        {
-            if (!_isExitOpen || _hasExited) return;
-
-            if (_guiStyle == null)
-            {
-                _guiStyle = new GUIStyle();
-                _guiStyle.fontSize = 21;
-                _guiStyle.fontStyle = FontStyle.Bold;
-                _guiStyle.normal.textColor = new Color(1.0f, 0.88f, 0.4f, 0.95f);
-                _guiStyle.alignment = TextAnchor.MiddleCenter;
-            }
-
-            float width = 520f;
-            float height = 45f;
-            float x = (Screen.width - width) * 0.5f;
-            float y = Screen.height - 90f;
-
-            GUI.Box(new Rect(x - 15, y - 5, width + 30, height + 10), "");
-            GUI.Label(new Rect(x, y, width, height), exitPromptText, _guiStyle);
-        }
+        // 所有引导与通报均全额映射至场景内 3D 绿色终端屏幕，保持 2D HUD 100% 干净
     }
 }

@@ -47,16 +47,28 @@ namespace TheLastCompact.Wakeup
             Debug.Log("[Stage4] 自动创建 Stage4Controller。");
         }
 
-        [Header("BGM 背景音乐")]
+        [Header("BGM 背景音乐与环境音")]
         [Tooltip("Stage 4 背景音乐 AudioClip（如果留空，系统会自动加载备用背景音乐）")]
         public AudioClip bgmClip;
 
         [Tooltip("BGM 音量 (0 ~ 1)")]
         [Range(0f, 1f)]
-        public float bgmVolume = 0.5f;
+        public float bgmVolume = 0.45f;
 
-        [Tooltip("是否循环播放 BGM")]
-        public bool loopBgm = true;
+        [Tooltip("办公环境白噪音 (CRT 电磁声/风扇/空调声，留空则自动程序化合成)")]
+        public AudioClip officeAmbientClip;
+
+        [Tooltip("环境白噪音音量")]
+        [Range(0f, 1f)]
+        public float officeAmbientVolume = 0.35f;
+
+        [Header("打字/点击音效")]
+        [Tooltip("机械键盘打字音效 (留空则自动程序化合成机械键盘敲击声)")]
+        public AudioClip typingKeypressClip;
+
+        [Tooltip("打字音效音量")]
+        [Range(0f, 1f)]
+        public float typingSoundVolume = 0.75f;
 
         [Header("子系统引用（若为空则自动查找）")]
         public MonitorTextController monitorText;
@@ -66,11 +78,16 @@ namespace TheLastCompact.Wakeup
         [Tooltip("启动时自动将环境光设为黑色，让 Spotlight 效果更突出")]
         public bool darkenAmbientOnStart = true;
 
+        [Tooltip("启动时是否清理隐藏所有 2D UI 界面（确保只在 3D 屏幕上显示文案）")]
+        public bool clean2DHUDOverlays = true;
+
         [Header("转场参数")]
         public float transitionDelay = 2f;
         public string nextSceneName = "5_Contemporary_1";
 
         private AudioSource _bgmAudioSource;
+        private AudioSource _ambientAudioSource;
+        private AudioSource _sfxAudioSource;
         private bool _isTransitioning = false;
         private int _totalClicks = 0;
 
@@ -78,12 +95,21 @@ namespace TheLastCompact.Wakeup
         {
             if (Instance != null && Instance != this) { Destroy(gameObject); return; }
             Instance = this;
+
+            _sfxAudioSource = gameObject.AddComponent<AudioSource>();
+            _sfxAudioSource.spatialBlend = 0f;
         }
 
         private void Start()
         {
-            // 自动配置 BGM
-            SetupBGM();
+            // 自动配置 BGM 与办公环境白噪音
+            SetupBGMAndAmbient();
+
+            // 清理 2D UI 弹窗与计数器，保证界面 100% 干净
+            if (clean2DHUDOverlays)
+            {
+                Clean2DHUDOverlays();
+            }
 
             // 自动绑定子系统
 #if UNITY_2023_1_OR_NEWER
@@ -111,7 +137,17 @@ namespace TheLastCompact.Wakeup
             Debug.Log("[Stage4] 关卡初始化完成。点击鼠标左键开始工作...");
         }
 
-        private void SetupBGM()
+        private void Clean2DHUDOverlays()
+        {
+            // 隐藏场景中所有的 WorkCounterUI 与其他 2D 悬浮 UI 提示
+            WorkCounterUI[] counters = FindObjectsOfType<WorkCounterUI>(true);
+            foreach (var c in counters)
+            {
+                c.gameObject.SetActive(false);
+            }
+        }
+
+        private void SetupBGMAndAmbient()
         {
             // 关掉之前残留的对话旁白系统 NarratorManager
             if (NarratorManager.Instance != null)
@@ -120,8 +156,9 @@ namespace TheLastCompact.Wakeup
                 NarratorManager.Instance.gameObject.SetActive(false);
             }
 
+            // BGM
             _bgmAudioSource = gameObject.AddComponent<AudioSource>();
-            _bgmAudioSource.loop = loopBgm;
+            _bgmAudioSource.loop = true;
             _bgmAudioSource.volume = bgmVolume;
             _bgmAudioSource.spatialBlend = 0f;
 
@@ -129,7 +166,23 @@ namespace TheLastCompact.Wakeup
             {
                 _bgmAudioSource.clip = bgmClip;
                 _bgmAudioSource.Play();
-                Debug.Log($"[Stage4] 播放指定的 BGM: {bgmClip.name}");
+            }
+
+            // 环境白噪音 AudioSource
+            _ambientAudioSource = gameObject.AddComponent<AudioSource>();
+            _ambientAudioSource.loop = true;
+            _ambientAudioSource.volume = officeAmbientVolume;
+            _ambientAudioSource.spatialBlend = 0f;
+
+            if (officeAmbientClip != null)
+            {
+                _ambientAudioSource.clip = officeAmbientClip;
+                _ambientAudioSource.Play();
+            }
+            else
+            {
+                _ambientAudioSource.clip = CreateSynthOfficeAmbientClip();
+                _ambientAudioSource.Play();
             }
         }
 
@@ -152,6 +205,9 @@ namespace TheLastCompact.Wakeup
         {
             _totalClicks++;
 
+            // 播放机械打字/敲击音效
+            PlayTypingKeypressSound();
+
             // 驱动电脑屏幕文字更新
             monitorText?.OnClick();
 
@@ -167,6 +223,74 @@ namespace TheLastCompact.Wakeup
                 PlayerBehaviorData.Instance.AddWork();
 
             Debug.Log($"[Stage4] 点击次数: {_totalClicks}");
+        }
+
+        private void PlayTypingKeypressSound()
+        {
+            if (typingKeypressClip != null)
+            {
+                _sfxAudioSource.pitch = Random.Range(0.92f, 1.08f);
+                _sfxAudioSource.PlayOneShot(typingKeypressClip, typingSoundVolume);
+                _sfxAudioSource.pitch = 1.0f;
+            }
+            else
+            {
+                // 程序化合成机械键盘敲击音效
+                _sfxAudioSource.pitch = Random.Range(0.88f, 1.12f);
+                _sfxAudioSource.PlayOneShot(CreateSynthTypingClickClip(), typingSoundVolume * 0.7f);
+                _sfxAudioSource.pitch = 1.0f;
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Procedural Audio Synthesis Fallbacks (白噪音与打字声程序化合成)
+
+        private static AudioClip _cachedAmbientClip;
+        private static AudioClip _cachedTypingClip;
+
+        private AudioClip CreateSynthOfficeAmbientClip()
+        {
+            if (_cachedAmbientClip != null) return _cachedAmbientClip;
+
+            int sampleRate = 44100;
+            float duration = 2.0f;
+            int samples = (int)(sampleRate * duration);
+            float[] data = new float[samples];
+
+            for (int i = 0; i < samples; i++)
+            {
+                // 低频 CRT 蜂鸣 + 空调白噪音
+                float whiteNoise = (Random.value * 2f - 1f) * 0.08f;
+                float hum = Mathf.Sin(2f * Mathf.PI * 60f * i / sampleRate) * 0.04f;
+                data[i] = whiteNoise + hum;
+            }
+
+            _cachedAmbientClip = AudioClip.Create("SynthOfficeAmbient", samples, 1, sampleRate, false);
+            _cachedAmbientClip.SetData(data, 0);
+            return _cachedAmbientClip;
+        }
+
+        private AudioClip CreateSynthTypingClickClip()
+        {
+            if (_cachedTypingClip != null) return _cachedTypingClip;
+
+            int sampleRate = 44100;
+            float duration = 0.06f;
+            int samples = (int)(sampleRate * duration);
+            float[] data = new float[samples];
+
+            for (int i = 0; i < samples; i++)
+            {
+                float t = (float)i / samples;
+                float env = Mathf.Exp(-t * 25f);
+                float noise = (Random.value * 2f - 1f) * env;
+                float clickPeak = Mathf.Sin(2f * Mathf.PI * 1800f * i / sampleRate) * env * 0.8f;
+                data[i] = (noise + clickPeak) * 0.5f;
+            }
+
+            _cachedTypingClip = AudioClip.Create("SynthTypingClick", samples, 1, sampleRate, false);
+            _cachedTypingClip.SetData(data, 0);
+            return _cachedTypingClip;
         }
 
         public void TriggerSceneComplete()
