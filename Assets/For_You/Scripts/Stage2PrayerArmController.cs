@@ -18,18 +18,21 @@ namespace TheLastCompact.Wakeup
         [Tooltip("你在 Unity 场景中调好位置的 Stage 2 祈祷手臂 GameObject/Prefab")]
         public GameObject armVisual;
 
-        [Header("祈祷动作参数")]
-        [Tooltip("祈祷抬起前伸距离 (推荐 0.18f ~ 0.25f)")]
-        public float prayRaiseDistance = 0.20f;
+        [Header("弯腰跪拜动作参数")]
+        [Tooltip("弯腰跪拜下沉深度 (米)")]
+        public float bowDropDepth = 0.22f;
 
-        [Tooltip("祈祷动作提升高度 (推荐 0.12f)")]
-        public float prayRaiseHeight = 0.12f;
+        [Tooltip("弯腰前倾前伸距离 (米)")]
+        public float bowForwardReach = 0.16f;
 
-        [Tooltip("祈祷动作速度")]
-        public float praySpeed = 4.2f;
+        [Tooltip("弯腰前倾俯仰角度 (度)")]
+        public float bowTiltAngle = 32f;
 
-        [Tooltip("祈祷持续保持时间（秒）")]
-        public float prayHoldDuration = 0.45f;
+        [Tooltip("跪拜动作速度")]
+        public float praySpeed = 3.5f;
+
+        [Tooltip("伏地祈祷凝滞保持时间（秒）")]
+        public float prayHoldDuration = 0.40f;
 
         [Tooltip("手臂在视角右下角的自然呼吸摇摆幅度")]
         public float swayAmount = 0.012f;
@@ -103,6 +106,12 @@ namespace TheLastCompact.Wakeup
 
         private void Update()
         {
+            // 按 Q 键随时触发弯腰跪拜双手祈祷动作
+            if (Input.GetKeyDown(KeyCode.Q) && !_isPraying)
+            {
+                PlayPrayerMotion();
+            }
+
             if (_armTransform == null || _isPraying) return;
 
             // 第一视角手部自然呼吸与视角摆动
@@ -119,57 +128,71 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
-        /// 触发 Stage 2 虔诚祈祷动作
+        /// 触发 Stage 2 弯腰/跪拜虔诚祈祷动作
         /// </summary>
         public void PlayPrayerMotion(System.Action onPrayerApexCallback = null)
         {
             if (_isPraying || _armTransform == null) return;
-            StartCoroutine(PrayerMotionRoutine(onPrayerApexCallback));
+            StartCoroutine(BowingKneelMotionRoutine(onPrayerApexCallback));
         }
 
-        private IEnumerator PrayerMotionRoutine(System.Action onPrayerApexCallback)
+        /// <summary>
+        /// 弯腰/跪拜抛物线弧线动作 (Bowing & Kneeling Arc Motion)
+        /// </summary>
+        private IEnumerator BowingKneelMotionRoutine(System.Action onPrayerApexCallback)
         {
             _isPraying = true;
 
-            Vector3 startLocalPos = _armTransform.localPosition;
-            Quaternion startLocalRot = _armTransform.localRotation;
+            Vector3 startLocalPos = _defaultLocalPos;
+            Quaternion startLocalRot = _defaultLocalRot;
 
-            // 祈祷高举目标位姿（向中央合十抬起）
-            Vector3 prayLocalPos = startLocalPos + new Vector3(0f, prayRaiseHeight, prayRaiseDistance);
-            Quaternion prayLocalRot = startLocalRot * Quaternion.Euler(-22f, 0f, 0f);
+            // 1. 弯腰跪伏下沉抛物线 (Bow & Kneel Arc Downward)
+            // 手臂向下、向前滑动，头部与上身前倾俯仰
+            Vector3 bowApexPos = startLocalPos + new Vector3(0f, -bowDropDepth, bowForwardReach);
+            Quaternion bowApexRot = startLocalRot * Quaternion.Euler(bowTiltAngle, 0f, 0f);
 
-            // 1. 双手平缓高举求告 (Raise Hands)
             float t = 0f;
             while (t < 1f)
             {
                 t += Time.deltaTime * praySpeed;
-                float easeT = Mathf.Sin(t * Mathf.PI * 0.5f);
-                _armTransform.localPosition = Vector3.Lerp(startLocalPos, prayLocalPos, easeT);
-                _armTransform.localRotation = Quaternion.Slerp(startLocalRot, prayLocalRot, easeT);
+                float easeT = Mathf.Sin(t * Mathf.PI * 0.5f); // 弧线缓动
+
+                // 注入贝塞尔弧线偏置，让双手划过一条优美的跪拜抛物线
+                Vector3 arcOffset = new Vector3(0f, Mathf.Sin(easeT * Mathf.PI) * 0.06f, 0f);
+
+                _armTransform.localPosition = Vector3.Lerp(startLocalPos, bowApexPos, easeT) + arcOffset;
+                _armTransform.localRotation = Quaternion.Slerp(startLocalRot, bowApexRot, easeT);
                 yield return null;
             }
 
-            // 达到祈祷最高点，触发闪光/音效等游戏逻辑
+            // 达到伏地祈祷顶点，触发光效、神圣平息与数据记录
             onPrayerApexCallback?.Invoke();
+            if (Stage2JuiceEffects.Instance != null)
+            {
+                Stage2JuiceEffects.Instance.TriggerPrayerJuice(_armTransform.position);
+            }
 
-            // 2. 祈祷凝滞微颤 (Hold & Sacred Tremor)
+            // 2. 伏地凝滞微颤 (Hold at Kneeling Apex)
             float holdTimer = 0f;
             while (holdTimer < prayHoldDuration)
             {
                 holdTimer += Time.deltaTime;
-                Vector3 tremor = Random.insideUnitSphere * 0.003f;
-                _armTransform.localPosition = prayLocalPos + tremor;
+                Vector3 tremor = Random.insideUnitSphere * 0.0035f;
+                _armTransform.localPosition = bowApexPos + tremor;
                 yield return null;
             }
 
-            // 3. 平滑归位 (Return to Idle)
+            // 3. 身躯起身恢复弧线 (Rise Back Arc)
             t = 0f;
             while (t < 1f)
             {
-                t += Time.deltaTime * (praySpeed * 0.85f);
+                t += Time.deltaTime * (praySpeed * 0.9f);
                 float easeT = t * t * (3f - 2f * t);
-                _armTransform.localPosition = Vector3.Lerp(prayLocalPos, startLocalPos, easeT);
-                _armTransform.localRotation = Quaternion.Slerp(prayLocalRot, startLocalRot, easeT);
+
+                Vector3 riseArc = new Vector3(0f, Mathf.Sin(easeT * Mathf.PI) * 0.04f, 0f);
+
+                _armTransform.localPosition = Vector3.Lerp(bowApexPos, startLocalPos, easeT) + riseArc;
+                _armTransform.localRotation = Quaternion.Slerp(bowApexRot, startLocalRot, easeT);
                 yield return null;
             }
 
