@@ -139,11 +139,22 @@ namespace TheLastCompact.Wakeup
 
         private void Clean2DHUDOverlays()
         {
-            // 隐藏场景中所有的 WorkCounterUI 与其他 2D 悬浮 UI 提示
+            // 1. 隐藏场景中所有的 WorkCounterUI 计数器
             WorkCounterUI[] counters = FindObjectsOfType<WorkCounterUI>(true);
             foreach (var c in counters)
             {
                 c.gameObject.SetActive(false);
+            }
+
+            // 2. 隐藏场景中残存的悬浮大字（如 "You don't have to decide anything..."）
+            TMPro.TMP_Text[] allTmpText = FindObjectsOfType<TMPro.TMP_Text>(true);
+            foreach (var tmp in allTmpText)
+            {
+                if (tmp.transform.parent != null && tmp.transform.parent.name == "MonitorCanvas") continue;
+                if (tmp.text.Contains("You don't have to decide") || tmp.gameObject.name == "Text (TMP)")
+                {
+                    tmp.gameObject.SetActive(false);
+                }
             }
         }
 
