@@ -91,6 +91,13 @@ namespace TheLastCompact.Wakeup
                 gameObject.AddComponent<Stage3InactionBreakController>();
                 Debug.Log("[Stage3] 自动挂载了 Stage3InactionBreakController '放弃交互打破循环' 控制器。");
             }
+
+            // 自动装配 Stage 3 第一视角推石手臂控制器
+            if (Stage3PushArmController.Instance == null && FindObjectOfType<Stage3PushArmController>() == null)
+            {
+                gameObject.AddComponent<Stage3PushArmController>();
+                Debug.Log("[Stage3] 自动挂载了 Stage3PushArmController 第一视角推石手臂控制器。");
+            }
         }
 
         private void SetupBGM()
