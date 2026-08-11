@@ -144,6 +144,12 @@ namespace TheLastCompact.Wakeup
                 gameObject.AddComponent<Stage4WalkOutExitController>();
             }
 
+            // 自动装配 Stage 4 第一视角职场打字手臂控制器
+            if (Stage4OfficeArmController.Instance == null && GetComponent<Stage4OfficeArmController>() == null)
+            {
+                gameObject.AddComponent<Stage4OfficeArmController>();
+            }
+
             // 强行激活玩家控制（允许 WASD 移动与视角旋转）
             UniversalPlayer player = FindObjectOfType<UniversalPlayer>();
             if (player != null)
@@ -243,6 +249,12 @@ namespace TheLastCompact.Wakeup
 
             // 驱动电脑屏幕文字更新
             monitorText?.OnClick();
+
+            // 驱动 3D 打字手臂敲击键盘动作
+            if (Stage4OfficeArmController.Instance != null)
+            {
+                Stage4OfficeArmController.Instance.PlayTypingMotion();
+            }
 
             // 驱动所有 Office 向内坍塌
             officeCollapse?.OnClick();
