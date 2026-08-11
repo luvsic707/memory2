@@ -134,7 +134,19 @@ namespace TheLastCompact.Wakeup
                 gameObject.AddComponent<Stage4WalkOutExitController>();
             }
 
-            Debug.Log("[Stage4] 关卡初始化完成。点击鼠标左键开始工作...");
+            // 强行激活玩家控制（允许 WASD 移动与视角旋转）
+            UniversalPlayer player = FindObjectOfType<UniversalPlayer>();
+            if (player != null)
+            {
+                player.EnableControl();
+            }
+
+            if (GlobalUIManager.Instance != null)
+            {
+                GlobalUIManager.Instance.isGameplayActive = true;
+            }
+
+            Debug.Log("[Stage4] 关卡初始化完成，玩家控制已激活。点击鼠标左键开始工作...");
         }
 
         private void Clean2DHUDOverlays()

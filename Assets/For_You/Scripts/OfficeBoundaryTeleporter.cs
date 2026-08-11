@@ -74,6 +74,9 @@ namespace TheLastCompact.Wakeup
             Vector3 targetPos = (spawnPoint != null) ? spawnPoint.position : transform.position;
             Quaternion targetRot = (spawnPoint != null) ? spawnPoint.rotation : Quaternion.identity;
 
+            // 如果玩家已经在原点/座椅附近，无需重复传送
+            if (Vector3.Distance(player.transform.position, targetPos) < 0.8f) return;
+
             // 禁用 CharacterController 避免物理阻塞
             CharacterController cc = player.GetComponent<CharacterController>();
             if (cc != null) cc.enabled = false;
