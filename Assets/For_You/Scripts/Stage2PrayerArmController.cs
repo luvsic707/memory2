@@ -229,5 +229,3 @@ namespace TheLastCompact.Wakeup
         }
     }
 }
-    }
-}
