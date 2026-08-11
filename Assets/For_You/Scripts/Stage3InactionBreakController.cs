@@ -40,6 +40,20 @@ namespace TheLastCompact.Wakeup
             else { Destroy(this); return; }
         }
 
+        /// <summary>
+        /// 外部脚本（如 MobiusCameraPanController）通知推石交互
+        /// </summary>
+        public void OnPush()
+        {
+            _idleTimer = 0f;
+            _pushCount++;
+            if (!_canDetectInaction && _pushCount >= minPushesToUnlock)
+            {
+                _canDetectInaction = true;
+                Debug.Log($"[Stage3] 玩家推球达到 {_pushCount} 次，'放弃交互打破循环' 机制已激活。");
+            }
+        }
+
         private void Update()
         {
             if (_isLoopBroken) return;
@@ -55,12 +69,7 @@ namespace TheLastCompact.Wakeup
 
                 if (Input.GetKeyDown(KeyCode.Q) || Input.GetMouseButtonDown(0))
                 {
-                    _pushCount++;
-                    if (!_canDetectInaction && _pushCount >= minPushesToUnlock)
-                    {
-                        _canDetectInaction = true;
-                        Debug.Log($"[Stage3] 玩家推球达到 {_pushCount} 次，'放弃交互打破循环' 机制已激活。");
-                    }
+                    OnPush();
                 }
             }
             else if (_canDetectInaction)
