@@ -18,21 +18,21 @@ namespace TheLastCompact.Wakeup
         [TextArea(2, 4)]
         public string[] textSequence = new string[]
         {
-            "SYSTEM: Please complete daily task report #7741.",
-            "SYSTEM: Reminder: Q3 deadline is TODAY.",
-            "...did you hear that noise outside your cubicle?",
-            "SYSTEM: Disregard external noise. Focus on Q3 review.",
-            "URGENT: Re: Re: Please re-review Q3 report.",
-            "SYSTEM: Notice: Wall distance optimized. Keep typing.",
-            "...the walls are closing in. Look at the doorway.",
-            "SYSTEM: DO NOT LOOK AWAY FROM THE SCREEN.",
-            "...there is nothing left to type. Step away.",
-            "SYSTEM: Mandatory Overtime Initiated. Submit report.",
-            "...your desk is crushed. The cubicle is bleeding.",
-            "S̶Y̶S̶T̶E̶M̶: OVERTIME MANDATORY. K-K-KEEP TYPING.",
-            "...stop listening to the machine. W-A-L-K O-U-T.",
-            "E̵R̵R̵O̵R̵: WORKPLACE BOUNDARY DISSOLVED.",
-            "...the office is a skin you outgrew. Leak into the next layer ->"
+            "SYS: Task report #7741.",
+            "SYS: Deadline: TODAY.",
+            "...hear that noise outside?",
+            "SYS: Focus on Q3 report.",
+            "URGENT: Re: Q3 report.",
+            "SYS: Wall distance optimized.",
+            "...walls are closing in.",
+            "SYS: DO NOT LOOK AWAY.",
+            "...nothing left to type.",
+            "SYS: Overtime Initiated.",
+            "...your desk is crushed.",
+            "S̶Y̶S̶T̶E̶M̶: K-KEEP TYPING.",
+            "...W-A-L-K O-U-T.",
+            "E̵R̵R̵O̵R̵: DISSOLVED.",
+            "...leak to next layer ->"
         };
 
         [Tooltip("每次点击切换到下一条文字的点击间隔")]
@@ -62,7 +62,7 @@ namespace TheLastCompact.Wakeup
 
         private static readonly string[] GlitchSymbols = new string[]
         {
-            "░", "▒", "▓", "█", "§", "Ø", "Ψ", "Δ", "Ξ", "Ω", "µ", "≠", "ERR_0x87", "NULL", "[BROKEN]"
+            "░", "▒", "▓", "█", "§", "Ø", "Ψ", "Δ", "Ξ", "Ω", "µ", "≠", "ERR", "NULL", "EXIT"
         };
 
         private void Start()
@@ -129,7 +129,11 @@ namespace TheLastCompact.Wakeup
             textGO.transform.SetParent(canvasGO.transform, false);
 
             _tmp = textGO.AddComponent<TextMeshProUGUI>();
-            _tmp.fontSize = 14;
+            _tmp.fontSize = 11;
+            _tmp.enableAutoSizing = true;
+            _tmp.fontSizeMin = 8f;
+            _tmp.fontSizeMax = 11f;
+            _tmp.overflowMode = TextOverflowModes.Truncate;
             _tmp.color = new Color(0.2f, 1f, 0.4f);
             _tmp.alignment = TextAlignmentOptions.TopLeft;
             _tmp.text = "";
@@ -138,8 +142,8 @@ namespace TheLastCompact.Wakeup
             RectTransform textRt = textGO.GetComponent<RectTransform>();
             textRt.anchorMin = Vector2.zero;
             textRt.anchorMax = Vector2.one;
-            textRt.offsetMin = new Vector2(8, 8);
-            textRt.offsetMax = new Vector2(-8, -8);
+            textRt.offsetMin = new Vector2(14, 14);
+            textRt.offsetMax = new Vector2(-14, -14);
         }
 
         /// <summary>
