@@ -98,6 +98,13 @@ namespace TheLastCompact.Wakeup
                 gameObject.AddComponent<Stage3PushArmController>();
                 Debug.Log("[Stage3] 自动挂载了 Stage3PushArmController 第一视角推石手臂控制器。");
             }
+
+            // 自动装配 Stage 3 电影级镜头拉远莫比乌斯全景控制器
+            if (MobiusCameraPanController.Instance == null && FindObjectOfType<MobiusCameraPanController>() == null)
+            {
+                gameObject.AddComponent<MobiusCameraPanController>();
+                Debug.Log("[Stage3] 自动挂载了 MobiusCameraPanController 莫比乌斯全景拉远控制器。");
+            }
         }
 
         private void SetupBGM()
