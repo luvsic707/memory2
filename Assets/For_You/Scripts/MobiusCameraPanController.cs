@@ -66,6 +66,16 @@ namespace TheLastCompact.Wakeup
             }
         }
 
+        [Header("自动对齐巨石到玩家视野正前方")]
+        [Tooltip("【默认开启】：开局自动将大石头放置在玩家正前方 2.2 米处，确保第一视角睁眼第一眼就能看到巨石与双手！")]
+        public bool autoPositionBoulderInFront = true;
+
+        [Tooltip("巨石放置在玩家正前方的距离 (米)")]
+        public float boulderFrontDistance = 2.2f;
+
+        [Tooltip("巨石高度偏置 (米)")]
+        public float boulderHeightOffset = 0.85f;
+
         private void Start()
         {
             SetupReferences();
@@ -87,13 +97,13 @@ namespace TheLastCompact.Wakeup
                 playerTransform = _mainCam.transform.parent != null ? _mainCam.transform.parent : _mainCam.transform;
             }
 
-            // 自动寻找巨石
+            // 自动寻找巨石 (优先匹配 MobiusBall / Ball / Rock / Sphere)
             if (boulderTransform == null)
             {
                 foreach (GameObject go in FindObjectsOfType<GameObject>())
                 {
                     string nameLower = go.name.ToLower();
-                    if (nameLower.Contains("rock") || nameLower.Contains("boulder") || nameLower.Contains("sphere") || nameLower.Contains("stone"))
+                    if (nameLower.Contains("mobiusball") || nameLower.Contains("ball") || nameLower.Contains("rock") || nameLower.Contains("boulder") || nameLower.Contains("sphere"))
                     {
                         boulderTransform = go.transform;
                         break;
@@ -101,10 +111,18 @@ namespace TheLastCompact.Wakeup
                 }
             }
 
+            // 🌟 自动将大石头放在玩家睁眼正前方！
+            if (autoPositionBoulderInFront && boulderTransform != null && playerTransform != null)
+            {
+                Vector3 frontPos = playerTransform.position + playerTransform.forward * boulderFrontDistance + playerTransform.up * boulderHeightOffset;
+                boulderTransform.position = frontPos;
+                Debug.Log($"<color=cyan>[MobiusCam] 自动将巨石 '{boulderTransform.name}' 放置在玩家眼前: {frontPos}</color>");
+            }
+
             if (boulderTransform != null)
             {
                 _initialBoulderPos = boulderTransform.position;
-                Debug.Log($"<color=green>[MobiusCam] 成功找到巨石 '{boulderTransform.name}'，全景拉远与滚动位移引擎就绪。</color>");
+                Debug.Log($"<color=green>[MobiusCam] 成功锁定巨石 '{boulderTransform.name}'，全景拉远与滚动位移引擎就绪。</color>");
             }
 
             UpdateCameraTargetOffset();
