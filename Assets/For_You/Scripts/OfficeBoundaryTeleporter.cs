@@ -38,8 +38,10 @@ namespace TheLastCompact.Wakeup
 
         private void OnTriggerEnter(Collider other)
         {
+            if (this == null || !enabled || !gameObject.activeInHierarchy) return;
+
             // 如果工作点击次数已达到坍塌门槛，防逃离传送自动失效
-            if (PlayerBehaviorData.Instance != null && PlayerBehaviorData.Instance.workCount >= collapseThresholdClicks)
+            if (Application.isPlaying && PlayerBehaviorData.Instance != null && PlayerBehaviorData.Instance.workCount >= collapseThresholdClicks)
             {
                 return;
             }
@@ -67,6 +69,8 @@ namespace TheLastCompact.Wakeup
 
         public void TeleportPlayer(GameObject player)
         {
+            if (this == null || player == null) return;
+
             Vector3 targetPos = (spawnPoint != null) ? spawnPoint.position : transform.position;
             Quaternion targetRot = (spawnPoint != null) ? spawnPoint.rotation : Quaternion.identity;
 
@@ -97,10 +101,17 @@ namespace TheLastCompact.Wakeup
 
         private void OnDrawGizmos()
         {
+            if (this == null) return;
+
             BoxCollider box = GetComponent<BoxCollider>();
             if (box == null) return;
 
-            bool isUnlocked = (PlayerBehaviorData.Instance != null && PlayerBehaviorData.Instance.workCount >= collapseThresholdClicks);
+            bool isUnlocked = false;
+            if (Application.isPlaying && PlayerBehaviorData.Instance != null)
+            {
+                isUnlocked = (PlayerBehaviorData.Instance.workCount >= collapseThresholdClicks);
+            }
+
             Gizmos.color = isUnlocked ? disabledGizmoColor : activeGizmoColor;
             Gizmos.matrix = transform.localToWorldMatrix;
             Gizmos.DrawCube(box.center, box.size);
