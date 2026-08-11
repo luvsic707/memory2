@@ -12,8 +12,11 @@ namespace TheLastCompact.Wakeup
     public class OfficeBoundaryTeleporter : MonoBehaviour
     {
         [Header("传送目标位置")]
-        [Tooltip("玩家传送回归的原点 Transform（如工位座椅位置），若为空则默认使用本物体坐标")]
-        public Transform spawnPoint;
+        [Tooltip("纯世界三维坐标 (X, Y, Z)，玩家越界后将被传送至该三维坐标")]
+        public Vector3 spawnPosition = Vector3.zero;
+
+        [Tooltip("可选 Transform 引用（若拖入则优先使用该物体的坐标，留空则严格按上面的 Vector3 纯坐标传送）")]
+        public Transform spawnTransform;
 
         [Header("解封条件")]
         [Tooltip("坍塌点击门槛。工作点击达到此次数后，防越界传送自动失效")]
@@ -34,6 +37,12 @@ namespace TheLastCompact.Wakeup
             {
                 box.isTrigger = true;
             }
+        }
+
+        public Vector3 GetTargetPosition()
+        {
+            if (spawnTransform != null) return spawnTransform.position;
+            return spawnPosition;
         }
 
         private void OnTriggerEnter(Collider other)
@@ -71,8 +80,8 @@ namespace TheLastCompact.Wakeup
         {
             if (this == null || player == null) return;
 
-            Vector3 targetPos = (spawnPoint != null) ? spawnPoint.position : transform.position;
-            Quaternion targetRot = (spawnPoint != null) ? spawnPoint.rotation : Quaternion.identity;
+            Vector3 targetPos = GetTargetPosition();
+            Quaternion targetRot = (spawnTransform != null) ? spawnTransform.rotation : Quaternion.identity;
 
             // 如果玩家已经在原点/座椅附近，无需重复传送
             if (Vector3.Distance(player.transform.position, targetPos) < 0.8f) return;
@@ -82,7 +91,7 @@ namespace TheLastCompact.Wakeup
             if (cc != null) cc.enabled = false;
 
             player.transform.position = targetPos;
-            player.transform.rotation = targetRot;
+            if (spawnTransform != null) player.transform.rotation = targetRot;
 
             if (cc != null) cc.enabled = true;
 
