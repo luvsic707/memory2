@@ -237,16 +237,6 @@ namespace TheLastCompact.Wakeup
             float duration = 0.45f;
             float elapsed = 0f;
 
-            // 为每个字符生成随机坍塌速度与旋转偏置
-            int charCount = textInfo.characterCount;
-            float[] dropSpeeds = new float[charCount];
-            float[] rotSpeeds = new float[charCount];
-            for (int i = 0; i < charCount; i++)
-            {
-                dropSpeeds[i] = Random.Range(30f, 90f);
-                rotSpeeds[i] = Random.Range(-45f, 45f);
-            }
-
             // 保存初始顶点快照
             Vector3[][] origVertices = new Vector3[textInfo.meshInfo.Length][];
             for (int m = 0; m < textInfo.meshInfo.Length; m++)
@@ -270,15 +260,24 @@ namespace TheLastCompact.Wakeup
                     int matIdx = charInfo.materialReferenceIndex;
                     int vertIdx = charInfo.vertexIndex;
 
+                    // 安全索引边界防护，防止打字过程字符增加导致的数组越界
+                    if (matIdx >= origVertices.Length || origVertices[matIdx] == null) continue;
+                    if (matIdx >= textInfo.meshInfo.Length || textInfo.meshInfo[matIdx].vertices == null) continue;
+                    if (vertIdx + 3 >= origVertices[matIdx].Length || vertIdx + 3 >= textInfo.meshInfo[matIdx].vertices.Length) continue;
+
                     Vector3[] destinationVertices = textInfo.meshInfo[matIdx].vertices;
                     Vector3[] cachedOrig = origVertices[matIdx];
 
                     // 计算字符中心点
                     Vector3 charCenter = (cachedOrig[vertIdx + 0] + cachedOrig[vertIdx + 2]) * 0.5f;
 
+                    // 伪随机确定性计算，无数组越界隐患
+                    float dropSpeed = ((i * 37 + 17) % 60) + 30f;
+                    float rotSpeed = ((i * 53 + 13) % 90) - 45f;
+
                     // 计算垮塌位移 (向下掉落)
-                    float fallY = -dropSpeeds[i] * progress;
-                    float rotZ = rotSpeeds[i] * progress;
+                    float fallY = -dropSpeed * progress;
+                    float rotZ = rotSpeed * progress;
                     Quaternion rot = Quaternion.Euler(0f, 0f, rotZ);
 
                     for (int v = 0; v < 4; v++)
@@ -338,6 +337,11 @@ namespace TheLastCompact.Wakeup
 
                     int matIdx = charInfo.materialReferenceIndex;
                     int vertIdx = charInfo.vertexIndex;
+
+                    // 安全索引边界防护
+                    if (matIdx >= origVertices.Length || origVertices[matIdx] == null) continue;
+                    if (matIdx >= textInfo.meshInfo.Length || textInfo.meshInfo[matIdx].vertices == null) continue;
+                    if (vertIdx + 3 >= origVertices[matIdx].Length || vertIdx + 3 >= textInfo.meshInfo[matIdx].vertices.Length) continue;
 
                     Vector3[] destinationVertices = textInfo.meshInfo[matIdx].vertices;
                     Vector3[] cachedOrig = origVertices[matIdx];
