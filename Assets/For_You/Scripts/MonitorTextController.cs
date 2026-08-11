@@ -21,18 +21,18 @@ namespace TheLastCompact.Wakeup
             "SYSTEM: Please complete daily task report #7741.",
             "SYSTEM: Reminder: Q3 deadline is TODAY.",
             "...did you hear that noise outside your cubicle?",
-            "SYSTEM: Disregard external noise. Focus on Q3 review.",
+            "SYSTEM: Disregard noise.\nFocus on Q3 review.",
             "URGENT: Re: Re: Please re-review Q3 report.",
-            "SYSTEM: Notice: Wall distance optimized. Keep typing.",
+            "SYSTEM: Notice: Wall distance optimized.",
             "...the walls are closing in. Look at the doorway.",
             "SYSTEM: DO NOT LOOK AWAY FROM THE SCREEN.",
             "...there is nothing left to type. Step away.",
-            "SYSTEM: Mandatory Overtime Initiated. Submit report.",
-            "...your desk is crushed. The cubicle is bleeding.",
-            "S̶Y̶S̶T̶E̶M̶: OVERTIME MANDATORY. K-K-KEEP TYPING.",
-            "...stop listening to the machine. W-A-L-K O-U-T.",
+            "SYSTEM: Mandatory Overtime Initiated.",
+            "...your desk is crushed.",
+            "S̶Y̶S̶T̶E̶M̶: OVERTIME MANDATORY. KEEP TYPING.",
+            "...stop listening to the machine. WALK OUT.",
             "E̵R̵R̵O̵R̵: WORKPLACE BOUNDARY DISSOLVED.",
-            "...the office is a skin you outgrew. Leak into the next layer ->"
+            "...the office is a skin you outgrew.\nLeak to next layer ->"
         };
 
         [Tooltip("每次点击切换到下一条文字的点击间隔")]

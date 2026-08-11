@@ -92,7 +92,7 @@ namespace TheLastCompact.Wakeup
             MonitorTextController monitor = FindObjectOfType<MonitorTextController>();
             if (monitor != null)
             {
-                monitor.SetCustomMessage("S̶Y̶S̶T̶E̶M̶: WORKPLACE DISSOLVED.\n\n...the office is a skin you outgrew.\nSTOP WORKING.\nStep into the noise, leak into the next iteration ->");
+                monitor.SetCustomMessage("S̶Y̶S̶T̶E̶M̶: WORKPLACE DISSOLVED.\n\n...the office is a skin you outgrew.\nLeak to next layer ->");
             }
 
             // 3. 更新玩家初始位置参照
