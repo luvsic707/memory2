@@ -110,15 +110,26 @@ namespace TheLastCompact.Wakeup
             UpdateCameraTargetOffset();
         }
 
+        private float _lastPushTime = 0f;
+        private float _pushCooldown = 0.35f;
+        private float _initialFov = 60f;
+
         private void Update()
         {
-            // 按 W 键或点击鼠标推动巨石
-            if (Input.GetKeyDown(KeyCode.W) || Input.GetMouseButtonDown(0))
+            // 支持按 W / 长按 W / 点击鼠标左键 / 长按鼠标推进巨石
+            bool isPushInput = Input.GetKeyDown(KeyCode.W) || Input.GetMouseButtonDown(0)
+                            || Input.GetKey(KeyCode.W) || Input.GetMouseButton(0);
+
+            if (isPushInput && Time.time - _lastPushTime >= _pushCooldown)
             {
+                _lastPushTime = Time.time;
                 OnPushBoulder();
             }
+        }
 
-            // 实时平滑插值相机位置与旋转
+        private void LateUpdate()
+        {
+            // 🌟 关键修复：必须在 LateUpdate 执行插值，防止 UniversalPlayer/Camera 视角脚本在每帧 LateUpdate 覆盖相机位置！
             SmoothUpdateCameraPosition();
         }
 
@@ -139,7 +150,7 @@ namespace TheLastCompact.Wakeup
                 boulderTransform.position += pushDir * boulderPushStep;
 
                 // 巨石滚动旋转感
-                boulderTransform.Rotate(Vector3.right, boulderPushStep * 30f, Space.Self);
+                boulderTransform.Rotate(Vector3.right, boulderPushStep * 25f, Space.Self);
             }
 
             // 2. 触发第一视角手臂推石动作
@@ -168,13 +179,19 @@ namespace TheLastCompact.Wakeup
             // 向后 (Back) 且向上 (Up) 抛物线拉远
             _targetCamOffset = new Vector3(0f, currentHeight, -currentDist);
             _targetCamRotation = Quaternion.Euler(currentPitch, 0f, 0f);
+
+            if (_mainCam != null)
+            {
+                if (_initialFov == 0f) _initialFov = _mainCam.fieldOfView;
+                _mainCam.fieldOfView = Mathf.Lerp(_initialFov, 78f, _currentProgress);
+            }
         }
 
         private void SmoothUpdateCameraPosition()
         {
             if (_mainCam == null) return;
 
-            // 渐进插值相机 Transform
+            // 渐进插值相机 Transform (LateUpdate 强制定位)
             Vector3 desiredLocalPos = _initialCamLocalPos + _targetCamOffset;
             Quaternion desiredLocalRot = _initialCamLocalRot * _targetCamRotation;
 
