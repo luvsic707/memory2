@@ -69,6 +69,7 @@ namespace TheLastCompact.Wakeup
         {
             _playerCam = Camera.main;
             if (_playerCam == null) _playerCam = GetComponentInChildren<Camera>();
+            if (_playerCam == null) _playerCam = FindObjectOfType<Camera>();
             if (_playerCam != null) _defaultCamLocalRot = _playerCam.transform.localRotation;
 
             if (armVisual != null)
@@ -82,6 +83,11 @@ namespace TheLastCompact.Wakeup
                 if (foundHolder == null && transform.parent != null)
                 {
                     foundHolder = transform.parent.Find("Stage2_Arm_Holder");
+                }
+                if (foundHolder == null && _playerCam != null)
+                {
+                    foundHolder = _playerCam.transform.Find("praying_hands_3d_model_-_albrecht_durer");
+                    if (foundHolder == null) foundHolder = _playerCam.transform.GetComponentInChildren<Transform>();
                 }
                 if (foundHolder == null)
                 {
@@ -97,22 +103,32 @@ namespace TheLastCompact.Wakeup
 
             if (_armTransform != null)
             {
+                // 🌟 关键修复：GLB 模型导入时 Unity 会自动挂载 Animator，Animator 会在每帧 LateUpdate 强制把 Transform 位置锁死！
+                // 自动禁用 Animator，解锁 C# 脚本对 3D 手臂 Transform 的控制权！
+                Animator anim = _armTransform.GetComponent<Animator>();
+                if (anim == null) anim = _armTransform.GetComponentInChildren<Animator>();
+                if (anim != null && anim.enabled)
+                {
+                    anim.enabled = false;
+                    Debug.Log($"<color=yellow>[Stage2PrayerArm] 自动禁用了 '{anim.gameObject.name}' 上的 Animator，解除 3D 手臂 Transform 锁定！</color>");
+                }
+
                 _defaultLocalPos = _armTransform.localPosition;
                 _defaultLocalRot = _armTransform.localRotation;
-                Debug.Log($"<color=green>[Stage2PrayerArm] 锁定手臂坐标: {_defaultLocalPos}，旋转: {_defaultLocalRot.eulerAngles}</color>");
+                Debug.Log($"<color=green>[Stage2PrayerArm] 锁定手臂 '{_armTransform.name}' 初始坐标: {_defaultLocalPos}，旋转: {_defaultLocalRot.eulerAngles}</color>");
             }
             else
             {
-                Debug.LogWarning("[Stage2PrayerArm] 尚未指定 armVisual，请拖入双手模型。");
+                Debug.LogWarning("[Stage2PrayerArm] 尚未指定 armVisual，请在 Inspector 中拖入双手模型。");
             }
         }
 
         private void Update()
         {
-            // 按 Q 键随时触发弯腰跪拜双手祈祷动作
-            if (Input.GetKeyDown(KeyCode.Q) && !_isPraying)
+            // 按 Q 键或鼠标左键随时触发弯腰跪拜双手祈祷动作
+            if ((Input.GetKeyDown(KeyCode.Q) || Input.GetMouseButtonDown(0)) && !_isPraying)
             {
-                Debug.Log("<color=cyan>[Stage2PrayerArm] 收到 Q 键输入！播放弯腰跪拜祈祷动画。</color>");
+                Debug.Log("<color=cyan>[Stage2PrayerArm] 触发祈祷操作！播放弯腰跪拜祈祷动画。</color>");
                 PlayPrayerMotion();
             }
 
