@@ -22,6 +22,10 @@ namespace TheLastCompact.Wakeup
         [Tooltip("【默认取消勾选】：取消勾选时，脚本不会强行覆盖你的骨骼！你可以直接在 Unity Scene 视图中旋转手臂关节点！")]
         public bool overrideBonesViaScript = false;
 
+        [Header("镜像左手配置")]
+        [Tooltip("拖入要作为左手的那个 3D 模型，脚本在启动时会自动将其 Scale.X 设为 -1，将其完美镜像转换为左手！")]
+        public Transform leftHandToMirror;
+
         [Header("推石发力动作参数")]
         [Tooltip("推石前压距离 (米)")]
         public float pushDistance = 0.26f;
@@ -69,6 +73,16 @@ namespace TheLastCompact.Wakeup
 
         private void SetupArmReferences()
         {
+            // 自动镜像左手模型
+            if (leftHandToMirror != null)
+            {
+                Vector3 curScale = leftHandToMirror.localScale;
+                if (curScale.x > 0)
+                {
+                    leftHandToMirror.localScale = new Vector3(-curScale.x, curScale.y, curScale.z);
+                    Debug.Log($"<color=cyan>[Stage3PushArm] 自动镜像翻转了 '{leftHandToMirror.name}' (Scale.X = -1)，成功转换为左手！</color>");
+                }
+            }
             if (armVisual != null)
             {
                 _armTransform = armVisual.transform;
