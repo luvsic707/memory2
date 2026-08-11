@@ -142,12 +142,20 @@ namespace TheLastCompact.Wakeup
             textRt.offsetMax = new Vector2(-8, -8);
         }
 
+        private Transform _canvasTransform;
+        private Vector3 _originalCanvasScale;
+        private Coroutine _juiceCoroutine;
+
         /// <summary>
-        /// 由 Stage4Controller 在每次点击时调用（支持无限点击与渐进崩坏乱码）
+        /// 由 Stage4Controller 在每次点击时调用（支持无限点击、特效冲击与渐进崩坏乱码）
         /// </summary>
         public void OnClick()
         {
             _totalClicks++;
+
+            // 1. 触发屏幕弹性冲击与磷光亮闪
+            TriggerScreenImpact();
+
             int index = _totalClicks / clicksPerMessage;
 
             if (index < textSequence.Length)
@@ -156,12 +164,210 @@ namespace TheLastCompact.Wakeup
                 {
                     ShowMessage(index);
                 }
+                else
+                {
+                    // 即使在同一条文字期间点击，也有概率触发瞬时特效
+                    TriggerClickJuiceEffect();
+                }
             }
             else
             {
-                // 超越固定数组长度：生成无限渐进崩坏乱码文字
+                // 超越固定数组长度：生成无限渐进崩坏乱码文字并触发高频特效
                 GenerateInfiniteGlitchMessage(index);
+                TriggerClickJuiceEffect();
             }
+        }
+
+        private void TriggerScreenImpact()
+        {
+            if (_tmp == null) return;
+            if (_canvasTransform == null && _tmp.canvas != null)
+            {
+                _canvasTransform = _tmp.canvas.transform;
+                _originalCanvasScale = _canvasTransform.localScale;
+            }
+
+            // 瞬时荧光亮闪与微幅弹跳
+            StartCoroutine(ImpactPulseRoutine());
+        }
+
+        private IEnumerator ImpactPulseRoutine()
+        {
+            _tmp.color = new Color(0.4f, 1.0f, 0.6f); // 亮绿色磷光
+            if (_canvasTransform != null)
+            {
+                _canvasTransform.localScale = _originalCanvasScale * 1.06f;
+            }
+
+            yield return new WaitForSeconds(0.06f);
+
+            _tmp.color = new Color(0.2f, 1.0f, 0.4f); // 恢复标准终端绿
+            if (_canvasTransform != null)
+            {
+                _canvasTransform.localScale = _originalCanvasScale;
+            }
+        }
+
+        private void TriggerClickJuiceEffect()
+        {
+            if (_tmp == null || _totalClicks < 3) return;
+
+            if (_juiceCoroutine != null) StopCoroutine(_juiceCoroutine);
+
+            // 随机切换：字母积木崩塌 vs 横向撕裂拉扯
+            if (Random.value < 0.5f)
+            {
+                _juiceCoroutine = StartCoroutine(CrumbleCollapseEffectRoutine());
+            }
+            else
+            {
+                _juiceCoroutine = StartCoroutine(HorizontalStretchTearRoutine());
+            }
+        }
+
+        /// <summary>
+        /// 特效 1：字母如积木般一瞬间垮塌下坠 (Letter Block Crumble / Falling Bricks)
+        /// </summary>
+        private IEnumerator CrumbleCollapseEffectRoutine()
+        {
+            _tmp.ForceMeshUpdate();
+            TMP_TextInfo textInfo = _tmp.textInfo;
+            if (textInfo == null || textInfo.characterCount == 0) yield break;
+
+            float duration = 0.45f;
+            float elapsed = 0f;
+
+            // 为每个字符生成随机坍塌速度与旋转偏置
+            int charCount = textInfo.characterCount;
+            float[] dropSpeeds = new float[charCount];
+            float[] rotSpeeds = new float[charCount];
+            for (int i = 0; i < charCount; i++)
+            {
+                dropSpeeds[i] = Random.Range(30f, 90f);
+                rotSpeeds[i] = Random.Range(-45f, 45f);
+            }
+
+            // 保存初始顶点快照
+            Vector3[][] origVertices = new Vector3[textInfo.meshInfo.Length][];
+            for (int m = 0; m < textInfo.meshInfo.Length; m++)
+            {
+                origVertices[m] = (Vector3[])textInfo.meshInfo[m].vertices.Clone();
+            }
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float progress = elapsed / duration;
+
+                _tmp.ForceMeshUpdate();
+                textInfo = _tmp.textInfo;
+
+                for (int i = 0; i < textInfo.characterCount; i++)
+                {
+                    TMP_CharacterInfo charInfo = textInfo.characterInfo[i];
+                    if (!charInfo.isVisible) continue;
+
+                    int matIdx = charInfo.materialReferenceIndex;
+                    int vertIdx = charInfo.vertexIndex;
+
+                    Vector3[] destinationVertices = textInfo.meshInfo[matIdx].vertices;
+                    Vector3[] cachedOrig = origVertices[matIdx];
+
+                    // 计算字符中心点
+                    Vector3 charCenter = (cachedOrig[vertIdx + 0] + cachedOrig[vertIdx + 2]) * 0.5f;
+
+                    // 计算垮塌位移 (向下掉落)
+                    float fallY = -dropSpeeds[i] * progress;
+                    float rotZ = rotSpeeds[i] * progress;
+                    Quaternion rot = Quaternion.Euler(0f, 0f, rotZ);
+
+                    for (int v = 0; v < 4; v++)
+                    {
+                        Vector3 origPos = cachedOrig[vertIdx + v];
+                        Vector3 relPos = origPos - charCenter;
+                        Vector3 rotated = rot * relPos;
+                        destinationVertices[vertIdx + v] = charCenter + rotated + new Vector3(0f, fallY, 0f);
+                    }
+                }
+
+                // 提交更新顶点 Mesh
+                for (int m = 0; m < textInfo.meshInfo.Length; m++)
+                {
+                    textInfo.meshInfo[m].mesh.vertices = textInfo.meshInfo[m].vertices;
+                    _tmp.UpdateGeometry(textInfo.meshInfo[m].mesh, m);
+                }
+
+                yield return null;
+            }
+
+            // 恢复顶点位置
+            _tmp.ForceMeshUpdate();
+        }
+
+        /// <summary>
+        /// 特效 2：文字一瞬间横向撕裂与拉扯 (Horizontal Scanline Stretch & Tear)
+        /// </summary>
+        private IEnumerator HorizontalStretchTearRoutine()
+        {
+            _tmp.ForceMeshUpdate();
+            TMP_TextInfo textInfo = _tmp.textInfo;
+            if (textInfo == null || textInfo.characterCount == 0) yield break;
+
+            float duration = 0.22f;
+            float elapsed = 0f;
+
+            // 保存初始顶点快照
+            Vector3[][] origVertices = new Vector3[textInfo.meshInfo.Length][];
+            for (int m = 0; m < textInfo.meshInfo.Length; m++)
+            {
+                origVertices[m] = (Vector3[])textInfo.meshInfo[m].vertices.Clone();
+            }
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float glitchFactor = Mathf.Sin(elapsed * Mathf.PI / duration);
+
+                _tmp.ForceMeshUpdate();
+                textInfo = _tmp.textInfo;
+
+                for (int i = 0; i < textInfo.characterCount; i++)
+                {
+                    TMP_CharacterInfo charInfo = textInfo.characterInfo[i];
+                    if (!charInfo.isVisible) continue;
+
+                    int matIdx = charInfo.materialReferenceIndex;
+                    int vertIdx = charInfo.vertexIndex;
+
+                    Vector3[] destinationVertices = textInfo.meshInfo[matIdx].vertices;
+                    Vector3[] cachedOrig = origVertices[matIdx];
+
+                    // 行号奇偶判定撕裂方向
+                    int lineNo = charInfo.lineNumber;
+                    float shiftX = (lineNo % 2 == 0 ? 1f : -1f) * 18f * glitchFactor;
+                    float stretchX = 1f + (0.5f * glitchFactor);
+
+                    Vector3 charCenter = (cachedOrig[vertIdx + 0] + cachedOrig[vertIdx + 2]) * 0.5f;
+
+                    for (int v = 0; v < 4; v++)
+                    {
+                        Vector3 origPos = cachedOrig[vertIdx + v];
+                        Vector3 relPos = origPos - charCenter;
+                        relPos.x *= stretchX; // 横向拉扯
+                        destinationVertices[vertIdx + v] = charCenter + relPos + new Vector3(shiftX, 0f, 0f);
+                    }
+                }
+
+                for (int m = 0; m < textInfo.meshInfo.Length; m++)
+                {
+                    textInfo.meshInfo[m].mesh.vertices = textInfo.meshInfo[m].vertices;
+                    _tmp.UpdateGeometry(textInfo.meshInfo[m].mesh, m);
+                }
+
+                yield return null;
+            }
+
+            _tmp.ForceMeshUpdate();
         }
 
         private void ShowMessage(int index)
@@ -173,19 +379,14 @@ namespace TheLastCompact.Wakeup
 
         private void GenerateInfiniteGlitchMessage(int overflowIndex)
         {
-            // 从后半段潜意识/崩坏文本中轮询基准句
             int baseIdx = (overflowIndex % 5) + (textSequence.Length - 5);
             string baseMsg = textSequence[Mathf.Clamp(baseIdx, 0, textSequence.Length - 1)];
 
-            // 计算崩坏层级
             int extraClicks = overflowIndex - textSequence.Length + 1;
             string glitched = ApplyGlitchEffect(baseMsg, extraClicks);
             SetCustomMessage(glitched);
         }
 
-        /// <summary>
-        /// 程序化字符崩坏注入算法
-        /// </summary>
         private string ApplyGlitchEffect(string original, int glitchSeverity)
         {
             char[] chars = original.ToCharArray();
@@ -208,9 +409,6 @@ namespace TheLastCompact.Wakeup
             return result;
         }
 
-        /// <summary>
-        /// 公共接口：外部脚本直接向 3D 屏幕写入指定的绿色终端文字
-        /// </summary>
         public void SetCustomMessage(string message)
         {
             if (_tmp == null) return;
