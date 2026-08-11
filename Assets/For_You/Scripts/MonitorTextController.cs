@@ -28,11 +28,11 @@ namespace TheLastCompact.Wakeup
             "SYSTEM: DO NOT LOOK AWAY FROM THE SCREEN.",
             "...there is nothing left to type. Step away.",
             "SYSTEM: Mandatory Overtime Initiated. Submit report.",
-            "...your desk is crushed. The door is right there.",
+            "...your desk is crushed. The cubicle is bleeding.",
             "S̶Y̶S̶T̶E̶M̶: OVERTIME MANDATORY. K-K-KEEP TYPING.",
             "...stop listening to the machine. W-A-L-K O-U-T.",
             "E̵R̵R̵O̵R̵: WORKPLACE BOUNDARY DISSOLVED.",
-            "...the ruins are open. Step out into the void ->"
+            "...the office is a skin you outgrew. Leak into the next layer ->"
         };
 
         [Tooltip("每次点击切换到下一条文字的点击间隔")]
@@ -203,7 +203,7 @@ namespace TheLastCompact.Wakeup
             string result = new string(chars);
             if (Random.value < 0.4f)
             {
-                result += "\n" + GlitchSymbols[Random.Range(0, GlitchSymbols.Length)] + " WALK OUT TO STAGE 5";
+                result += "\n" + GlitchSymbols[Random.Range(0, GlitchSymbols.Length)] + " LEAK INTO THE NEXT ITERATION ->";
             }
             return result;
         }
