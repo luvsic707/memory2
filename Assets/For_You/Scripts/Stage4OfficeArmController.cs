@@ -17,8 +17,12 @@ namespace TheLastCompact.Wakeup
         [Tooltip("你在 Unity 场景中放入的人物模型/手臂 GameObject")]
         public GameObject armVisual;
 
+        [Header("手动摆姿态模式 (手动编辑开关)")]
+        [Tooltip("【默认取消勾选】：取消勾选时，脚本不会触碰你的任何骨骼！你可以完全在 Unity Hierarchy / Scene 视图里手动旋转人偶的肩膀、手臂与手指节点！")]
+        public bool overrideBonesViaScript = false;
+
         [Header("手部放置与调整参数")]
-        [Tooltip("手臂相对于相机的初始本地偏移坐标 (下移 -0.62m 藏住躯干，手伸向键盘正前方)")]
+        [Tooltip("手臂相对于相机的初始本地偏移坐标")]
         public Vector3 armLocalPosition = new Vector3(0f, -0.62f, 0.35f);
 
         [Tooltip("手臂相对于相机的初始旋转角度")]
@@ -27,17 +31,17 @@ namespace TheLastCompact.Wakeup
         [Tooltip("手臂缩放比例")]
         public Vector3 armLocalScale = Vector3.one;
 
-        [Header("骨骼笔直向前伸姿态参数 (Wolf3D 专属)")]
-        [Tooltip("左上臂旋转角度 (向前平伸: -85, 0, -90 或 0, 85, 0)")]
+        [Header("骨骼笔直向前伸姿态参数 (脚本覆盖模式专用)")]
+        [Tooltip("左上臂旋转角度")]
         public Vector3 leftUpperArmRotation = new Vector3(-85f, 0f, -90f);
 
-        [Tooltip("右上臂旋转角度 (向前平伸: -85, 0, 90 或 0, -85, 0)")]
+        [Tooltip("右上臂旋转角度")]
         public Vector3 rightUpperArmRotation = new Vector3(-85f, 0f, 90f);
 
-        [Tooltip("前臂旋转角度 (0, 0, 0 保持笔直向前)")]
+        [Tooltip("前臂旋转角度")]
         public Vector3 forearmRotation = Vector3.zero;
 
-        [Tooltip("手掌旋转角度 (0, 0, 0 保持水平朝前)")]
+        [Tooltip("手掌旋转角度")]
         public Vector3 handRotation = Vector3.zero;
 
         [Header("打字动作参数")]
@@ -104,24 +108,25 @@ namespace TheLastCompact.Wakeup
 
             if (_armTransform != null)
             {
-                // 禁用可能重置 T-Pose 的 Animator，解锁 C# 程序化手部姿态
+                // 禁用可能重置 T-Pose 的 Animator，解锁 C# / 手动 Scene 编辑手部姿态
                 Animator anim = _armTransform.GetComponent<Animator>();
                 if (anim == null) anim = _armTransform.GetComponentInChildren<Animator>();
                 if (anim != null && anim.enabled)
                 {
                     anim.enabled = false;
-                    Debug.Log($"<color=yellow>[Stage4OfficeArm] 自动禁用了 '{anim.gameObject.name}' 上的 Animator，解锁 T-Pose 程序化打字姿态控制！</color>");
+                    Debug.Log($"<color=yellow>[Stage4OfficeArm] 自动禁用了 '{anim.gameObject.name}' 上的 Animator，完全解锁手动编辑！</color>");
                 }
 
-                // 寻找骨骼节点并将双臂向前收拢，直伸笔直放在键盘面前！
-                FindAndSetArmBones();
-
-                // 应用玩家配置的打字位置
-                ApplyTypingPoseTransform();
+                // 只有勾选了 overrideBonesViaScript 时才使用脚本算法强行覆盖骨骼
+                if (overrideBonesViaScript)
+                {
+                    FindAndSetArmBones();
+                    ApplyTypingPoseTransform();
+                }
 
                 _defaultLocalPos = _armTransform.localPosition;
                 _defaultLocalRot = _armTransform.localRotation;
-                Debug.Log($"<color=green>[Stage4OfficeArm] 成功锁定 Stage 4 第一视角打字手臂: {_armTransform.name}</color>");
+                Debug.Log($"<color=green>[Stage4OfficeArm] 成功锁定 Stage 4 第一视角打字手臂: {_armTransform.name}（手动编辑模式已开启）</color>");
             }
             else
             {
