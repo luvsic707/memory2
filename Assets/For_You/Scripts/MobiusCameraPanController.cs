@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using TheLastCompact.Core;
 
 namespace TheLastCompact.Wakeup
 {
