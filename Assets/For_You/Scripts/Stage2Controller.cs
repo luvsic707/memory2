@@ -84,6 +84,12 @@ namespace TheLastCompact.Wakeup
                 gameObject.AddComponent<Stage2JuiceEffects>();
             }
 
+            // 自动装配 Stage 2 第一视角祈祷手臂控制器
+            if (Stage2PrayerArmController.Instance == null && GetComponent<Stage2PrayerArmController>() == null)
+            {
+                gameObject.AddComponent<Stage2PrayerArmController>();
+            }
+
             // 自动寻找石台
             if (floatingIsland == null)
             {

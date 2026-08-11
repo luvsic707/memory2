@@ -46,6 +46,12 @@ namespace TheLastCompact.Wakeup
                 Stage2JuiceEffects.Instance.TriggerPrayerJuice(transform.position);
             }
 
+            // 3. 触发 Stage 2 第一视角祈祷手臂抬起合十动作
+            if (Stage2PrayerArmController.Instance != null)
+            {
+                Stage2PrayerArmController.Instance.PlayPrayerMotion();
+            }
+
             Debug.Log("[Prayer] 玩家进行了一次祈祷，石台平息恢复稳定...");
         }
     }
