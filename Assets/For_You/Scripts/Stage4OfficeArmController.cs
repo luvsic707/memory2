@@ -27,18 +27,18 @@ namespace TheLastCompact.Wakeup
         [Tooltip("手臂缩放比例")]
         public Vector3 armLocalScale = Vector3.one;
 
-        [Header("骨骼笔直姿态参数 (Inspector 实时微调)")]
-        [Tooltip("左上臂旋转角度")]
-        public Vector3 leftUpperArmRotation = new Vector3(0f, 65f, -75f);
+        [Header("骨骼笔直向前伸姿态参数 (Wolf3D 专属)")]
+        [Tooltip("左上臂旋转角度 (向前平伸: -85, 0, -90 或 0, 85, 0)")]
+        public Vector3 leftUpperArmRotation = new Vector3(-85f, 0f, -90f);
 
-        [Tooltip("右上臂旋转角度")]
-        public Vector3 rightUpperArmRotation = new Vector3(0f, -65f, 75f);
+        [Tooltip("右上臂旋转角度 (向前平伸: -85, 0, 90 或 0, -85, 0)")]
+        public Vector3 rightUpperArmRotation = new Vector3(-85f, 0f, 90f);
 
-        [Tooltip("前臂旋转角度 (笔直向前延伸)")]
-        public Vector3 forearmRotation = new Vector3(0f, -35f, 0f);
+        [Tooltip("前臂旋转角度 (0, 0, 0 保持笔直向前)")]
+        public Vector3 forearmRotation = Vector3.zero;
 
-        [Tooltip("手掌旋转角度 (手心朝向键盘)")]
-        public Vector3 handRotation = new Vector3(15f, 0f, -85f);
+        [Tooltip("手掌旋转角度 (0, 0, 0 保持水平朝前)")]
+        public Vector3 handRotation = Vector3.zero;
 
         [Header("打字动作参数")]
         [Tooltip("打字敲击时下沉距离 (米)")]
