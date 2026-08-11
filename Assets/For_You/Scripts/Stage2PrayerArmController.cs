@@ -20,19 +20,22 @@ namespace TheLastCompact.Wakeup
 
         [Header("弯腰跪拜动作参数")]
         [Tooltip("弯腰跪拜下沉深度 (米)")]
-        public float bowDropDepth = 0.22f;
+        public float bowDropDepth = 0.38f;
 
         [Tooltip("弯腰前倾前伸距离 (米)")]
-        public float bowForwardReach = 0.16f;
+        public float bowForwardReach = 0.28f;
 
         [Tooltip("弯腰前倾俯仰角度 (度)")]
-        public float bowTiltAngle = 32f;
+        public float bowTiltAngle = 40f;
+
+        [Tooltip("跪拜时头部/相机下俯倾斜角度 (度)")]
+        public float cameraBowAngle = 10f;
 
         [Tooltip("跪拜动作速度")]
-        public float praySpeed = 3.5f;
+        public float praySpeed = 3.2f;
 
         [Tooltip("伏地祈祷凝滞保持时间（秒）")]
-        public float prayHoldDuration = 0.40f;
+        public float prayHoldDuration = 0.45f;
 
         [Tooltip("手臂在视角右下角的自然呼吸摇摆幅度")]
         public float swayAmount = 0.012f;
@@ -41,6 +44,8 @@ namespace TheLastCompact.Wakeup
         private Quaternion _defaultLocalRot;
         private bool _isPraying = false;
         private Transform _armTransform;
+        private Camera _playerCam;
+        private Quaternion _defaultCamLocalRot;
 
         private void Awake()
         {
@@ -62,6 +67,10 @@ namespace TheLastCompact.Wakeup
 
         private void SetupArmReferences()
         {
+            _playerCam = Camera.main;
+            if (_playerCam == null) _playerCam = GetComponentInChildren<Camera>();
+            if (_playerCam != null) _defaultCamLocalRot = _playerCam.transform.localRotation;
+
             if (armVisual != null)
             {
                 _armTransform = armVisual.transform;
@@ -84,23 +93,17 @@ namespace TheLastCompact.Wakeup
                     armVisual = foundHolder.gameObject;
                     _armTransform = foundHolder;
                 }
-                else
-                {
-                    // 若完全没有创建，自动新建占位 Holder
-                    GameObject holderGo = new GameObject("Stage2_Arm_Holder");
-                    holderGo.transform.SetParent(transform, false);
-                    holderGo.transform.localPosition = new Vector3(0f, -0.32f, 0.55f);
-                    holderGo.transform.localRotation = Quaternion.Euler(15f, 0f, 0f);
-                    _armTransform = holderGo.transform;
-                    armVisual = holderGo;
-                }
             }
 
             if (_armTransform != null)
             {
                 _defaultLocalPos = _armTransform.localPosition;
                 _defaultLocalRot = _armTransform.localRotation;
-                Debug.Log($"<color=green>[Stage2PrayerArm] 锁定了你在 Inspector 中配置的 Stage 2 手臂位置: {_defaultLocalPos}，旋转: {_defaultLocalRot.eulerAngles}</color>");
+                Debug.Log($"<color=green>[Stage2PrayerArm] 锁定手臂坐标: {_defaultLocalPos}，旋转: {_defaultLocalRot.eulerAngles}</color>");
+            }
+            else
+            {
+                Debug.LogWarning("[Stage2PrayerArm] 尚未指定 armVisual，请拖入双手模型。");
             }
         }
 
@@ -109,6 +112,7 @@ namespace TheLastCompact.Wakeup
             // 按 Q 键随时触发弯腰跪拜双手祈祷动作
             if (Input.GetKeyDown(KeyCode.Q) && !_isPraying)
             {
+                Debug.Log("<color=cyan>[Stage2PrayerArm] 收到 Q 键输入！播放弯腰跪拜祈祷动画。</color>");
                 PlayPrayerMotion();
             }
 
@@ -130,9 +134,16 @@ namespace TheLastCompact.Wakeup
         /// <summary>
         /// 触发 Stage 2 弯腰/跪拜虔诚祈祷动作
         /// </summary>
+        [ContextMenu("Test Prayer Motion")]
         public void PlayPrayerMotion(System.Action onPrayerApexCallback = null)
         {
-            if (_isPraying || _armTransform == null) return;
+            if (_isPraying) return;
+            if (_armTransform == null)
+            {
+                SetupArmReferences();
+            }
+            if (_armTransform == null) return;
+
             StartCoroutine(BowingKneelMotionRoutine(onPrayerApexCallback));
         }
 
@@ -146,10 +157,13 @@ namespace TheLastCompact.Wakeup
             Vector3 startLocalPos = _defaultLocalPos;
             Quaternion startLocalRot = _defaultLocalRot;
 
+            if (_playerCam != null) _defaultCamLocalRot = _playerCam.transform.localRotation;
+
             // 1. 弯腰跪伏下沉抛物线 (Bow & Kneel Arc Downward)
-            // 手臂向下、向前滑动，头部与上身前倾俯仰
+            // 手臂向下方、前伸，角度随上身前倾俯仰
             Vector3 bowApexPos = startLocalPos + new Vector3(0f, -bowDropDepth, bowForwardReach);
             Quaternion bowApexRot = startLocalRot * Quaternion.Euler(bowTiltAngle, 0f, 0f);
+            Quaternion camBowRot = (_playerCam != null) ? _defaultCamLocalRot * Quaternion.Euler(cameraBowAngle, 0f, 0f) : Quaternion.identity;
 
             float t = 0f;
             while (t < 1f)
@@ -158,10 +172,16 @@ namespace TheLastCompact.Wakeup
                 float easeT = Mathf.Sin(t * Mathf.PI * 0.5f); // 弧线缓动
 
                 // 注入贝塞尔弧线偏置，让双手划过一条优美的跪拜抛物线
-                Vector3 arcOffset = new Vector3(0f, Mathf.Sin(easeT * Mathf.PI) * 0.06f, 0f);
+                Vector3 arcOffset = new Vector3(0f, Mathf.Sin(easeT * Mathf.PI) * 0.08f, 0f);
 
                 _armTransform.localPosition = Vector3.Lerp(startLocalPos, bowApexPos, easeT) + arcOffset;
                 _armTransform.localRotation = Quaternion.Slerp(startLocalRot, bowApexRot, easeT);
+
+                if (_playerCam != null)
+                {
+                    _playerCam.transform.localRotation = Quaternion.Slerp(_defaultCamLocalRot, camBowRot, easeT);
+                }
+
                 yield return null;
             }
 
@@ -177,7 +197,7 @@ namespace TheLastCompact.Wakeup
             while (holdTimer < prayHoldDuration)
             {
                 holdTimer += Time.deltaTime;
-                Vector3 tremor = Random.insideUnitSphere * 0.0035f;
+                Vector3 tremor = Random.insideUnitSphere * 0.005f;
                 _armTransform.localPosition = bowApexPos + tremor;
                 yield return null;
             }
@@ -189,16 +209,25 @@ namespace TheLastCompact.Wakeup
                 t += Time.deltaTime * (praySpeed * 0.9f);
                 float easeT = t * t * (3f - 2f * t);
 
-                Vector3 riseArc = new Vector3(0f, Mathf.Sin(easeT * Mathf.PI) * 0.04f, 0f);
+                Vector3 riseArc = new Vector3(0f, Mathf.Sin(easeT * Mathf.PI) * 0.05f, 0f);
 
                 _armTransform.localPosition = Vector3.Lerp(bowApexPos, startLocalPos, easeT) + riseArc;
                 _armTransform.localRotation = Quaternion.Slerp(bowApexRot, startLocalRot, easeT);
+
+                if (_playerCam != null)
+                {
+                    _playerCam.transform.localRotation = Quaternion.Slerp(camBowRot, _defaultCamLocalRot, easeT);
+                }
+
                 yield return null;
             }
 
             _armTransform.localPosition = _defaultLocalPos;
             _armTransform.localRotation = _defaultLocalRot;
+            if (_playerCam != null) _playerCam.transform.localRotation = _defaultCamLocalRot;
             _isPraying = false;
         }
+    }
+}
     }
 }
