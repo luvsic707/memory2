@@ -18,14 +18,27 @@ namespace TheLastCompact.Wakeup
         public GameObject armVisual;
 
         [Header("手部放置与调整参数")]
-        [Tooltip("手臂相对于相机的初始本地偏移坐标")]
-        public Vector3 armLocalPosition = new Vector3(0f, -0.38f, 0.45f);
+        [Tooltip("手臂相对于相机的初始本地偏移坐标 (下移 -0.62m 藏住躯干，手伸向键盘正前方)")]
+        public Vector3 armLocalPosition = new Vector3(0f, -0.62f, 0.35f);
 
         [Tooltip("手臂相对于相机的初始旋转角度")]
-        public Vector3 armLocalRotation = new Vector3(15f, 0f, 0f);
+        public Vector3 armLocalRotation = Vector3.zero;
 
         [Tooltip("手臂缩放比例")]
         public Vector3 armLocalScale = Vector3.one;
+
+        [Header("骨骼笔直姿态参数 (Inspector 实时微调)")]
+        [Tooltip("左上臂旋转角度")]
+        public Vector3 leftUpperArmRotation = new Vector3(0f, 65f, -75f);
+
+        [Tooltip("右上臂旋转角度")]
+        public Vector3 rightUpperArmRotation = new Vector3(0f, -65f, 75f);
+
+        [Tooltip("前臂旋转角度 (笔直向前延伸)")]
+        public Vector3 forearmRotation = new Vector3(0f, -35f, 0f);
+
+        [Tooltip("手掌旋转角度 (手心朝向键盘)")]
+        public Vector3 handRotation = new Vector3(15f, 0f, -85f);
 
         [Header("打字动作参数")]
         [Tooltip("打字敲击时下沉距离 (米)")]
@@ -100,7 +113,7 @@ namespace TheLastCompact.Wakeup
                     Debug.Log($"<color=yellow>[Stage4OfficeArm] 自动禁用了 '{anim.gameObject.name}' 上的 Animator，解锁 T-Pose 程序化打字姿态控制！</color>");
                 }
 
-                // 寻找骨骼节点以收拢 T-Pose 展开的大字手臂
+                // 寻找骨骼节点并将双臂向前收拢，直伸笔直放在键盘面前！
                 FindAndSetArmBones();
 
                 // 应用玩家配置的打字位置
@@ -117,9 +130,10 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
-        /// 程序化收拢人形骨骼的 T-Pose，让左右手臂自然俯放在键盘上
+        /// 程序化将人形 T-Pose 手臂转动为笔直向正前方伸向键盘的 FPS 打字姿态
         /// </summary>
-        private void FindAndSetArmBones()
+        [ContextMenu("Set Straight FPS Arm Pose")]
+        public void FindAndSetArmBones()
         {
             if (_armTransform == null) return;
 
@@ -127,24 +141,34 @@ namespace TheLastCompact.Wakeup
             foreach (Transform t in allTransforms)
             {
                 string nameLower = t.name.ToLower();
+                // 上臂：向前收拢向内倾斜
                 if (nameLower.Contains("leftarm") || nameLower.Contains("leftupperarm") || nameLower.Contains("left_arm"))
                 {
                     _leftArmBone = t;
-                    // 自然垂手臂收拢 T-Pose
-                    t.localRotation = Quaternion.Euler(75f, 25f, -30f);
+                    t.localRotation = Quaternion.Euler(leftUpperArmRotation);
                 }
                 else if (nameLower.Contains("rightarm") || nameLower.Contains("rightupperarm") || nameLower.Contains("right_arm"))
                 {
                     _rightArmBone = t;
-                    t.localRotation = Quaternion.Euler(75f, -25f, 30f);
+                    t.localRotation = Quaternion.Euler(rightUpperArmRotation);
                 }
+                // 前臂：笔直向前伸向屏幕/键盘正前方
                 else if (nameLower.Contains("leftforearm") || nameLower.Contains("left_forearm"))
                 {
-                    t.localRotation = Quaternion.Euler(-45f, 0f, 0f);
+                    t.localRotation = Quaternion.Euler(forearmRotation);
                 }
                 else if (nameLower.Contains("rightforearm") || nameLower.Contains("right_forearm"))
                 {
-                    t.localRotation = Quaternion.Euler(-45f, 0f, 0f);
+                    t.localRotation = Quaternion.Euler(-forearmRotation.x, -forearmRotation.y, forearmRotation.z);
+                }
+                // 手掌：伏在键盘上方
+                else if (nameLower.Contains("lefthand") || nameLower.Contains("left_hand"))
+                {
+                    t.localRotation = Quaternion.Euler(handRotation);
+                }
+                else if (nameLower.Contains("righthand") || nameLower.Contains("right_hand"))
+                {
+                    t.localRotation = Quaternion.Euler(handRotation.x, -handRotation.y, -handRotation.z);
                 }
             }
         }
