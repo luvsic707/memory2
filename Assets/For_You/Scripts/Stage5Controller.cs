@@ -616,7 +616,8 @@ namespace TheLastCompact.Wakeup
                 }
                 else
                 {
-                    Debug.Log("[Stage5] 检测到场景中已存在 CustomCorridorBinder，直接绑定使用！");
+                    binder.mediaDatabase = mediaDatabase;
+                    Debug.Log("[Stage5] 检测到场景中已存在 CustomCorridorBinder，已成功强制绑定 mediaDatabase 素材库！");
                 }
             }
             else

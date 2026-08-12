@@ -146,6 +146,15 @@ namespace TheLastCompact.Wakeup
 
         private void Start()
         {
+            if (mediaDatabase == null && Stage5Controller.Instance != null)
+            {
+                mediaDatabase = Stage5Controller.Instance.mediaDatabase;
+            }
+            if (mediaDatabase == null)
+            {
+                mediaDatabase = FindObjectOfType<CardMediaDatabase>();
+            }
+
             ContentCardSpawner spawner = FindObjectOfType<ContentCardSpawner>();
             if (spawner != null)
             {
