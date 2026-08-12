@@ -303,6 +303,18 @@ namespace TheLastCompact.Wakeup
         [Tooltip("Phase 3 音调 Pitch 下限")]
         public float phase3Pitch = 0.92f;
 
+        [Tooltip("Phase 3 漩涡扭曲强度 (0 彻底关闭螺旋拉扯)")]
+        [Range(0f, 1.5f)] public float maxVortexAmount = 0.0f;
+
+        [Tooltip("Phase 3 油彩抹平强度 (0.06 保持画面平整)")]
+        [Range(0f, 1.5f)] public float maxOilSmearArc = 0.06f;
+
+        [Tooltip("Phase 3 极速拖尾模糊 (0 彻底关闭模糊重影)")]
+        [Range(0f, 1.5f)] public float maxSpeedTrails = 0.0f;
+
+        [Tooltip("Phase 3 Glitch 像素故障块强度")]
+        [Range(0f, 1.0f)] public float maxGlitchAmount = 0.08f;
+
         /// <summary>
         /// 核心：夸张演变的单曲 BGM + DSP 音频滤镜扭曲系统 + 混响 + 嘈杂人声图层
         /// 随 phaseProgress (0→1) 极其显著地渐变，确保肉耳 100% 能听出阶段质变！
@@ -551,9 +563,18 @@ namespace TheLastCompact.Wakeup
             // 取消固定硬编码时间自增！进度完全交由 CustomCorridorBinder 与内容交互驱动
             phaseProgress = Mathf.Clamp01(phaseProgress);
 
-            // 同步旋钮给子系统
+            // 同步旋钮与视觉滑块给子系统
             if (_spawner != null) _spawner.phaseProgress = phaseProgress;
             if (_environment != null) _environment.phaseProgress = phaseProgress;
+
+            CustomCorridorBinder binder = FindObjectOfType<CustomCorridorBinder>();
+            if (binder != null)
+            {
+                binder.maxVortexAmount = maxVortexAmount;
+                binder.maxOilSmearArc = maxOilSmearArc;
+                binder.maxSpeedTrails = maxSpeedTrails;
+                binder.maxGlitchAmount = maxGlitchAmount;
+            }
 
             // 动态更新顶部 Phase 阶段状态栏 HUD
             UpdatePhaseHUD();
