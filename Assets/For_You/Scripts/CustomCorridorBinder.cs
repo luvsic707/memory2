@@ -187,6 +187,17 @@ namespace TheLastCompact.Wakeup
                 Debug.Log("[CustomCorridorBinder] 已自动禁用散落卡片生成器，全面使用 5_Contemporary_1 专属 3D 走廊！");
             }
 
+            // 压暗环境背景与天空盒，防止缝隙露出发白的透明虚空
+            RenderSettings.skybox = null;
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+            RenderSettings.ambientLight = Color.black;
+            Camera mainCam = Camera.main;
+            if (mainCam != null)
+            {
+                mainCam.clearFlags = CameraClearFlags.SolidColor;
+                mainCam.backgroundColor = Color.black;
+            }
+
             SetupDoubleBufferedVideoPlayers();
 
             Shader frontShader = Shader.Find("Wakeup/CorridorFrontShader");
