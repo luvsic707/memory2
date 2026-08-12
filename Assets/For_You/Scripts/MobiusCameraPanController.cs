@@ -145,14 +145,22 @@ namespace TheLastCompact.Wakeup
                 }
             }
 
-            // 🌟 核心锚定：禁用玩家 CharacterController 的重力自由下坠，将玩家安全锚定在 Mobius 轨道上！
+            // 🌟 核心锚定：禁用 UniversalPlayer 自由行走脚本，防止重力下坠并规避 CharacterController.Move 报错！
             if (lockPlayerToTrack && playerTransform != null)
             {
+                MonoBehaviour universalPlayerScript = playerTransform.GetComponent("UniversalPlayer") as MonoBehaviour;
+                if (universalPlayerScript == null) universalPlayerScript = playerTransform.GetComponent("CorridorPlayer") as MonoBehaviour;
+
+                if (universalPlayerScript != null)
+                {
+                    universalPlayerScript.enabled = false;
+                    Debug.Log($"<color=yellow>[MobiusCam] 成功禁用了 UniversalPlayer 自由行走脚本，接管推石与莫比乌斯轨位移！</color>");
+                }
+
                 CharacterController cc = playerTransform.GetComponent<CharacterController>();
                 if (cc != null)
                 {
-                    cc.enabled = false;
-                    Debug.Log($"<color=yellow>[MobiusCam] 自动禁用了 CharacterController 重力下坠，玩家沿莫比乌斯轨道推石向前！</color>");
+                    cc.enabled = true; // 保持 CharacterController 开启，避免报警
                 }
 
                 _initialPlayerPos = playerTransform.position;
