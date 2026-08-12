@@ -537,23 +537,23 @@ namespace TheLastCompact.Wakeup
                 switch (side)
                 {
                     case 0: // 左墙贴片
-                        pos = new Vector3(-1.42f, Random.Range(-0.35f, 0.45f), zPos);
+                        pos = new Vector3(-2.42f, Random.Range(-0.8f, 0.8f), zPos);
                         rot = Quaternion.Euler(0f, 90f, 0f);
                         break;
                     case 1: // 右墙贴片
-                        pos = new Vector3(1.42f, Random.Range(-0.35f, 0.45f), zPos);
+                        pos = new Vector3(2.42f, Random.Range(-0.8f, 0.8f), zPos);
                         rot = Quaternion.Euler(0f, -90f, 0f);
                         break;
                     case 2: // 天花板贴片
-                        pos = new Vector3(Random.Range(-0.45f, 0.45f), 1.52f, zPos);
+                        pos = new Vector3(Random.Range(-0.8f, 0.8f), 2.42f, zPos);
                         rot = Quaternion.Euler(90f, 0f, 0f);
-                        scale = new Vector3(1.8f, 1.1f, 1f);
+                        scale = new Vector3(2.2f, 1.25f, 1f);
                         break;
                     case 3: // 地面贴片
                     default:
-                        pos = new Vector3(Random.Range(-0.45f, 0.45f), -1.52f, zPos);
+                        pos = new Vector3(Random.Range(-0.8f, 0.8f), -2.42f, zPos);
                         rot = Quaternion.Euler(-90f, 0f, 0f);
-                        scale = new Vector3(1.8f, 1.1f, 1f);
+                        scale = new Vector3(2.2f, 1.25f, 1f);
                         break;
                 }
 
@@ -568,6 +568,8 @@ namespace TheLastCompact.Wakeup
                 Shader unlitShader = Shader.Find("Universal Render Pipeline/Unlit");
                 if (unlitShader == null) unlitShader = Shader.Find("Unlit/Texture");
                 Material mat = new Material(unlitShader);
+                if (mat.HasProperty("_Color")) mat.SetColor("_Color", Color.white);
+                if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
 
                 if (mediaDatabase != null)
                 {
@@ -847,7 +849,7 @@ namespace TheLastCompact.Wakeup
                 }
             }
 
-            // 🌟 按照顶级艺术设计需求：将 6 个 Cube 墙体设置为纯粹优雅的深黑/暗色底色，作为高清视频画廊的完美承载背景！
+            // 🌟 强力为四周 6 个 Cube 墙体与悬浮视频贴片赋上高清视频与画报 Texture，确保四周 100% 满布动态媒体画面！
             if (sideWallRenderers != null && sideWallRenderers.Length > 0)
             {
                 for (int i = 0; i < sideWallRenderers.Length; i++)
@@ -858,12 +860,36 @@ namespace TheLastCompact.Wakeup
                         Material mat = sideWallRenderers[i].material;
                         if (mat != null)
                         {
-                            Color darkBaseColor = new Color(0.04f, 0.04f, 0.06f, 1.0f);
-                            if (mat.HasProperty("_Color")) mat.SetColor("_Color", darkBaseColor);
-                            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", darkBaseColor);
-                            if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", null);
-                            if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", null);
-                            mat.mainTexture = null;
+                            Texture targetTex = null;
+                            if (mediaDatabase != null)
+                            {
+                                switch (i % 5)
+                                {
+                                    case 0: targetTex = mediaDatabase.GetEntertainmentTexture(); break;
+                                    case 1: targetTex = mediaDatabase.GetThemeTexture("banana"); break;
+                                    case 2: targetTex = mediaDatabase.GetThemeTexture("prayer"); break;
+                                    case 3: targetTex = mediaDatabase.GetThemeTexture("push"); break;
+                                    case 4: default: targetTex = mediaDatabase.GetThemeTexture("work"); break;
+                                }
+                            }
+                            if (targetTex == null) targetTex = (i % 2 == 0) ? texA : texB;
+
+                            if (targetTex != null)
+                            {
+                                if (mat.HasProperty("_MainTex"))
+                                {
+                                    mat.SetTexture("_MainTex", targetTex);
+                                    mat.SetTextureScale("_MainTex", Vector2.one);
+                                }
+                                if (mat.HasProperty("_BaseMap"))
+                                {
+                                    mat.SetTexture("_BaseMap", targetTex);
+                                    mat.SetTextureScale("_BaseMap", Vector2.one);
+                                }
+                                mat.mainTexture = targetTex;
+                            }
+                            if (mat.HasProperty("_Color")) mat.SetColor("_Color", Color.white);
+                            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
                         }
                     }
                 }
