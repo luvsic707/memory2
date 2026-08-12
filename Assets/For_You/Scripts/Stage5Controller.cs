@@ -635,7 +635,11 @@ namespace TheLastCompact.Wakeup
             GameObject relicGo = new GameObject("Stage5RelicSpawner");
             relicGo.transform.SetParent(transform, false);
             relicGo.AddComponent<Stage5RelicSpawner>();
-            Debug.Log("[Stage5] 自动挂载高级 3D 算法遗迹物化生成器。");
+
+            GameObject popGo = new GameObject("Stage5PopGeometryEffect");
+            popGo.transform.SetParent(transform, false);
+            popGo.AddComponent<Stage5PopGeometryEffect>();
+            Debug.Log("[Stage5] 自动挂载视频同款魔幻 Pop 几何阵列与 HUD 锁定框系统。");
         }
 
         private void OnCardSpawned(ContentCard card)
