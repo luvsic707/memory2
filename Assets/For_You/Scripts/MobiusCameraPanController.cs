@@ -28,12 +28,12 @@ namespace TheLastCompact.Wakeup
         [Tooltip("每次推石玩家沿着莫比乌斯环曲面平移推进的步长距离 (米，0.38m 营造沉重的拟真推石速度)")]
         public float playerStepDistance = 0.38f;
 
-        [Header("玩家双手与巨石紧密贴合参数")]
-        [Tooltip("巨石紧贴在玩家手心正前方的相对距离 (米，0.95m 确保双手 100% 物理死死贴在球面上)")]
-        public float boulderPairFrontDistance = 0.95f;
+        [Header("玩家双手与巨石紧密贴合参数 (相向相机视线对齐)")]
+        [Tooltip("巨石在相向视线正前方的相对距离 (米，1.4m 确保在视角和手心正前方 100% 可见)")]
+        public float boulderPairFrontDistance = 1.4f;
 
-        [Tooltip("巨石相对于手心的高度偏置 (米)")]
-        public float boulderPairHeightOffset = 0.10f;
+        [Tooltip("巨石相对于相机的垂直高度偏置 (米，-0.2m 偏下方与手心平齐)")]
+        public float boulderPairHeightOffset = -0.2f;
 
         private Camera _mainCam;
         private Vector3 _initialCamLocalPos;
@@ -257,11 +257,15 @@ namespace TheLastCompact.Wakeup
                 playerTransform.position += playerTransform.forward * playerStepDistance;
             }
 
-            // 🌟 2. 巨石 (Boulder) 与玩家【100% 组合绑定】，死死锁定在玩家双手正前方滚动！
-            if (boulderTransform != null && playerTransform != null)
+            // 🌟 2. 巨石 (Boulder) 与玩家双手【100% 眼神与手心对齐】，死死锁定在视角正前方滚动！
+            if (boulderTransform != null)
             {
-                boulderTransform.position = playerTransform.position + playerTransform.forward * boulderPairFrontDistance + playerTransform.up * boulderPairHeightOffset;
-                boulderTransform.Rotate(Vector3.right, playerStepDistance * 30f, Space.Self);
+                Transform refCam = _mainCam != null ? _mainCam.transform : playerTransform;
+                if (refCam != null)
+                {
+                    boulderTransform.position = refCam.position + refCam.forward * boulderPairFrontDistance + refCam.up * boulderPairHeightOffset;
+                    boulderTransform.Rotate(Vector3.right, playerStepDistance * 30f, Space.Self);
+                }
             }
 
             // 3. 触发第一视角双手发力抵住巨石打击感
@@ -287,10 +291,14 @@ namespace TheLastCompact.Wakeup
         public void SnapBoulderToHandsFront()
         {
             if (playerTransform == null || boulderTransform == null) SetupReferences();
-            if (boulderTransform != null && playerTransform != null)
+            if (boulderTransform != null)
             {
-                boulderTransform.position = playerTransform.position + playerTransform.forward * boulderPairFrontDistance + playerTransform.up * boulderPairHeightOffset;
-                Debug.Log($"<color=green>[MobiusCam] 已将巨石 '{boulderTransform.name}' 精准对齐至玩家双手正前方！</color>");
+                Transform refCam = _mainCam != null ? _mainCam.transform : playerTransform;
+                if (refCam != null)
+                {
+                    boulderTransform.position = refCam.position + refCam.forward * boulderPairFrontDistance + refCam.up * boulderPairHeightOffset;
+                    Debug.Log($"<color=green>[MobiusCam] 已将巨石 '{boulderTransform.name}' 精准对齐至眼睛与双手正前方: {boulderTransform.position}</color>");
+                }
             }
         }
 
