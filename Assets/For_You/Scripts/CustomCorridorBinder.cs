@@ -454,7 +454,8 @@ namespace TheLastCompact.Wakeup
         /// </summary>
         private void CreateMultiPanelVideoMatrix()
         {
-            if (!enableMultiPanelVideoMatrix) return;
+            GameObject matrixRoot = new GameObject("MultiPanelVideoMatrix_Root");
+            matrixRoot.transform.SetParent(transform, false);
 
             _basePanelPositions = new Vector3[multiPanelCount];
             _basePanelRotations = new Quaternion[multiPanelCount];
