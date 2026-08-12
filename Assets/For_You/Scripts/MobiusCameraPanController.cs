@@ -14,34 +14,26 @@ namespace TheLastCompact.Wakeup
     {
         public static MobiusCameraPanController Instance { get; private set; }
 
-        [Header("核心引用")]
-        [Tooltip("巨石 Transform 引用（若留空，脚本将自动根据名称包含 rock/boulder/sphere 自动寻找）")]
+        [Header("核心引用 (Inspector 手动拖拽配置)")]
+        [Tooltip("【推荐手动拖入】：直接把 Hierarchy 树里的 MobiusBall (3) 巨石拖入这里！手动拖入后脚本会 100% 优先使用你的配置，不再自动查找！")]
         public Transform boulderTransform;
 
-        [Tooltip("玩家/相机 Transform 引用")]
+        [Tooltip("【推荐手动拖入】：直接把 Hierarchy 树里的 MobiusStrip (3) 环形曲面轨道拖入这里！")]
+        public Transform mobiusTrackTransform;
+
+        [Tooltip("【推荐手动拖入】：直接把 Hierarchy 树里的 player (1) 玩家节点拖入这里！")]
         public Transform playerTransform;
 
-        [Header("推石与拉远参数")]
-        [Tooltip("每次推石巨石滚动的推进距离 (米)")]
-        public float boulderPushStep = 1.2f;
+        [Header("莫比乌斯环曲面轨迹推进参数")]
+        [Tooltip("每次推石玩家沿着莫比乌斯环曲面平移推进的步长距离 (米，0.38m 营造沉重的拟真推石速度)")]
+        public float playerStepDistance = 0.38f;
 
-        [Tooltip("触发显示莫比乌斯全景所需的推石总次数")]
-        public int maxPushesForPanorama = 12;
+        [Header("玩家双手与巨石紧密贴合参数")]
+        [Tooltip("巨石紧贴在玩家手心正前方的相对距离 (米，0.95m 确保双手 100% 物理死死贴在球面上)")]
+        public float boulderPairFrontDistance = 0.95f;
 
-        [Tooltip("初始镜头拉远后退距离 (米)")]
-        public float initialCamDistance = 0.5f;
-
-        [Tooltip("全景视角最大后退拉远距离 (米)")]
-        public float maxPanoramaDistance = 45f;
-
-        [Tooltip("全景视角最大上升高度 (米)")]
-        public float maxPanoramaHeight = 25f;
-
-        [Tooltip("全景视角下俯倾斜角度 (度)")]
-        public float maxPanoramaPitchAngle = 42f;
-
-        [Tooltip("镜头平滑拉远过渡速度")]
-        public float cameraSmoothSpeed = 2.5f;
+        [Tooltip("巨石相对于手心的高度偏置 (米)")]
+        public float boulderPairHeightOffset = 0.10f;
 
         private Camera _mainCam;
         private Vector3 _initialCamLocalPos;
