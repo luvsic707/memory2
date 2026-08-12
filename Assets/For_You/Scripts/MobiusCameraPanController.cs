@@ -73,22 +73,22 @@ namespace TheLastCompact.Wakeup
         [Tooltip("每次推石玩家沿着莫比乌斯环曲面平移推进的步长距离 (米)")]
         public float playerStepDistance = 1.2f;
 
+        [Header("玩家与巨石 100% 组合绑定参数 (解决脱节问题)")]
+        [Tooltip("巨石紧贴在玩家手心正前方的相对距离 (米)")]
+        public float boulderPairFrontDistance = 1.8f;
+
+        [Tooltip("巨石相对于手心的高度偏置 (米)")]
+        public float boulderPairHeightOffset = 0.6f;
+
         [Header("锁定玩家在莫比乌斯轨道 (彻底解决掉落)")]
         [Tooltip("【默认开启】：关闭 WASD 重力自由下坠，将玩家固定锚定在 MobiusStrip (3) 轨迹上，绝对不会下坠掉落！")]
         public bool lockPlayerToTrack = true;
 
-        [Header("自动对齐巨石到玩家视野正前方")]
-        [Tooltip("【取消勾选使用你手动摆好的位置】：若取消勾选，脚本将严格保留你在场景里把 player 放在 MobiusBall (3) 前面的手动位置！")]
-        public bool autoPositionBoulderInFront = false;
-
-        [Tooltip("巨石放置在玩家正前方的距离 (米)")]
-        public float boulderFrontDistance = 2.2f;
-
-        [Tooltip("巨石高度偏置 (米)")]
-        public float boulderHeightOffset = 0.85f;
-
         private Vector3 _initialPlayerPos;
         private Quaternion _initialPlayerRot;
+        private Vector3 _trackCenter;
+        private float _radius = 8f;
+        private float _currentAngle = 0f;
 
         private void Start()
         {
@@ -145,7 +145,39 @@ namespace TheLastCompact.Wakeup
                 }
             }
 
-            // 🌟 核心锚定：禁用 UniversalPlayer 自由行走脚本，防止重力下坠并规避 CharacterController.Move 报错！
+            // 自动寻找巨石 (优先匹配 MobiusBall (3) / MobiusBall / Ball / Rock)
+            if (boulderTransform == null)
+            {
+                foreach (GameObject go in FindObjectsOfType<GameObject>())
+                {
+                    string nameLower = go.name.ToLower();
+                    if (nameLower.Contains("mobiusball (3)") || nameLower.Contains("mobiusball") || nameLower.Contains("ball") || nameLower.Contains("rock"))
+                    {
+                        boulderTransform = go.transform;
+                        break;
+                    }
+                }
+            }
+
+            // 🌟 1. 组合体强力对齐：开局自动把巨石对齐紧贴在玩家双手的正前方！(彻底解决脱节)
+            if (boulderTransform != null && playerTransform != null)
+            {
+                boulderTransform.position = playerTransform.position + playerTransform.forward * boulderPairFrontDistance + playerTransform.up * boulderPairHeightOffset;
+                Debug.Log($"<color=green>[MobiusCam] 成功将巨石 '{boulderTransform.name}' 与玩家 '{playerTransform.name}' 组合对齐！</color>");
+            }
+
+            // 🌟 2. 莫比乌斯环圆弧切线轨道极坐标系统
+            if (mobiusTrackTransform != null && playerTransform != null)
+            {
+                _trackCenter = mobiusTrackTransform.position;
+                Vector3 radial = playerTransform.position - _trackCenter;
+                float r = new Vector2(radial.x, radial.z).magnitude;
+                if (r > 0.5f) _radius = r;
+                _currentAngle = Mathf.Atan2(radial.z, radial.x);
+                Debug.Log($"<color=cyan>[MobiusCam] 莫比乌斯环切线轨道就绪: Center={_trackCenter}, Radius={_radius:F2}m, InitialAngle={_currentAngle * Mathf.Rad2Deg:F1}°</color>");
+            }
+
+            // 🌟 3. 核心锚定：禁用 UniversalPlayer 自由行走脚本，防止重力下坠并规避 CharacterController.Move 报错！
             if (lockPlayerToTrack && playerTransform != null)
             {
                 MonoBehaviour universalPlayerScript = playerTransform.GetComponent("UniversalPlayer") as MonoBehaviour;
@@ -165,28 +197,6 @@ namespace TheLastCompact.Wakeup
 
                 _initialPlayerPos = playerTransform.position;
                 _initialPlayerRot = playerTransform.rotation;
-            }
-
-            // 自动寻找巨石 (优先匹配 MobiusBall (3) / MobiusBall / Ball / Rock)
-            if (boulderTransform == null)
-            {
-                foreach (GameObject go in FindObjectsOfType<GameObject>())
-                {
-                    string nameLower = go.name.ToLower();
-                    if (nameLower.Contains("mobiusball (3)") || nameLower.Contains("mobiusball") || nameLower.Contains("ball") || nameLower.Contains("rock"))
-                    {
-                        boulderTransform = go.transform;
-                        break;
-                    }
-                }
-            }
-
-            // 若开启了 autoPositionBoulderInFront 才会移动石头位置
-            if (autoPositionBoulderInFront && boulderTransform != null && playerTransform != null)
-            {
-                Vector3 frontPos = playerTransform.position + playerTransform.forward * boulderFrontDistance + playerTransform.up * boulderHeightOffset;
-                boulderTransform.position = frontPos;
-                Debug.Log($"<color=cyan>[MobiusCam] 自动将巨石 '{boulderTransform.name}' 放置在玩家眼前: {frontPos}</color>");
             }
 
             if (boulderTransform != null)
@@ -230,17 +240,27 @@ namespace TheLastCompact.Wakeup
             _currentPushCount++;
             _currentProgress = Mathf.Clamp01((float)_currentPushCount / maxPushesForPanorama);
 
-            // 1. 玩家 (Player) 沿着莫比乌斯环朝向前进！
-            if (playerTransform != null)
+            // 🌟 1. 沿莫比乌斯环弧形切线推进 (Circle Orbit Tangent Advance)
+            if (mobiusTrackTransform != null && playerTransform != null)
             {
-                Vector3 advanceDir = playerTransform.forward;
-                playerTransform.position += advanceDir * playerStepDistance;
+                float deltaAngle = (playerStepDistance / Mathf.Max(_radius, 1f));
+                _currentAngle += deltaAngle;
+
+                Vector3 newPlayerPos = _trackCenter + new Vector3(Mathf.Cos(_currentAngle) * _radius, playerTransform.position.y - _trackCenter.y, Mathf.Sin(_currentAngle) * _radius);
+                Vector3 tangentDir = new Vector3(-Mathf.Sin(_currentAngle), 0f, Mathf.Cos(_currentAngle)).normalized;
+
+                playerTransform.position = newPlayerPos;
+                if (tangentDir != Vector3.zero) playerTransform.rotation = Quaternion.LookRotation(tangentDir, Vector3.up);
+            }
+            else if (playerTransform != null)
+            {
+                playerTransform.position += playerTransform.forward * playerStepDistance;
             }
 
-            // 2. 巨石 (Boulder) 始终保持在玩家正前方滚动推进！
+            // 🌟 2. 巨石 (Boulder) 与玩家【100% 组合绑定】，死死锁定在玩家双手正前方滚动！
             if (boulderTransform != null && playerTransform != null)
             {
-                boulderTransform.position = playerTransform.position + playerTransform.forward * boulderFrontDistance + playerTransform.up * boulderHeightOffset;
+                boulderTransform.position = playerTransform.position + playerTransform.forward * boulderPairFrontDistance + playerTransform.up * boulderPairHeightOffset;
                 boulderTransform.Rotate(Vector3.right, playerStepDistance * 30f, Space.Self);
             }
 
