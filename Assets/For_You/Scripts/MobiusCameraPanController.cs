@@ -67,8 +67,8 @@ namespace TheLastCompact.Wakeup
         }
 
         [Header("自动对齐巨石到玩家视野正前方")]
-        [Tooltip("【默认开启】：开局自动将大石头放置在玩家正前方 2.2 米处，确保第一视角睁眼第一眼就能看到巨石与双手！")]
-        public bool autoPositionBoulderInFront = true;
+        [Tooltip("【取消勾选使用你手动摆好的位置】：若取消勾选，脚本将严格保留你在场景里把 player 放在 MobiusBall (3) 前面的手动位置！")]
+        public bool autoPositionBoulderInFront = false;
 
         [Tooltip("巨石放置在玩家正前方的距离 (米)")]
         public float boulderFrontDistance = 2.2f;
@@ -78,7 +78,28 @@ namespace TheLastCompact.Wakeup
 
         private void Start()
         {
+            EnsureMobiusColliders();
             SetupReferences();
+        }
+
+        /// <summary>
+        /// 自动为场景中所有的 MobiusStrip 添加 MeshCollider 碰撞体，防止玩家掉落！
+        /// </summary>
+        private void EnsureMobiusColliders()
+        {
+            MeshFilter[] meshFilters = FindObjectsOfType<MeshFilter>();
+            foreach (MeshFilter mf in meshFilters)
+            {
+                if (mf.gameObject.name.ToLower().Contains("mobius"))
+                {
+                    if (mf.gameObject.GetComponent<Collider>() == null)
+                    {
+                        MeshCollider mc = mf.gameObject.AddComponent<MeshCollider>();
+                        mc.sharedMesh = mf.sharedMesh;
+                        Debug.Log($"<color=green>[MobiusCam] 自动为 '{mf.gameObject.name}' 添加了 MeshCollider 碰撞体，解决玩家掉落问题！</color>");
+                    }
+                }
+            }
         }
 
         private void SetupReferences()
@@ -111,7 +132,7 @@ namespace TheLastCompact.Wakeup
                 }
             }
 
-            // 🌟 自动将大石头放在玩家睁眼正前方！
+            // 若开启了 autoPositionBoulderInFront 才会移动石头位置
             if (autoPositionBoulderInFront && boulderTransform != null && playerTransform != null)
             {
                 Vector3 frontPos = playerTransform.position + playerTransform.forward * boulderFrontDistance + playerTransform.up * boulderHeightOffset;
