@@ -88,6 +88,12 @@ namespace TheLastCompact.Wakeup
         [Tooltip("镜头平滑拉远过渡速度")]
         public float cameraSmoothSpeed = 2.5f;
 
+        [Header("鼠标自由视角解锁")]
+        [Tooltip("【默认 0.5 (50%)】：镜头拉远进度达到 50% 时，自动解锁鼠标 360 度自由环视全景！")]
+        [Range(0.1f, 1.0f)]
+        public float unlockMouseLookThreshold = 0.5f;
+
+        private bool _hasUnlockedMouseLook = false;
         private Vector3 _initialPlayerPos;
         private Quaternion _initialPlayerRot;
         private Vector3 _trackCenter;
@@ -288,7 +294,35 @@ namespace TheLastCompact.Wakeup
             if (PlayerBehaviorData.Instance != null) PlayerBehaviorData.Instance.AddWork();
             if (Stage3InactionBreakController.Instance != null) Stage3InactionBreakController.Instance.OnPush();
 
+            // 🌟 6. 镜头拉远达到 50% 进度时自动解锁鼠标 360 度自由环视视角！
+            if (_currentProgress >= unlockMouseLookThreshold && !_hasUnlockedMouseLook)
+            {
+                _hasUnlockedMouseLook = true;
+                UnlockMouseLookControl();
+            }
+
             Debug.Log($"<color=cyan>[MobiusCam] 莫比乌斯推石第 {_currentPushCount} 次！玩家与巨石向前推进中... 全景拉远进度: {_currentProgress * 100f:F0}%</color>");
+        }
+
+        /// <summary>
+        /// 当拉远达到 50% 时自动解锁玩家鼠标 360 度自由视角
+        /// </summary>
+        private void UnlockMouseLookControl()
+        {
+            if (playerTransform != null)
+            {
+                MonoBehaviour universalPlayerScript = playerTransform.GetComponent("UniversalPlayer") as MonoBehaviour;
+                if (universalPlayerScript == null) universalPlayerScript = playerTransform.GetComponent("CorridorPlayer") as MonoBehaviour;
+
+                if (universalPlayerScript != null)
+                {
+                    universalPlayerScript.enabled = true;
+                    Debug.Log($"<color=green>[MobiusCam] 🌟 镜头拉远进度达到 {unlockMouseLookThreshold * 100f:F0}%！已成功解锁鼠标 360 度自由环视全景！</color>");
+                }
+            }
+
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
         }
 
         /// <summary>
