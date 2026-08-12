@@ -23,6 +23,10 @@ namespace TheLastCompact.Wakeup
         [Tooltip("走廊四周的 4 面墙体 Cube（左、右、天花板、地面）")]
         public Renderer[] sideWallRenderers;
 
+        [Header("物理墙体震颤")]
+        [Tooltip("物理墙体在 Phase 3 的震颤强度 (降低强度保持画面平稳)")]
+        public float physicalWarpIntensity = 0.05f;
+
         [Header("Shader 视觉特效强度手动配置 (Inspector 自由调校)")]
         [Tooltip("漩涡扭曲强度上限 (设置为 0 彻底关闭漩涡拉扯)")]
         [Range(0f, 1.5f)] public float maxVortexAmount = 0.0f;
