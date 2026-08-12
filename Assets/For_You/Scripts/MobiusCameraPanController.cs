@@ -62,6 +62,13 @@ namespace TheLastCompact.Wakeup
         [Tooltip("【默认开启】：关闭 WASD 重力自由下坠，将玩家固定锚定在 MobiusStrip (3) 轨迹上，绝对不会下坠掉落！")]
         public bool lockPlayerToTrack = true;
 
+        [Header("镜头拉远起终点 (Start Point & End Point 可选手动摆放)")]
+        [Tooltip("【镜头拉远起始点】：可直接在场景中建一个空物体 StartCam 放置在双手与巨石近景处！若留空则自动使用开局相机视角！")]
+        public Transform startCameraPoint;
+
+        [Tooltip("【镜头拉远终点 (莫比乌斯全景俯瞰点)】：直接在 Scene 中建一个空物体 EndCam 放置在高空俯瞰莫比乌斯环！脚本会随着推石平滑插值拉远至此！")]
+        public Transform endCameraPoint;
+
         [Header("镜头全景拉远参数")]
         [Tooltip("触发显示莫比乌斯全景所需的推石总次数")]
         public int maxPushesForPanorama = 16;
@@ -324,7 +331,18 @@ namespace TheLastCompact.Wakeup
         {
             if (_mainCam == null) return;
 
-            // 渐进插值相机 Transform (LateUpdate 强制定位)
+            // 🌟 1. 优先支持 Inspector 中手动摆放的 Start Camera Point 与 End Camera Point
+            if (startCameraPoint != null && endCameraPoint != null)
+            {
+                Vector3 desiredWorldPos = Vector3.Lerp(startCameraPoint.position, endCameraPoint.position, _currentProgress);
+                Quaternion desiredWorldRot = Quaternion.Slerp(startCameraPoint.rotation, endCameraPoint.rotation, _currentProgress);
+
+                _mainCam.transform.position = Vector3.Lerp(_mainCam.transform.position, desiredWorldPos, Time.deltaTime * cameraSmoothSpeed);
+                _mainCam.transform.rotation = Quaternion.Slerp(_mainCam.transform.rotation, desiredWorldRot, Time.deltaTime * cameraSmoothSpeed);
+                return;
+            }
+
+            // 🌟 2. 备用相对位移算法
             Vector3 desiredLocalPos = _initialCamLocalPos + _targetCamOffset;
             Quaternion desiredLocalRot = _initialCamLocalRot * _targetCamRotation;
 
