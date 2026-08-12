@@ -177,27 +177,57 @@ namespace TheLastCompact.Wakeup
                 frontWallRenderer.material = _frontMat;
                 _initialFrontScale = frontWallRenderer.transform.localScale;
             }
+            // 自动拾取场景中所有的 Cube, Cube (1) ~ Cube (5) 墙面
+            if (sideWallRenderers == null || sideWallRenderers.Length == 0)
+            {
+                List<Renderer> foundRenderers = new List<Renderer>();
+                GameObject[] sceneGos = FindObjectsOfType<GameObject>();
+                foreach (var go in sceneGos)
+                {
+                    if (go != null && go.name.StartsWith("Cube") && go.name != "Invisible_Static_Safety_Floor")
+                    {
+                        Renderer r = go.GetComponent<Renderer>();
+                        if (r != null) foundRenderers.Add(r);
+                    }
+                }
+                sideWallRenderers = foundRenderers.ToArray();
+                Debug.Log($"<color=cyan>[CustomCorridorBinder] 自动拾取到场景中 {sideWallRenderers.Length} 个 Cube 墙面！</color>");
+            }
+
             if (sideWallRenderers != null && sideWallRenderers.Length > 0)
             {
                 _initialWallPositions = new Vector3[sideWallRenderers.Length];
                 _initialWallRotations = new Quaternion[sideWallRenderers.Length];
                 _initialWallScales = new Vector3[sideWallRenderers.Length];
 
+                Shader unlitShader = Shader.Find("Universal Render Pipeline/Unlit");
+                if (unlitShader == null) unlitShader = Shader.Find("Unlit/Texture");
+                if (unlitShader == null) unlitShader = Shader.Find("Standard");
+
                 for (int i = 0; i < sideWallRenderers.Length; i++)
                 {
                     if (sideWallRenderers[i] != null)
                     {
-                        Material wallMatInst = new Material(_wallMat);
-                        sideWallRenderers[i].material = wallMatInst;
+                        Material wallMatInst = new Material(unlitShader);
+                        Texture tex = (mediaDatabase != null) ? mediaDatabase.GetEntertainmentTexture() : null;
+                        if (tex != null)
+                        {
+                            if (wallMatInst.HasProperty("_MainTex")) wallMatInst.SetTexture("_MainTex", tex);
+                            if (wallMatInst.HasProperty("_BaseMap")) wallMatInst.SetTexture("_BaseMap", tex);
+                            wallMatInst.mainTexture = tex;
+                        }
+                        if (wallMatInst.HasProperty("_Color")) wallMatInst.SetColor("_Color", Color.white);
+                        if (wallMatInst.HasProperty("_BaseColor")) wallMatInst.SetColor("_BaseColor", Color.white);
 
+                        sideWallRenderers[i].material = wallMatInst;
                         _initialWallPositions[i] = sideWallRenderers[i].transform.localPosition;
                         _initialWallRotations[i] = sideWallRenderers[i].transform.localRotation;
                         _initialWallScales[i] = sideWallRenderers[i].transform.localScale;
 
-                        sideWallRenderers[i].enabled = !disableSolidBoxShell;
+                        sideWallRenderers[i].enabled = true;
                     }
                 }
-                Debug.Log("<color=green>[CustomCorridorBinder] 成功保留四周 Cube 墙体外壳，并为每个 Cube 实例化独立 Material！</color>");
+                Debug.Log("<color=green>[CustomCorridorBinder] 成功为场景中所有 Cube 墙面强力投影 mediaDatabase 媒体素材！</color>");
             }
 
             CreateInvisibleGroundFloor();
