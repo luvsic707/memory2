@@ -239,6 +239,7 @@ namespace TheLastCompact.Wakeup
             }
 
             CreateInvisibleGroundFloor();
+            CreateFarEndCapWall();
             CreateMultiPanelVideoMatrix();
 
             PickNextMedia();
@@ -508,6 +509,37 @@ namespace TheLastCompact.Wakeup
                     }
                 }
             }
+        }
+
+        private Renderer _farEndCapRenderer;
+
+        /// <summary>
+        /// 在走廊极尽头 (Z = 22.5m) 创建高清媒体封底墙，彻底封死尽头黑洞！
+        /// </summary>
+        private void CreateFarEndCapWall()
+        {
+            GameObject endCapGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            endCapGo.name = "Tunnel_FarEndCap_Wall";
+            endCapGo.transform.SetParent(transform, false);
+
+            endCapGo.transform.position = new Vector3(0f, 0f, 22.5f);
+            endCapGo.transform.rotation = Quaternion.identity;
+            endCapGo.transform.localScale = new Vector3(5.2f, 5.2f, 1.0f);
+
+            Collider col = endCapGo.GetComponent<Collider>();
+            if (col != null) Destroy(col);
+
+            _farEndCapRenderer = endCapGo.GetComponent<MeshRenderer>();
+            Shader unlitShader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (unlitShader == null) unlitShader = Shader.Find("Unlit/Texture");
+            if (unlitShader == null) unlitShader = Shader.Find("Standard");
+
+            Material mat = new Material(unlitShader);
+            if (mat.HasProperty("_Color")) mat.SetColor("_Color", Color.white);
+            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
+
+            _farEndCapRenderer.material = mat;
+            Debug.Log("<color=green>[CustomCorridorBinder] 成功创建走廊极尽头高清媒体封底墙 (Z = 22.5m)！</color>");
         }
 
         /// <summary>
@@ -891,6 +923,23 @@ namespace TheLastCompact.Wakeup
                             if (mat.HasProperty("_Color")) mat.SetColor("_Color", Color.white);
                             if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
                         }
+                    }
+                }
+            }
+
+            if (_farEndCapRenderer != null)
+            {
+                Texture endCapTex = texA != null ? texA : (texB != null ? texB : (mediaDatabase != null ? mediaDatabase.GetEntertainmentTexture() : null));
+                if (endCapTex != null)
+                {
+                    Material mat = _farEndCapRenderer.material;
+                    if (mat != null)
+                    {
+                        if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", endCapTex);
+                        if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", endCapTex);
+                        mat.mainTexture = endCapTex;
+                        if (mat.HasProperty("_Color")) mat.SetColor("_Color", Color.white);
+                        if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
                     }
                 }
             }
