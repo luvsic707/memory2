@@ -224,36 +224,6 @@ namespace TheLastCompact.Wakeup
             sideWallRenderers = foundRenderers.ToArray();
             Debug.Log($"<color=cyan>[CustomCorridorBinder] 强力搜寻并注入场景中全套 {sideWallRenderers.Length} 个 Cube 墙面！(包含 Cube, Cube (1)~Cube (5))</color>");
 
-            // 🌟 核心修正：自动测算 Player 位置与走廊 Z 轴偏差，将全套 Cube 墙体对齐包裹住 Player！
-            Transform playerT = Camera.main != null ? Camera.main.transform : null;
-            if (playerT != null && sideWallRenderers != null && sideWallRenderers.Length > 0)
-            {
-                float minZ = float.MaxValue;
-                foreach (var r in sideWallRenderers)
-                {
-                    if (r != null)
-                    {
-                        float z = r.transform.position.z;
-                        if (z < minZ) minZ = z;
-                    }
-                }
-
-                float zShift = (playerT.position.z - 2.0f) - minZ;
-                if (Mathf.Abs(zShift) > 1.0f)
-                {
-                    foreach (var r in sideWallRenderers)
-                    {
-                        if (r != null)
-                        {
-                            Vector3 p = r.transform.position;
-                            p.z += zShift;
-                            r.transform.position = p;
-                        }
-                    }
-                    Debug.Log($"<color=green>[CustomCorridorBinder] 成功将场景中偏远 {minZ:F1}m 的 Cube 墙体全自动吸附对齐到 Player 身旁 (平移 {zShift:F1}m)！</color>");
-                }
-            }
-
             if (sideWallRenderers != null && sideWallRenderers.Length > 0)
             {
                 _initialWallPositions = new Vector3[sideWallRenderers.Length];
@@ -291,8 +261,6 @@ namespace TheLastCompact.Wakeup
             }
 
             CreateInvisibleGroundFloor();
-            CreateFarEndCapWall();
-            CreatePerfectCorridorPlanes();
             CreateMultiPanelVideoMatrix();
 
             PickNextMedia();
@@ -473,26 +441,7 @@ namespace TheLastCompact.Wakeup
                 {
                     if (sideWallRenderers[i] != null)
                     {
-                        // 1. 严格基于你在 Scene 里搭好的初始 Scale 进行 5% 微小软呼吸
-                        Vector3 baseScale = _initialWallScales[i];
-                        Vector3 jellyScale = baseScale;
-                        if (phaseProgress < 0.70f)
-                        {
-                            float breathe = Mathf.Sin(time * 1.5f + i * 0.8f) * 0.02f;
-                            jellyScale = new Vector3(baseScale.x * (1.0f + breathe), baseScale.y * (1.0f - breathe), baseScale.z * (1.0f + breathe * 0.5f));
-                        }
-                        sideWallRenderers[i].transform.localScale = jellyScale;
-
-                        // 2. 极轻微的平稳浮动（绝无剧烈晃动）
-                        Vector3 waveOffset = new Vector3(
-                            Mathf.Sin(time * 1.5f + i) * 0.015f,
-                            Mathf.Cos(time * 1.2f + i) * 0.015f,
-                            Mathf.Sin(time * 1.0f + i) * 0.010f
-                        ) * (isPhase1 ? 0.2f : (0.2f + physIntensity));
-
-                        sideWallRenderers[i].transform.localPosition = _initialWallPositions[i] + waveOffset;
-                        float angleOffset = Mathf.Sin(time * 2.0f + i) * 0.4f * physIntensity;
-                        sideWallRenderers[i].transform.localRotation = _initialWallRotations[i] * Quaternion.Euler(angleOffset, 0f, angleOffset);
+            // 🌟 严格保持你在 Scene 编辑器里手动调好的 Cube 位置、旋转与缩放 (0% 动态偏差，100% 忠实于 Scene)
                     }
                 }
             }
