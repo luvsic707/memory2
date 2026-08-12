@@ -70,15 +70,15 @@ namespace TheLastCompact.Wakeup
         [Tooltip("莫比乌斯环 3D Transform 引用（若留空将自动寻找 MobiusStrip (3)）")]
         public Transform mobiusTrackTransform;
 
-        [Tooltip("每次推石玩家沿着莫比乌斯环曲面平移推进的步长距离 (米)")]
-        public float playerStepDistance = 1.2f;
+        [Tooltip("每次推石玩家沿着莫比乌斯环曲面平移推进的步长距离 (米，0.38m 营造沉重的拟真推石速度)")]
+        public float playerStepDistance = 0.38f;
 
-        [Header("玩家与巨石 100% 组合绑定参数 (解决脱节问题)")]
-        [Tooltip("巨石紧贴在玩家手心正前方的相对距离 (米)")]
-        public float boulderPairFrontDistance = 1.8f;
+        [Header("玩家双手与 MobiusBall (3) 紧密贴合参数")]
+        [Tooltip("巨石紧贴在玩家手心正前方的相对距离 (米，0.95m 确保双手 100% 物理死死贴在球面上)")]
+        public float boulderPairFrontDistance = 0.95f;
 
         [Tooltip("巨石相对于手心的高度偏置 (米)")]
-        public float boulderPairHeightOffset = 0.6f;
+        public float boulderPairHeightOffset = 0.10f;
 
         [Header("锁定玩家在莫比乌斯轨道 (彻底解决掉落)")]
         [Tooltip("【默认开启】：关闭 WASD 重力自由下坠，将玩家固定锚定在 MobiusStrip (3) 轨迹上，绝对不会下坠掉落！")]

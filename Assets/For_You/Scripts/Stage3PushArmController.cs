@@ -28,22 +28,22 @@ namespace TheLastCompact.Wakeup
 
         [Header("推石发力动作参数")]
         [Tooltip("推石前压距离 (米)")]
-        public float pushDistance = 0.26f;
+        public float pushDistance = 0.18f;
 
         [Tooltip("推石抬高距离 (米)")]
-        public float pushHeight = 0.08f;
+        public float pushHeight = 0.04f;
 
         [Tooltip("推石前倾角度 (度)")]
-        public float pushTiltAngle = -18f;
+        public float pushTiltAngle = -15f;
 
         [Tooltip("推石动作推进速度")]
-        public float pushSpeed = 4.0f;
+        public float pushSpeed = 3.5f;
 
         [Tooltip("推石肌肉发力震颤强度 (米)")]
-        public float pushTremorIntensity = 0.005f;
+        public float pushTremorIntensity = 0.007f;
 
         [Tooltip("发力顶点凝滞保持时间（秒）")]
-        public float pushHoldDuration = 0.35f;
+        public float pushHoldDuration = 0.40f;
 
         [Tooltip("手臂自然发力呼吸摇晃幅度")]
         public float swayAmount = 0.010f;
