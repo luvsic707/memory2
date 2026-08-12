@@ -94,6 +94,8 @@ namespace TheLastCompact.Wakeup
         public float unlockMouseLookThreshold = 0.5f;
 
         private bool _hasUnlockedMouseLook = false;
+        private float _mouseYaw = 0f;
+        private float _mousePitch = 0f;
         private Vector3 _initialPlayerPos;
         private Quaternion _initialPlayerRot;
         private Vector3 _trackCenter;
