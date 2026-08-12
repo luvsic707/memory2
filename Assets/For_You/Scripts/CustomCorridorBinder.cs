@@ -259,6 +259,8 @@ namespace TheLastCompact.Wakeup
                         }
                         if (wallMatInst.HasProperty("_Color")) wallMatInst.SetColor("_Color", Color.white);
                         if (wallMatInst.HasProperty("_BaseColor")) wallMatInst.SetColor("_BaseColor", Color.white);
+                        if (wallMatInst.HasProperty("_Cull")) wallMatInst.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
+                        if (wallMatInst.HasProperty("_CullMode")) wallMatInst.SetInt("_CullMode", (int)UnityEngine.Rendering.CullMode.Off);
 
                         sideWallRenderers[i].material = wallMatInst;
                         _initialWallPositions[i] = sideWallRenderers[i].transform.localPosition;
@@ -1013,6 +1015,8 @@ namespace TheLastCompact.Wakeup
                             }
                             if (mat.HasProperty("_Color")) mat.SetColor("_Color", Color.white);
                             if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
+                            if (mat.HasProperty("_Cull")) mat.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
+                            if (mat.HasProperty("_CullMode")) mat.SetInt("_CullMode", (int)UnityEngine.Rendering.CullMode.Off);
                         }
                     }
                 }
