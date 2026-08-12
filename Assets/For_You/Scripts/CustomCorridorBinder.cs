@@ -21,8 +21,8 @@ namespace TheLastCompact.Wakeup
         [Tooltip("走廊尽头的正面墙/Quad（播放交替图像/视频）")]
         public Renderer frontWallRenderer;
 
-        [Tooltip("是否显示正面挡住视野的 Quad 墙面 (默认 false 彻底移除遮挡视野的巨型绿墙)")]
-        public bool showFrontWall = false;
+        [Tooltip("是否显示正面墙/Quad 墙面 (默认 true 承载正面视频与图像投影)")]
+        public bool showFrontWall = true;
 
         [Tooltip("走廊四周的 4 面墙体 Cube（左、右、天花板、地面）")]
         public Renderer[] sideWallRenderers;
@@ -809,8 +809,13 @@ namespace TheLastCompact.Wakeup
 
             if (_frontMat != null)
             {
+                if (texA == null && mediaDatabase != null) texA = mediaDatabase.GetEntertainmentTexture();
+                if (texB == null && mediaDatabase != null) texB = mediaDatabase.GetEntertainmentTexture();
+
                 if (_frontMat.HasProperty("_MainTex") && texA != null) _frontMat.SetTexture("_MainTex", texA);
                 if (_frontMat.HasProperty("_NextTex") && texB != null) _frontMat.SetTexture("_NextTex", texB);
+                if (_frontMat.HasProperty("_BaseMap") && texA != null) _frontMat.SetTexture("_BaseMap", texA);
+                _frontMat.mainTexture = texA;
             }
 
             if (_wallMat != null)
