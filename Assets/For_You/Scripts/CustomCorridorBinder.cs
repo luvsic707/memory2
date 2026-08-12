@@ -202,27 +202,27 @@ namespace TheLastCompact.Wakeup
                 frontWallRenderer.material = _frontMat;
                 _initialFrontScale = frontWallRenderer.transform.localScale;
                 frontWallRenderer.enabled = showFrontWall;
+            }
 
-                if (!showFrontWall)
-                {
-                    Vector3 p = frontWallRenderer.transform.position;
-                    p.z = 80.0f;
-                    frontWallRenderer.transform.position = p;
-                }
-            }
-            // 🌟 强力搜寻场景中所有的 Cube (包含 Cube, Cube (1) ~ Cube (5) 全部 6 个墙体)
-            List<Renderer> foundRenderers = new List<Renderer>();
-            GameObject[] sceneGos = FindObjectsOfType<GameObject>();
-            foreach (var go in sceneGos)
+            // 🌟 尊重你在 Inspector 里引用的 sideWallRenderers；仅在为空时在当前 Transform 父子层级中查找
+            if (sideWallRenderers == null || sideWallRenderers.Length == 0)
             {
-                if (go != null && go.name.StartsWith("Cube") && go.name != "Invisible_Static_Safety_Floor")
+                List<Renderer> foundRenderers = new List<Renderer>();
+                Transform rootSearch = transform.parent != null ? transform.parent : transform;
+                Renderer[] childRenderers = rootSearch.GetComponentsInChildren<Renderer>(true);
+                foreach (var r in childRenderers)
                 {
-                    Renderer r = go.GetComponent<Renderer>();
-                    if (r != null) foundRenderers.Add(r);
+                    if (r != null && r.gameObject.name.StartsWith("Cube") && r.gameObject.name != "Invisible_Static_Safety_Floor")
+                    {
+                        foundRenderers.Add(r);
+                    }
+                }
+                if (foundRenderers.Count > 0)
+                {
+                    sideWallRenderers = foundRenderers.ToArray();
                 }
             }
-            sideWallRenderers = foundRenderers.ToArray();
-            Debug.Log($"<color=cyan>[CustomCorridorBinder] 强力搜寻并注入场景中全套 {sideWallRenderers.Length} 个 Cube 墙面！(包含 Cube, Cube (1)~Cube (5))</color>");
+            Debug.Log($"<color=cyan>[CustomCorridorBinder] 已绑定 3D 走廊 {sideWallRenderers?.Length ?? 0} 个 Cube 墙面，位置 100% 保持 Scene 原始状态！</color>");
 
             if (sideWallRenderers != null && sideWallRenderers.Length > 0)
             {
