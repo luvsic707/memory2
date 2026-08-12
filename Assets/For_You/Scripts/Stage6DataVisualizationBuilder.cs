@@ -7,7 +7,7 @@ namespace TheLastCompact.Wakeup
 {
     /// <summary>
     /// Stage 6 专属 3D 全息数据生成感视觉构建器 (Stage 6 Holographic Data Visualization Builder)
-    /// 100% 修复控制台报错版 (Zero Exception Guarantee)
+    /// 100% 修复 string.Format 类型匹配版 (FormatException Zero Error)
     /// </summary>
     public class Stage6DataVisualizationBuilder : MonoBehaviour
     {
@@ -71,13 +71,13 @@ namespace TheLastCompact.Wakeup
         private static readonly string[] DataTagTemplates = new string[]
         {
             "DATA_NODE_#{0:D3}",
-            "VECTOR [{0:F2}, {1:F2}, {2:F2}]",
-            "RECONSTRUCTION_PROGRESS {0:F1}%",
-            "MEMORY_FRAGMENT 0x{1:X4}",
-            "NEURAL_WEIGHT: {2:F2}",
-            "COGNITIVE_INDEX {0:F1}",
+            "VECTOR [{2:F2}, {3:F2}]",
+            "RECONSTRUCTION {1:F1}%",
+            "MEMORY_FRAGMENT 0x{4:X4}",
+            "NEURAL_WEIGHT: {1:F2}",
+            "COGNITIVE_INDEX {1:F1}",
             "ALGORITHM_TRAIT: RECURSIVE",
-            "SENTIMENT_VECTOR 0x{1:X2}",
+            "SENTIMENT_VECTOR 0x{4:X4}",
             "SYSTEM_STATE: SYNTHESIZING"
         };
 
@@ -287,7 +287,7 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
-        /// 3. 分帧生成全息浮动数据标签与引线 (100% 无报错版本)
+        /// 3. 分帧生成全息浮动数据标签与引线 (100% 无 FormatException 报错版本)
         /// </summary>
         private void GenerateDataLabels()
         {
@@ -308,10 +308,14 @@ namespace TheLastCompact.Wakeup
                 labelGo.transform.localPosition = labelPos;
 
                 string template = DataTagTemplates[i % DataTagTemplates.Length];
+                int nodeIdx = i;
+                float progressVal = i * 7.5f + 12.3f;
+                float posX = nodePos.x;
+                float posY = nodePos.y;
                 int randHex = Random.Range(0x1000, 0xFFFF);
-                string textContent = string.Format(template, i * 7.5f, nodePos.x, nodePos.y, randHex);
+                string textContent = string.Format(template, nodeIdx, progressVal, posX, posY, randHex);
 
-                // 使用标准 Unity 3D TextMesh 确保 100% 跨平台与框架兼容，绝无组件冲突与 NullReferenceException
+                // 使用标准 Unity 3D TextMesh 确保 100% 跨平台与框架兼容
                 TextMesh tm = labelGo.AddComponent<TextMesh>();
                 if (tm != null)
                 {
