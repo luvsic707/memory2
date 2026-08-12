@@ -62,6 +62,32 @@ namespace TheLastCompact.Wakeup
             // 准心射线检测与 HUD 锁定框更新
             UpdateReticleLockBox();
 
+            // 保持 SpeedLineRain 粒子跟随相机
+            if (_speedLineParticles != null)
+            {
+                _speedLineParticles.transform.position = _camTransform.position + _camTransform.forward * 3.5f;
+            }
+
+            // 无缝循环回收落到相机身后的 Pop 几何符号，重新置于前方
+            for (int i = 0; i < _activeElements.Count; i++)
+            {
+                if (_activeElements[i] != null)
+                {
+                    float distZ = _activeElements[i].transform.position.z - _camTransform.position.z;
+                    if (distZ < -1.5f)
+                    {
+                        float sideSign = Random.value > 0.5f ? 1.0f : -1.0f;
+                        float xOffset = (spawnRadius * sideSign) * Random.Range(0.6f, 1.0f);
+                        float yOffset = Random.Range(-0.4f, 0.6f);
+                        Vector3 newPos = _camTransform.position + _camTransform.forward * Random.Range(6.0f, 10.0f) + _camTransform.right * xOffset + _camTransform.up * yOffset;
+                        _activeElements[i].transform.position = newPos;
+
+                        PopElementFloating floating = _activeElements[i].GetComponent<PopElementFloating>();
+                        if (floating != null) floating.ResetStartPos(newPos);
+                    }
+                }
+            }
+
             // 清理已销毁元素
             _activeElements.RemoveAll(item => item == null);
         }
@@ -251,6 +277,11 @@ namespace TheLastCompact.Wakeup
             _startPos = transform.position;
             _rotSpeed = new Vector3(Random.Range(30f, 90f), Random.Range(40f, 100f), Random.Range(20f, 60f));
             _timeOffset = Random.Range(0f, 10f);
+        }
+
+        public void ResetStartPos(Vector3 pos)
+        {
+            _startPos = pos;
         }
 
         private void Update()

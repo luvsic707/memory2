@@ -23,6 +23,13 @@ namespace TheLastCompact.Wakeup
         [Tooltip("走廊四周的 4 面墙体 Cube（左、右、天花板、地面）")]
         public Renderer[] sideWallRenderers;
 
+        [Header("走廊穿梭流动性控制 (Continuous Forward Flow Fly)")]
+        [Tooltip("启用走廊无限向前平滑穿梭流动（模仿参考视频中的无缝推进感）")]
+        public bool enableContinuousForwardFly = true;
+
+        [Tooltip("向前穿梭流动的基础速度 (米/秒，Inspector 自由调速)")]
+        public float forwardFlySpeed = 2.2f;
+
         [Header("物理墙体震颤")]
         [Tooltip("物理墙体在 Phase 3 的震颤强度 (降低强度保持画面平稳)")]
         public float physicalWarpIntensity = 0.05f;
@@ -350,7 +357,25 @@ namespace TheLastCompact.Wakeup
                     }
                 }
             }
+
+            // 🌟 核心突破：走廊无限向前平滑穿梭流动 (Endless Fly-Through Corridor Stream)
+            if (enableContinuousForwardFly)
+            {
+                float flySpeed = forwardFlySpeed * (1.0f + phaseProgress * 0.7f);
+                _cumulativeFlyZ += flySpeed * Time.deltaTime;
+
+                Camera mainCam = Camera.main;
+                if (mainCam != null)
+                {
+                    // 摄像机/视角沿着走廊平滑向前穿梭推进，模仿参考视频中的无缝空间流动感！
+                    Vector3 camPos = mainCam.transform.position;
+                    camPos.z = (_cumulativeFlyZ % 30.0f); // 30米无缝循环无限向前穿梭
+                    mainCam.transform.position = camPos;
+                }
+            }
         }
+
+        private float _cumulativeFlyZ = 0f;
 
         private float _mediaPlayTimer = 0f;
 
