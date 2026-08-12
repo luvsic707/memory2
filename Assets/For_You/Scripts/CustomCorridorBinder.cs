@@ -57,6 +57,28 @@ namespace TheLastCompact.Wakeup
         [Tooltip("走廊轻微扭曲角度 (度)")]
         [Range(0f, 15f)] public float tunnelTwistAngle = 4.0f;
 
+        [Header("🛠️ 走廊墙体与封底 Inspector 手动微调参数 (Real-Time Manual Alignment)")]
+        [Tooltip("走廊宽度半程 (米，默认 2.45 米精确贴合)")]
+        public float wallHalfWidth = 2.45f;
+
+        [Tooltip("走廊高度 offset (米，默认 Y=1.0 米)")]
+        public float wallCenterY = 1.0f;
+
+        [Tooltip("天花板高度 (米，默认 Y=3.0 米)")]
+        public float ceilingY = 3.0f;
+
+        [Tooltip("地面高度 (米，默认 Y=-1.0 米)")]
+        public float floorY = -1.0f;
+
+        [Tooltip("走廊整体 Z 轴偏移量 (米，默认 Z=6.0 米)")]
+        public float wallCenterZ = 6.0f;
+
+        [Tooltip("尽头封底墙 Z 轴位置 (米，默认 Z=13.8 米)")]
+        public float endCapZ = 13.8f;
+
+        [Tooltip("尽头封底墙尺寸 (米，默认 10.0 米)")]
+        public float endCapSize = 10.0f;
+
         private Vector3[] _basePanelPositions;
         private Quaternion[] _basePanelRotations;
 
@@ -546,7 +568,7 @@ namespace TheLastCompact.Wakeup
         private Renderer[] _perfectWallPlanes;
 
         /// <summary>
-        /// 在走廊极尽头 (Z = 13.8m, Y = 1.0m) 创建 10x10 巨型高清媒体封底墙，彻底无缝封死尽头黑洞！
+        /// 在走廊极尽头创建巨型高清媒体封底墙，彻底无缝封死尽头黑洞！
         /// </summary>
         private void CreateFarEndCapWall()
         {
@@ -554,9 +576,9 @@ namespace TheLastCompact.Wakeup
             endCapGo.name = "Tunnel_FarEndCap_Wall";
             endCapGo.transform.SetParent(transform, false);
 
-            endCapGo.transform.position = new Vector3(0f, 1.0f, 13.8f);
+            endCapGo.transform.position = new Vector3(0f, wallCenterY, endCapZ);
             endCapGo.transform.rotation = Quaternion.identity;
-            endCapGo.transform.localScale = new Vector3(10.0f, 10.0f, 1.0f);
+            endCapGo.transform.localScale = new Vector3(endCapSize, endCapSize, 1.0f);
 
             Collider col = endCapGo.GetComponent<Collider>();
             if (col != null) Destroy(col);
@@ -571,7 +593,7 @@ namespace TheLastCompact.Wakeup
             if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
 
             _farEndCapRenderer.material = mat;
-            Debug.Log("<color=green>[CustomCorridorBinder] 成功创建走廊极尽头高清 10x10 媒体封底墙，零缝隙封死尽头！</color>");
+            Debug.Log("<color=green>[CustomCorridorBinder] 成功创建走廊极尽头高清媒体封底墙，零缝隙封死尽头！</color>");
         }
 
         /// <summary>
@@ -600,23 +622,23 @@ namespace TheLastCompact.Wakeup
                 switch (i)
                 {
                     case 0: // 左墙
-                        pos = new Vector3(-2.45f, 1.0f, 6.0f);
+                        pos = new Vector3(-wallHalfWidth, wallCenterY, wallCenterZ);
                         rot = Quaternion.Euler(0f, 90f, 0f);
                         break;
                     case 1: // 右墙
-                        pos = new Vector3(2.45f, 1.0f, 6.0f);
+                        pos = new Vector3(wallHalfWidth, wallCenterY, wallCenterZ);
                         rot = Quaternion.Euler(0f, -90f, 0f);
                         break;
                     case 2: // 天花板
-                        pos = new Vector3(0f, 3.0f, 6.0f);
+                        pos = new Vector3(0f, ceilingY, wallCenterZ);
                         rot = Quaternion.Euler(90f, 0f, 0f);
-                        scale = new Vector3(4.9f, 16.0f, 1.0f);
+                        scale = new Vector3(wallHalfWidth * 2.0f, 16.0f, 1.0f);
                         break;
                     case 3: // 地面
                     default:
-                        pos = new Vector3(0f, -1.0f, 6.0f);
+                        pos = new Vector3(0f, floorY, wallCenterZ);
                         rot = Quaternion.Euler(-90f, 0f, 0f);
-                        scale = new Vector3(4.9f, 16.0f, 1.0f);
+                        scale = new Vector3(wallHalfWidth * 2.0f, 16.0f, 1.0f);
                         break;
                 }
 
