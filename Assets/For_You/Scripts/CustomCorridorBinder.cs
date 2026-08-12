@@ -231,15 +231,17 @@ namespace TheLastCompact.Wakeup
                     if (_transTimer >= transDur) _isTransitioning = false;
                 }
 
-                float glitch = phaseProgress > 0.35f ? Mathf.InverseLerp(0.35f, 0.96f, phaseProgress) * 0.95f : 0f;
-                float borderFade = phaseProgress > 0.35f ? Mathf.InverseLerp(0.35f, 0.96f, phaseProgress) * 1.0f : 0f;
+                // 大幅提升画面可读性：彻底减轻正面墙 (Front Wall) 与四周墙面的漩涡抹平与扭曲特效！
+                float glitch = phaseProgress > 0.35f ? Mathf.InverseLerp(0.35f, 0.96f, phaseProgress) * 0.12f : 0f;
+                float borderFade = phaseProgress > 0.35f ? Mathf.InverseLerp(0.35f, 0.96f, phaseProgress) * 0.20f : 0f;
 
                 bool isP1 = phaseProgress < 0.35f;
                 float p2R = Mathf.InverseLerp(0.35f, 0.70f, phaseProgress);
                 float p3R = Mathf.InverseLerp(0.70f, 1.00f, phaseProgress);
 
-                float frontOilSmear = isP1 ? 0.05f : (0.05f + p2R * 0.45f + p3R * 1.0f);
-                float frontSpeedTrails = isP1 ? 0f : (p2R * 0.35f + p3R * 1.0f);
+                // 正面墙：清除强烈的油彩漩涡抹平与极速拖尾，保持视频清晰呈现在画面中央！
+                float frontOilSmear = isP1 ? 0.02f : (0.02f + p2R * 0.05f + p3R * 0.08f);
+                float frontSpeedTrails = 0f;
 
                 _frontMat.SetFloat("_TransitionProgress", progress);
                 _frontMat.SetFloat("_TransitionMode", (float)_currentModeIndex);
@@ -252,11 +254,11 @@ namespace TheLastCompact.Wakeup
             // 正面墙 (Front Wall) 严格保持其原本封闭尽头的大尺寸，并基于初始 Scale 进行微呼吸！
             if (frontWallRenderer != null)
             {
-                float breathe = Mathf.Sin(time * 1.5f) * 0.03f;
+                float breathe = Mathf.Sin(time * 1.5f) * 0.02f;
                 frontWallRenderer.transform.localScale = _initialFrontScale * (1.0f + breathe);
             }
 
-            // 5. 驱动 Side Walls 四周墙面多维流体 (Phase 1&2 轻松有趣、浪漫圆润)
+            // 5. 驱动 Side Walls 四周墙面多维流体 (极简清爽通透版)
             if (_wallMat != null)
             {
                 bool isPhase1 = phaseProgress < 0.35f;
@@ -264,22 +266,21 @@ namespace TheLastCompact.Wakeup
                 float p2Ratio = Mathf.InverseLerp(0.35f, 0.70f, phaseProgress);
                 float p3Ratio = Mathf.InverseLerp(0.70f, 1.00f, phaseProgress);
 
-                float jelly = isPhase1 ? 0.6f : Mathf.Lerp(0.6f, 0.1f, p2Ratio);
+                float jelly = isPhase1 ? 0.2f : Mathf.Lerp(0.2f, 0.05f, p2Ratio);
+                float speed = isPhase1 ? 0.4f : (0.4f + p2Ratio * 0.4f + p3Ratio * 0.6f);
 
-                float speed = isPhase1 ? 0.6f : (0.8f + p2Ratio * 1.5f + p3Ratio * 3.5f);
+                // 极简高通透：大幅压低 RGB 色偏、漩涡拉扯、波浪扭曲与油彩抹平！
+                float glitch = isPhase1 ? 0.02f : (0.02f + p2Ratio * 0.04f + p3Ratio * 0.08f);
+                float rgbShift = isPhase1 ? 0.002f : (0.002f + p2Ratio * 0.004f + p3Ratio * 0.006f);
+                float waveWarp = isPhase1 ? 0.05f : (0.05f + p2Ratio * 0.08f + p3Ratio * 0.12f);
 
-                // 梦幻轻柔 Phase 1&2 (Dreamy Soft Pastel Aura) ➔ 狂乱高潮 Phase 3
-                float glitch = isPhase1 ? 0.08f : (0.08f + p2Ratio * 0.22f + p3Ratio * 0.65f); // Phase 1 极轻微梦幻！
-                float rgbShift = isPhase1 ? 0.006f : (0.006f + p2Ratio * 0.015f + p3Ratio * 0.035f); // 柔和梦幻光晕
-                float waveWarp = isPhase1 ? 0.15f : (0.15f + p2Ratio * 0.45f + p3Ratio * 1.0f);
-
-                float angle = isPhase1 ? 0.1f : (0.1f + Mathf.Sin(time * 0.3f) * (0.4f + p2Ratio * 0.6f));
-                float vortex = isPhase1 ? 0.05f : (0.05f + p2Ratio * 0.6f + p3Ratio * 1.2f);
-                float sliceShift = isPhase1 ? 0.06f : (0.06f + p2Ratio * 0.2f + p3Ratio * 0.65f); // 轻柔水波切片
-                // 参考图 1 油彩弧形抹平与参考图 2 爆炸极速拖尾 (Phase 1 渐进至 Phase 4)
-                float borderFade = isPhase1 ? 0f : (p2Ratio * 0.2f + p3Ratio * 1.0f);
-                float oilSmear = isPhase1 ? 0.05f : (0.05f + p2Ratio * 0.45f + p3Ratio * 1.0f);
-                float speedTrails = isPhase1 ? 0f : (p2Ratio * 0.35f + p3Ratio * 1.0f);
+                float angle = isPhase1 ? 0.05f : (0.05f + Mathf.Sin(time * 0.3f) * 0.1f);
+                float vortex = 0f; // 彻底关闭侧墙漩涡扭曲
+                float sliceShift = isPhase1 ? 0.02f : (0.02f + p2Ratio * 0.04f + p3Ratio * 0.08f);
+                
+                float borderFade = isPhase1 ? 0f : (p2Ratio * 0.05f + p3Ratio * 0.15f);
+                float oilSmear = isPhase1 ? 0.02f : (0.02f + p2Ratio * 0.04f + p3Ratio * 0.06f);
+                float speedTrails = 0f; // 彻底关闭拖尾模糊
 
                 _wallMat.SetFloat("_JellyAmount", jelly);
                 _wallMat.SetFloat("_FlowSpeed", speed);
