@@ -976,15 +976,28 @@ namespace TheLastCompact.Wakeup
 
                             if (targetTex != null)
                             {
+                                Vector2 tileScale = Vector2.one;
+                                Vector2 tileOffset = Vector2.zero;
+
+                                // 自动矫正倒置的墙面与天花板/地面 Texture 姿态，确保图像 100% 正向清晰
+                                string gName = sideWallRenderers[i].gameObject.name;
+                                if (gName.Contains("(3)") || gName.Contains("(4)") || gName == "Cube")
+                                {
+                                    tileScale = new Vector2(1.0f, -1.0f);
+                                    tileOffset = new Vector2(0.0f, 1.0f);
+                                }
+
                                 if (mat.HasProperty("_MainTex"))
                                 {
                                     mat.SetTexture("_MainTex", targetTex);
-                                    mat.SetTextureScale("_MainTex", Vector2.one);
+                                    mat.SetTextureScale("_MainTex", tileScale);
+                                    mat.SetTextureOffset("_MainTex", tileOffset);
                                 }
                                 if (mat.HasProperty("_BaseMap"))
                                 {
                                     mat.SetTexture("_BaseMap", targetTex);
-                                    mat.SetTextureScale("_BaseMap", Vector2.one);
+                                    mat.SetTextureScale("_BaseMap", tileScale);
+                                    mat.SetTextureOffset("_BaseMap", tileOffset);
                                 }
                                 mat.mainTexture = targetTex;
                             }
