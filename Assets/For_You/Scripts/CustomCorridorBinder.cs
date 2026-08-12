@@ -40,6 +40,19 @@ namespace TheLastCompact.Wakeup
         [Tooltip("向前穿梭流动的基础速度 (米/秒，Inspector 自由调速)")]
         public float forwardFlySpeed = 2.2f;
 
+        [Header("管道弯曲动势与倾斜控制 (Curved Tunnel Flow)")]
+        [Tooltip("启用走廊向 Player 涌现时的拐弯与 S 曲线动势（平滑微弯，极高可读性）")]
+        public bool enableTunnelCurvingTrends = true;
+
+        [Tooltip("走廊拐弯弯曲振幅 (米，保持平缓高可读性)")]
+        [Range(0f, 1.2f)] public float tunnelCurveAmplitude = 0.35f;
+
+        [Tooltip("走廊轻微扭曲角度 (度)")]
+        [Range(0f, 15f)] public float tunnelTwistAngle = 4.0f;
+
+        private Vector3[] _basePanelPositions;
+        private Quaternion[] _basePanelRotations;
+
         [Header("物理墙体震颤")]
         [Tooltip("物理墙体在 Phase 3 的震颤强度 (降低强度保持画面平稳)")]
         public float physicalWarpIntensity = 0.05f;
@@ -382,7 +395,7 @@ namespace TheLastCompact.Wakeup
                 }
             }
 
-            // 🌟 驱动多宫格 3D 视频面板沿着走廊四周流畅后退流逝与无缝循环 Texture 刷新！
+            // 🌟 驱动多宫格 3D 视频面板沿着走廊四周流畅后退流逝，并带有弯曲拐弯 S 曲线动势！
             if (enableMultiPanelVideoMatrix && enableContinuousForwardFly)
             {
                 Camera mainCam = Camera.main;
@@ -392,7 +405,26 @@ namespace TheLastCompact.Wakeup
                 {
                     if (_matrixPanels[i] != null)
                     {
-                        _matrixPanels[i].transform.position -= Vector3.forward * (streamSpeed * Time.deltaTime);
+                        Vector3 currentPos = _matrixPanels[i].transform.position;
+                        currentPos.z -= streamSpeed * Time.deltaTime;
+
+                        // 管道弯曲 S 曲线动势与微扭曲 (Curved & Bending Tunnel Trend - 极高可读性)
+                        if (enableTunnelCurvingTrends)
+                        {
+                            float z = currentPos.z;
+                            float curveX = Mathf.Sin(time * 0.7f + z * 0.15f) * tunnelCurveAmplitude;
+                            float curveY = Mathf.Cos(time * 0.5f + z * 0.12f) * (tunnelCurveAmplitude * 0.6f);
+                            float twist = Mathf.Sin(time * 0.4f + z * 0.10f) * tunnelTwistAngle;
+
+                            Vector3 baseP = (_basePanelPositions != null && i < _basePanelPositions.Length) ? _basePanelPositions[i] : currentPos;
+                            currentPos.x = baseP.x + curveX;
+                            currentPos.y = baseP.y + curveY;
+
+                            Quaternion baseR = (_basePanelRotations != null && i < _basePanelRotations.Length) ? _basePanelRotations[i] : Quaternion.identity;
+                            _matrixPanels[i].transform.rotation = baseR * Quaternion.Euler(0f, 0f, twist);
+                        }
+
+                        _matrixPanels[i].transform.position = currentPos;
 
                         if (mainCam != null && _matrixPanels[i].transform.position.z < mainCam.transform.position.z - 3.5f)
                         {
@@ -424,8 +456,8 @@ namespace TheLastCompact.Wakeup
         {
             if (!enableMultiPanelVideoMatrix) return;
 
-            GameObject matrixRoot = new GameObject("MultiPanelVideoMatrix_Root");
-            matrixRoot.transform.SetParent(transform, false);
+            _basePanelPositions = new Vector3[multiPanelCount];
+            _basePanelRotations = new Quaternion[multiPanelCount];
 
             for (int i = 0; i < multiPanelCount; i++)
             {
@@ -487,8 +519,10 @@ namespace TheLastCompact.Wakeup
 
                 mr.material = mat;
                 _matrixPanels.Add(panelGo);
+                _basePanelPositions[i] = pos;
+                _basePanelRotations[i] = rot;
             }
-            Debug.Log($"<color=cyan>[MultiPanelMatrix] 成功搭建 16 宫格 3D 走廊错落视频画廊墙！</color>");
+            Debug.Log($"<color=cyan>[MultiPanelMatrix] 成功搭建 16 宫格 3D 走廊错落视频画廊墙（具备 S 曲线管道动势）！</color>");
         }
 
         private float _cumulativeFlyZ = 0f;
