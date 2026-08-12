@@ -188,22 +188,19 @@ namespace TheLastCompact.Wakeup
                     frontWallRenderer.transform.position = p;
                 }
             }
-            // 自动拾取场景中所有的 Cube, Cube (1) ~ Cube (5) 墙面
-            if (sideWallRenderers == null || sideWallRenderers.Length == 0)
+            // 🌟 强力搜寻场景中所有的 Cube (包含 Cube, Cube (1) ~ Cube (5) 全部 6 个墙体)
+            List<Renderer> foundRenderers = new List<Renderer>();
+            GameObject[] sceneGos = FindObjectsOfType<GameObject>();
+            foreach (var go in sceneGos)
             {
-                List<Renderer> foundRenderers = new List<Renderer>();
-                GameObject[] sceneGos = FindObjectsOfType<GameObject>();
-                foreach (var go in sceneGos)
+                if (go != null && go.name.StartsWith("Cube") && go.name != "Invisible_Static_Safety_Floor")
                 {
-                    if (go != null && go.name.StartsWith("Cube") && go.name != "Invisible_Static_Safety_Floor")
-                    {
-                        Renderer r = go.GetComponent<Renderer>();
-                        if (r != null) foundRenderers.Add(r);
-                    }
+                    Renderer r = go.GetComponent<Renderer>();
+                    if (r != null) foundRenderers.Add(r);
                 }
-                sideWallRenderers = foundRenderers.ToArray();
-                Debug.Log($"<color=cyan>[CustomCorridorBinder] 自动拾取到场景中 {sideWallRenderers.Length} 个 Cube 墙面！</color>");
             }
+            sideWallRenderers = foundRenderers.ToArray();
+            Debug.Log($"<color=cyan>[CustomCorridorBinder] 强力搜寻并注入场景中全套 {sideWallRenderers.Length} 个 Cube 墙面！(包含 Cube, Cube (1)~Cube (5))</color>");
 
             if (sideWallRenderers != null && sideWallRenderers.Length > 0)
             {
@@ -842,18 +839,23 @@ namespace TheLastCompact.Wakeup
                 }
             }
 
-            // 🌟 关键修复：逐个为 Scene 里的 Cube, Cube (1) ~ Cube (5) 赋予材质 Texture 与白色漫反射，保证绝对不留空白粉红！
+            // 🌟 强力修复：逐个为 Scene 里的全部 6 个 Cube (Cube, Cube (1) ~ Cube (5)) 赋予独一无二的媒体视频与图像 Texture！
             if (sideWallRenderers != null && sideWallRenderers.Length > 0)
             {
                 for (int i = 0; i < sideWallRenderers.Length; i++)
                 {
-                    if (sideWallRenderers[i] != null && sideWallRenderers[i].enabled)
+                    if (sideWallRenderers[i] != null)
                     {
+                        sideWallRenderers[i].enabled = true;
                         Material mat = sideWallRenderers[i].material;
                         if (mat != null)
                         {
-                            Texture targetTex = (i % 2 == 0) ? texA : texB;
-                            if (targetTex == null && mediaDatabase != null) targetTex = mediaDatabase.GetEntertainmentTexture();
+                            Texture targetTex = null;
+                            if (mediaDatabase != null)
+                            {
+                                targetTex = (i % 2 == 0) ? mediaDatabase.GetEntertainmentTexture() : (texB != null ? texB : texA);
+                            }
+                            if (targetTex == null) targetTex = (i % 2 == 0) ? texA : texB;
 
                             if (targetTex != null)
                             {
