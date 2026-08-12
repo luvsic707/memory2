@@ -66,6 +66,9 @@ namespace TheLastCompact.Wakeup
         [Tooltip("触发显示莫比乌斯全景所需的推石总次数")]
         public int maxPushesForPanorama = 16;
 
+        [Tooltip("初始镜头后退距离 (米)")]
+        public float initialCamDistance = 0.5f;
+
         [Tooltip("全景视角最大后退拉远距离 (米)")]
         public float maxPanoramaDistance = 45f;
 
