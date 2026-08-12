@@ -452,10 +452,13 @@ namespace TheLastCompact.Wakeup
 
                 for (int i = 0; i < sideWallRenderers.Length; i++)
                 {
-                    if (sideWallRenderers[i] != null)
-                    {
-            // 🌟 严格保持你在 Scene 编辑器里手动调好的 Cube 位置、旋转与缩放 (0% 动态偏差，100% 忠实于 Scene)
-                    }
+                if (sideWallRenderers[i] != null)
+                {
+                    // 🌟 Strictly maintain the Cube's Scene-configured position, rotation, and scale (0% dynamic deviation, 100% Scene fidelity)
+                    sideWallRenderers[i].transform.localPosition = _initialWallPositions[i];
+                    sideWallRenderers[i].transform.localRotation = _initialWallRotations[i];
+                    sideWallRenderers[i].transform.localScale = _initialWallScales[i];
+                }
                 }
             }
 
