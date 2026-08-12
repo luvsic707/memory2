@@ -21,6 +21,9 @@ namespace TheLastCompact.Wakeup
         [Tooltip("走廊尽头的正面墙/Quad（播放交替图像/视频）")]
         public Renderer frontWallRenderer;
 
+        [Tooltip("是否显示正面挡住视野的 Quad 墙面 (默认 false 彻底移除遮挡视野的巨型绿墙)")]
+        public bool showFrontWall = false;
+
         [Tooltip("走廊四周的 4 面墙体 Cube（左、右、天花板、地面）")]
         public Renderer[] sideWallRenderers;
 
@@ -176,6 +179,7 @@ namespace TheLastCompact.Wakeup
             {
                 frontWallRenderer.material = _frontMat;
                 _initialFrontScale = frontWallRenderer.transform.localScale;
+                frontWallRenderer.enabled = showFrontWall;
             }
             // 自动拾取场景中所有的 Cube, Cube (1) ~ Cube (5) 墙面
             if (sideWallRenderers == null || sideWallRenderers.Length == 0)
@@ -354,8 +358,12 @@ namespace TheLastCompact.Wakeup
             // 正面墙 (Front Wall) 严格保持其原本封闭尽头的大尺寸，并基于初始 Scale 进行微呼吸！
             if (frontWallRenderer != null)
             {
-                float breathe = Mathf.Sin(time * 1.5f) * 0.02f;
-                frontWallRenderer.transform.localScale = _initialFrontScale * (1.0f + breathe);
+                frontWallRenderer.enabled = showFrontWall;
+                if (showFrontWall)
+                {
+                    float breathe = Mathf.Sin(time * 1.5f) * 0.02f;
+                    frontWallRenderer.transform.localScale = _initialFrontScale * (1.0f + breathe);
+                }
             }
 
             // 5. 驱动 Side Walls 四周墙面多维流体 (实时相应 Inspector 滑块)
