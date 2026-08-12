@@ -261,6 +261,7 @@ namespace TheLastCompact.Wakeup
             }
 
             CreateInvisibleGroundFloor();
+            CreateFarEndCapWall();
             CreateMultiPanelVideoMatrix();
 
             PickNextMedia();
