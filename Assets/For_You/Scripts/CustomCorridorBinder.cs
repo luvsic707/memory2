@@ -202,6 +202,36 @@ namespace TheLastCompact.Wakeup
             sideWallRenderers = foundRenderers.ToArray();
             Debug.Log($"<color=cyan>[CustomCorridorBinder] 强力搜寻并注入场景中全套 {sideWallRenderers.Length} 个 Cube 墙面！(包含 Cube, Cube (1)~Cube (5))</color>");
 
+            // 🌟 核心修正：自动测算 Player 位置与走廊 Z 轴偏差，将全套 Cube 墙体对齐包裹住 Player！
+            Transform playerT = Camera.main != null ? Camera.main.transform : null;
+            if (playerT != null && sideWallRenderers != null && sideWallRenderers.Length > 0)
+            {
+                float minZ = float.MaxValue;
+                foreach (var r in sideWallRenderers)
+                {
+                    if (r != null)
+                    {
+                        float z = r.transform.position.z;
+                        if (z < minZ) minZ = z;
+                    }
+                }
+
+                float zShift = (playerT.position.z - 2.0f) - minZ;
+                if (Mathf.Abs(zShift) > 1.0f)
+                {
+                    foreach (var r in sideWallRenderers)
+                    {
+                        if (r != null)
+                        {
+                            Vector3 p = r.transform.position;
+                            p.z += zShift;
+                            r.transform.position = p;
+                        }
+                    }
+                    Debug.Log($"<color=green>[CustomCorridorBinder] 成功将场景中偏远 {minZ:F1}m 的 Cube 墙体全自动吸附对齐到 Player 身旁 (平移 {zShift:F1}m)！</color>");
+                }
+            }
+
             if (sideWallRenderers != null && sideWallRenderers.Length > 0)
             {
                 _initialWallPositions = new Vector3[sideWallRenderers.Length];
