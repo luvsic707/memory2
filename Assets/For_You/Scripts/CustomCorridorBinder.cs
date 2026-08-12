@@ -273,6 +273,7 @@ namespace TheLastCompact.Wakeup
 
             UpdateRhythmTempo(phaseProgress);
             HandleControlModeAndInput(phaseProgress);
+            ApplyTexturesToWalls();
 
             // 动态调节视频音源音量 (Phase 1&2 音质饱满，Phase 3 音量随抽走压迫沉寂)
             float videoVolume = phaseProgress > 0.70f ? Mathf.Lerp(0.85f, 0.05f, Mathf.InverseLerp(0.70f, 0.96f, phaseProgress)) : 0.85f;

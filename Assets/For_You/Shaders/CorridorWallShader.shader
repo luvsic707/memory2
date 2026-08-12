@@ -193,6 +193,15 @@ Shader "Wakeup/CorridorWallShader"
                     }
                 }
 
+                // 防黑兜底：若 _MainTex 暂未采样到有效画面，渲染赛博网格与双色荧光光效
+                if (max(max(col.r, col.g), col.b) < 0.05)
+                {
+                    float gridX = frac(baseUV.x * 16.0);
+                    float gridY = frac(baseUV.y * 16.0);
+                    float gridLine = (gridX < 0.06 || gridY < 0.06) ? 0.8 : 0.25;
+                    col = float4(0.08 * gridLine, 0.4 * gridLine, 0.55 * gridLine, 1.0);
+                }
+
                 // 6. 边缘消融与油彩渗透
                 if (_BorderFade > 0.01)
                 {
