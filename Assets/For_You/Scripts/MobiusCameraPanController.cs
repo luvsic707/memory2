@@ -145,13 +145,20 @@ namespace TheLastCompact.Wakeup
                 }
             }
 
-            // 自动寻找巨石 (优先匹配 MobiusBall (3) / MobiusBall / Ball / Rock)
+            // 🌟 精准匹配根节点下的 MobiusBall (3) 或 MobiusBall，防止匹配错天空背景中的其他微型时钟球体
+            if (boulderTransform == null)
+            {
+                GameObject exactBall = GameObject.Find("MobiusBall (3)");
+                if (exactBall == null) exactBall = GameObject.Find("MobiusBall");
+                if (exactBall != null) boulderTransform = exactBall.transform;
+            }
+
             if (boulderTransform == null)
             {
                 foreach (GameObject go in FindObjectsOfType<GameObject>())
                 {
                     string nameLower = go.name.ToLower();
-                    if (nameLower.Contains("mobiusball (3)") || nameLower.Contains("mobiusball") || nameLower.Contains("ball") || nameLower.Contains("rock"))
+                    if (nameLower.Contains("mobiusball (3)") || nameLower.Contains("mobiusball"))
                     {
                         boulderTransform = go.transform;
                         break;
@@ -160,11 +167,7 @@ namespace TheLastCompact.Wakeup
             }
 
             // 🌟 1. 组合体强力对齐：开局自动把巨石对齐紧贴在玩家双手的正前方！(彻底解决脱节)
-            if (boulderTransform != null && playerTransform != null)
-            {
-                boulderTransform.position = playerTransform.position + playerTransform.forward * boulderPairFrontDistance + playerTransform.up * boulderPairHeightOffset;
-                Debug.Log($"<color=green>[MobiusCam] 成功将巨石 '{boulderTransform.name}' 与玩家 '{playerTransform.name}' 组合对齐！</color>");
-            }
+            SnapBoulderToHandsFront();
 
             // 🌟 2. 莫比乌斯环圆弧切线轨道极坐标系统
             if (mobiusTrackTransform != null && playerTransform != null)
@@ -278,6 +281,20 @@ namespace TheLastCompact.Wakeup
             if (Stage3InactionBreakController.Instance != null) Stage3InactionBreakController.Instance.OnPush();
 
             Debug.Log($"<color=cyan>[MobiusCam] 莫比乌斯推石第 {_currentPushCount} 次！玩家与巨石向前推进中... 全景拉远进度: {_currentProgress * 100f:F0}%</color>");
+        }
+
+        /// <summary>
+        /// 强制将选中的 MobiusBall 瞬移对齐紧贴在玩家双手的正前方
+        /// </summary>
+        [ContextMenu("Snap Boulder To Hands Front Right Now")]
+        public void SnapBoulderToHandsFront()
+        {
+            if (playerTransform == null || boulderTransform == null) SetupReferences();
+            if (boulderTransform != null && playerTransform != null)
+            {
+                boulderTransform.position = playerTransform.position + playerTransform.forward * boulderPairFrontDistance + playerTransform.up * boulderPairHeightOffset;
+                Debug.Log($"<color=green>[MobiusCam] 已将巨石 '{boulderTransform.name}' 精准对齐至玩家双手正前方！</color>");
+            }
         }
 
         private void UpdateCameraTargetOffset()
