@@ -7,7 +7,7 @@ namespace TheLastCompact.Wakeup
 {
     /// <summary>
     /// Stage 6 专属 3D 全息数据生成感视觉构建器 (Stage 6 Holographic Data Visualization Builder)
-    /// 100% 还原艺术参考图中的“数据点云重构 + 3D 拓扑节点网络 + 浮动数据标注 + 环境微粒雾”效果。
+    /// 高性能优化版：零卡死、极速加载、全息点云与拓扑网络连线。
     /// </summary>
     public class Stage6DataVisualizationBuilder : MonoBehaviour
     {
@@ -16,20 +16,21 @@ namespace TheLastCompact.Wakeup
         public MeshFilter targetMeshFilter;
 
         [Tooltip("点云粒子密度 (模型表面/内部重构粒子数量)")]
-        [Range(200, 5000)]
-        public int pointCloudDensity = 1500;
+        [Range(100, 2000)]
+        public int pointCloudDensity = 600;
 
         [Tooltip("数据网络节点数量 (红色节点)")]
-        [Range(10, 80)]
-        public int nodeCount = 35;
+        [Range(8, 40)]
+        public int nodeCount = 20;
 
-        [Tooltip("节点最大连线距离 (超过此距离不连线)")]
-        public float maxConnectionDistance = 1.2f;
+        [Tooltip("每个节点最多连接邻近节点的数量 (防止生成过量 LineRenderer 导致卡死)")]
+        [Range(1, 3)]
+        public int maxConnectionsPerNode = 2;
 
         [Header("数据标注与浮动标签")]
         [Tooltip("浮动数据标签数量")]
-        [Range(5, 30)]
-        public int labelCount = 12;
+        [Range(3, 15)]
+        public int labelCount = 6;
 
         [Tooltip("标签引线颜色")]
         public Color leaderLineColor = new Color(1f, 0.2f, 0.2f, 0.7f);
@@ -39,15 +40,15 @@ namespace TheLastCompact.Wakeup
 
         [Header("环境星尘与微粒场")]
         [Tooltip("环境星尘粒子数量")]
-        [Range(100, 3000)]
-        public int ambientParticleCount = 800;
+        [Range(50, 1000)]
+        public int ambientParticleCount = 300;
 
         [Header("动态扫描与生成感配置")]
         [Tooltip("扫描波移动速度")]
         public float scanSpeed = 1.2f;
 
         [Tooltip("数据重构起伏振幅")]
-        public float waveAmplitude = 0.08f;
+        public float waveAmplitude = 0.05f;
 
         // 私有组件与运行时数据
         private ParticleSystem _pointCloudParticles;
@@ -57,7 +58,6 @@ namespace TheLastCompact.Wakeup
         private List<GameObject> _labelObjects = new List<GameObject>();
         private List<LineRenderer> _labelLines = new List<LineRenderer>();
         private GameObject _networkLinesHolder;
-        private List<LineRenderer> _networkLines = new List<LineRenderer>();
 
         private Material _lineMaterial;
         private Material _nodeMaterial;
@@ -65,6 +65,7 @@ namespace TheLastCompact.Wakeup
 
         private float _scanY = 0f;
         private Bounds _meshBounds;
+        private Vector3 _initialLocalPos;
 
         private static readonly string[] DataTagTemplates = new string[]
         {
@@ -81,6 +82,7 @@ namespace TheLastCompact.Wakeup
 
         private void Start()
         {
+            _initialLocalPos = transform.localPosition;
             InitializeMaterials();
             CacheTargetMesh();
             GeneratePointCloud();
@@ -126,8 +128,25 @@ namespace TheLastCompact.Wakeup
             }
         }
 
+        private Vector3[] SafeGetMeshVertices(Mesh mesh)
+        {
+            if (mesh == null) return null;
+            try
+            {
+                if (mesh.isReadable && mesh.vertexCount > 0)
+                {
+                    return mesh.vertices;
+                }
+            }
+            catch
+            {
+                // 若 Mesh 设置为 non-readable，安全捕获并走包围盒随机采样，防止崩溃卡死
+            }
+            return null;
+        }
+
         /// <summary>
-        /// 1. 生成模型顶点/包围盒点云 (Point Cloud Reconstruction)
+        /// 1. 生成模型点云粒子 (Point Cloud Reconstruction)
         /// </summary>
         private void GeneratePointCloud()
         {
@@ -149,7 +168,7 @@ namespace TheLastCompact.Wakeup
             _particles = new ParticleSystem.Particle[pointCloudDensity];
 
             Mesh mesh = (targetMeshFilter != null) ? targetMeshFilter.sharedMesh : null;
-            Vector3[] verts = (mesh != null && mesh.vertexCount > 0) ? mesh.vertices : null;
+            Vector3[] verts = SafeGetMeshVertices(mesh);
 
             for (int i = 0; i < pointCloudDensity; i++)
             {
@@ -157,7 +176,7 @@ namespace TheLastCompact.Wakeup
                 if (verts != null && verts.Length > 0)
                 {
                     Vector3 srcVert = verts[Random.Range(0, verts.Length)];
-                    localPos = srcVert + Random.insideUnitSphere * 0.04f;
+                    localPos = srcVert + Random.insideUnitSphere * 0.03f;
                 }
                 else
                 {
@@ -169,7 +188,7 @@ namespace TheLastCompact.Wakeup
                 }
 
                 _particles[i].position = localPos;
-                _particles[i].startSize = Random.Range(0.02f, 0.045f);
+                _particles[i].startSize = Random.Range(0.02f, 0.04f);
                 _particles[i].startColor = Color.Lerp(
                     new Color(1f, 0.3f, 0.3f, 0.85f),
                     new Color(1f, 0.9f, 0.5f, 0.85f),
@@ -181,7 +200,7 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
-        /// 2. 生成红色数据节点与 3D 拓扑连线网格 (Nodes & Network Constellation Graph)
+        /// 2. 生成红色数据节点与 K-近邻拓扑连线 (Nodes & KNN Network Constellation Graph)
         /// </summary>
         private void GenerateNodesAndNetwork()
         {
@@ -192,7 +211,7 @@ namespace TheLastCompact.Wakeup
             _networkLinesHolder.transform.SetParent(transform, false);
 
             Mesh mesh = (targetMeshFilter != null) ? targetMeshFilter.sharedMesh : null;
-            Vector3[] verts = (mesh != null && mesh.vertexCount > 0) ? mesh.vertices : null;
+            Vector3[] verts = SafeGetMeshVertices(mesh);
 
             for (int i = 0; i < nodeCount; i++)
             {
@@ -216,33 +235,51 @@ namespace TheLastCompact.Wakeup
                 sphere.name = $"Node_Dot_{i}";
                 sphere.transform.SetParent(nodesHolder.transform, false);
                 sphere.transform.localPosition = nodePos;
-                sphere.transform.localScale = Vector3.one * Random.Range(0.06f, 0.11f);
+                sphere.transform.localScale = Vector3.one * Random.Range(0.06f, 0.10f);
                 sphere.GetComponent<Renderer>().material = _nodeMaterial;
                 Destroy(sphere.GetComponent<Collider>());
                 _nodeObjects.Add(sphere);
             }
 
-            // 构建邻近节点 3D 连线
+            // K-近邻 (KNN) 拓扑连线：严格限制每个节点最多连线的数量，防止实例化爆满卡死！
+            HashSet<long> connectedPairs = new HashSet<long>();
             for (int i = 0; i < _nodePositions.Count; i++)
             {
-                for (int j = i + 1; j < _nodePositions.Count; j++)
+                List<KeyValuePair<float, int>> neighbors = new List<KeyValuePair<float, int>>();
+                for (int j = 0; j < _nodePositions.Count; j++)
                 {
+                    if (i == j) continue;
                     float dist = Vector3.Distance(_nodePositions[i], _nodePositions[j]);
-                    if (dist <= maxConnectionDistance)
+                    neighbors.Add(new KeyValuePair<float, int>(dist, j));
+                }
+
+                neighbors.Sort((a, b) => a.Key.CompareTo(b.Key));
+
+                int connections = 0;
+                for (int k = 0; k < neighbors.Count && connections < maxConnectionsPerNode; k++)
+                {
+                    int targetIdx = neighbors[k].Value;
+                    int minKey = Mathf.Min(i, targetIdx);
+                    int maxKey = Mathf.Max(i, targetIdx);
+                    long pairHash = ((long)minKey << 32) | (uint)maxKey;
+
+                    if (!connectedPairs.Contains(pairHash))
                     {
-                        GameObject lineGo = new GameObject($"NetLine_{i}_{j}");
+                        connectedPairs.Add(pairHash);
+                        connections++;
+
+                        GameObject lineGo = new GameObject($"NetLine_{minKey}_{maxKey}");
                         lineGo.transform.SetParent(_networkLinesHolder.transform, false);
                         LineRenderer lr = lineGo.AddComponent<LineRenderer>();
                         lr.material = _lineMaterial;
-                        lr.startWidth = 0.012f;
-                        lr.endWidth = 0.012f;
+                        lr.startWidth = 0.01f;
+                        lr.endWidth = 0.01f;
                         lr.positionCount = 2;
                         lr.useWorldSpace = false;
-                        lr.SetPosition(0, _nodePositions[i]);
-                        lr.SetPosition(1, _nodePositions[j]);
+                        lr.SetPosition(0, _nodePositions[minKey]);
+                        lr.SetPosition(1, _nodePositions[maxKey]);
                         lr.startColor = new Color(1f, 0.8f, 0.4f, 0.4f);
                         lr.endColor = new Color(1f, 0.8f, 0.4f, 0.4f);
-                        _networkLines.Add(lr);
                     }
                 }
             }
@@ -263,7 +300,7 @@ namespace TheLastCompact.Wakeup
                 Vector3 offsetDir = (nodePos - _meshBounds.center).normalized;
                 if (offsetDir.sqrMagnitude < 0.1f) offsetDir = Random.onUnitSphere;
 
-                Vector3 labelPos = nodePos + offsetDir * Random.Range(0.45f, 0.9f) + new Vector3(0f, Random.Range(-0.1f, 0.2f), 0f);
+                Vector3 labelPos = nodePos + offsetDir * Random.Range(0.4f, 0.75f) + new Vector3(0f, Random.Range(-0.1f, 0.15f), 0f);
 
                 // 创建 TextMeshPro 文本框
                 GameObject labelGo = new GameObject($"DataLabel_{i}");
@@ -271,7 +308,7 @@ namespace TheLastCompact.Wakeup
                 labelGo.transform.localPosition = labelPos;
 
                 TextMeshPro tmp = labelGo.AddComponent<TextMeshPro>();
-                tmp.fontSize = 2.2f;
+                tmp.fontSize = 2.0f;
                 tmp.alignment = TextAlignmentOptions.Left;
                 tmp.color = labelTextColor;
 
@@ -314,19 +351,19 @@ namespace TheLastCompact.Wakeup
             main.maxParticles = ambientParticleCount;
             main.simulationSpace = ParticleSystemSimulationSpace.Local;
             main.startSize = 0.02f;
-            main.startSpeed = 0.1f;
-            main.startLifetime = 6f;
+            main.startSpeed = 0.08f;
+            main.startLifetime = 5f;
 
             var shape = ps.shape;
             shape.shapeType = ParticleSystemShapeType.Box;
-            shape.scale = _meshBounds.size * 2.2f;
+            shape.scale = _meshBounds.size * 2.0f;
 
             var colorOverLifetime = ps.colorOverLifetime;
             colorOverLifetime.enabled = true;
             Gradient grad = new Gradient();
             grad.SetKeys(
                 new GradientColorKey[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(new Color(1f, 0.8f, 0.3f), 1f) },
-                new GradientAlphaKey[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.7f, 0.5f), new GradientAlphaKey(0f, 1f) }
+                new GradientAlphaKey[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.6f, 0.5f), new GradientAlphaKey(0f, 1f) }
             );
             colorOverLifetime.color = grad;
 
@@ -374,14 +411,14 @@ namespace TheLastCompact.Wakeup
                 {
                     Vector3 pos = _nodePositions[i];
                     float distToScan = Mathf.Abs(pos.y - _scanY);
-                    float pulse = (distToScan < 0.4f) ? 1.5f + Mathf.Sin(time * 12f) * 0.4f : 1.0f + Mathf.Sin(time * 3f + i) * 0.15f;
-                    _nodeObjects[i].transform.localScale = Vector3.one * (0.08f * pulse);
+                    float pulse = (distToScan < 0.35f) ? 1.4f + Mathf.Sin(time * 10f) * 0.3f : 1.0f + Mathf.Sin(time * 2.5f + i) * 0.12f;
+                    _nodeObjects[i].transform.localScale = Vector3.one * (0.07f * pulse);
                 }
             }
 
-            // 3. 微弱浮动起伏整体组件，制造数据生成悬浮感
+            // 3. 悬浮微弱起伏 (基于初始 LocalPosition，防止偏离原位)
             float floatY = Mathf.Sin(time * 1.5f) * waveAmplitude;
-            transform.localPosition = new Vector3(0f, floatY, 0f);
+            transform.localPosition = _initialLocalPos + new Vector3(0f, floatY, 0f);
         }
     }
 }
