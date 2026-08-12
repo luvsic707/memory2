@@ -532,28 +532,28 @@ namespace TheLastCompact.Wakeup
 
                 Vector3 pos = Vector3.zero;
                 Quaternion rot = Quaternion.identity;
-                Vector3 scale = new Vector3(2.6f, 2.0f, 1f);
+                Vector3 scale = new Vector3(2.2f, 1.25f, 1f); // 16:9 标准高清无变形比例
 
                 switch (side)
                 {
                     case 0: // 左墙贴片
-                        pos = new Vector3(-1.42f, Random.Range(-0.35f, 0.55f), zPos);
+                        pos = new Vector3(-1.42f, Random.Range(-0.35f, 0.45f), zPos);
                         rot = Quaternion.Euler(0f, 90f, 0f);
                         break;
                     case 1: // 右墙贴片
-                        pos = new Vector3(1.42f, Random.Range(-0.35f, 0.55f), zPos);
+                        pos = new Vector3(1.42f, Random.Range(-0.35f, 0.45f), zPos);
                         rot = Quaternion.Euler(0f, -90f, 0f);
                         break;
                     case 2: // 天花板贴片
-                        pos = new Vector3(Random.Range(-0.55f, 0.55f), 1.52f, zPos);
+                        pos = new Vector3(Random.Range(-0.45f, 0.45f), 1.52f, zPos);
                         rot = Quaternion.Euler(90f, 0f, 0f);
-                        scale = new Vector3(2.0f, 2.6f, 1f);
+                        scale = new Vector3(1.8f, 1.1f, 1f);
                         break;
                     case 3: // 地面贴片
                     default:
-                        pos = new Vector3(Random.Range(-0.55f, 0.55f), -1.52f, zPos);
+                        pos = new Vector3(Random.Range(-0.45f, 0.45f), -1.52f, zPos);
                         rot = Quaternion.Euler(-90f, 0f, 0f);
-                        scale = new Vector3(2.0f, 2.6f, 1f);
+                        scale = new Vector3(1.8f, 1.1f, 1f);
                         break;
                 }
 
@@ -847,7 +847,7 @@ namespace TheLastCompact.Wakeup
                 }
             }
 
-            // 🌟 强力修复：逐个为 Scene 里的全部 6 个 Cube (Cube, Cube (1) ~ Cube (5)) 赋予随机交错的多维视频/图像 Texture 与 Tiling 平铺！
+            // 🌟 强力修复：为 Scene 里的 Cube 墙面重置 1:1 比例 Tiling，确保画面无拉伸变形、超高清晰度与极佳可读性！
             if (sideWallRenderers != null && sideWallRenderers.Length > 0)
             {
                 for (int i = 0; i < sideWallRenderers.Length; i++)
@@ -877,12 +877,14 @@ namespace TheLastCompact.Wakeup
                                 if (mat.HasProperty("_MainTex"))
                                 {
                                     mat.SetTexture("_MainTex", targetTex);
-                                    mat.SetTextureScale("_MainTex", new Vector2(3.0f, 2.0f));
+                                    mat.SetTextureScale("_MainTex", Vector2.one);
+                                    mat.SetTextureOffset("_MainTex", Vector2.zero);
                                 }
                                 if (mat.HasProperty("_BaseMap"))
                                 {
                                     mat.SetTexture("_BaseMap", targetTex);
-                                    mat.SetTextureScale("_BaseMap", new Vector2(3.0f, 2.0f));
+                                    mat.SetTextureScale("_BaseMap", Vector2.one);
+                                    mat.SetTextureOffset("_BaseMap", Vector2.zero);
                                 }
                                 mat.mainTexture = targetTex;
                             }
