@@ -32,8 +32,8 @@ namespace TheLastCompact.Wakeup
         public bool disableSolidBoxShell = false;
 
         [Header("多宫格 3D 视频矩阵走廊 (Multi-Panel Video Matrix Corridor)")]
-        [Tooltip("启用 3D 多宫格错落视频画廊墙（模仿参考视频中贴满走廊四周的多画面排列效果）")]
-        public bool enableMultiPanelVideoMatrix = true;
+        [Tooltip("启用 3D 多宫格错落视频画廊墙（默认 false，直接完整呈现 Scene 里编辑好的 Cube 墙面，保证 Scene 与 Game 绝对 1:1 完全一致）")]
+        public bool enableMultiPanelVideoMatrix = false;
 
         [Tooltip("走廊四周多宫格视频/图像面板的数量 (默认 16 块错落贴于左、右、天花板、地面)")]
         public int multiPanelCount = 16;
@@ -261,7 +261,6 @@ namespace TheLastCompact.Wakeup
             }
 
             CreateInvisibleGroundFloor();
-            CreateFarEndCapWall();
             CreateMultiPanelVideoMatrix();
 
             PickNextMedia();
