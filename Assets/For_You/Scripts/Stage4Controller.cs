@@ -100,6 +100,8 @@ namespace TheLastCompact.Wakeup
             _sfxAudioSource.spatialBlend = 0f;
         }
 
+        private void Start()
+        {
             // 重置 Stage 4 专属工作计数，确保进入 Stage 4 时边界传送墙恢复生效（直到工作点击满 12 次崩坏解封）
             if (PlayerBehaviorData.Instance != null)
             {
