@@ -66,6 +66,13 @@ namespace TheLastCompact.Wakeup
             }
         }
 
+        [Header("莫比乌斯环曲面轨迹推进参数")]
+        [Tooltip("莫比乌斯环 3D Transform 引用（若留空将自动寻找 MobiusStrip (3)）")]
+        public Transform mobiusTrackTransform;
+
+        [Tooltip("每次推石玩家沿着莫比乌斯环曲面平移推进的步长距离 (米)")]
+        public float playerStepDistance = 1.2f;
+
         [Header("锁定玩家在莫比乌斯轨道 (彻底解决掉落)")]
         [Tooltip("【默认开启】：关闭 WASD 重力自由下坠，将玩家固定锚定在 MobiusStrip (3) 轨迹上，绝对不会下坠掉落！")]
         public bool lockPlayerToTrack = true;
@@ -125,6 +132,19 @@ namespace TheLastCompact.Wakeup
                 playerTransform = _mainCam.transform.parent != null ? _mainCam.transform.parent : _mainCam.transform;
             }
 
+            // 自动寻找 MobiusStrip (3) 环轨迹
+            if (mobiusTrackTransform == null)
+            {
+                foreach (GameObject go in FindObjectsOfType<GameObject>())
+                {
+                    if (go.name.Contains("MobiusStrip (3)") || go.name.Contains("MobiusStrip"))
+                    {
+                        mobiusTrackTransform = go.transform;
+                        break;
+                    }
+                }
+            }
+
             // 🌟 核心锚定：禁用玩家 CharacterController 的重力自由下坠，将玩家安全锚定在 Mobius 轨道上！
             if (lockPlayerToTrack && playerTransform != null)
             {
@@ -132,20 +152,20 @@ namespace TheLastCompact.Wakeup
                 if (cc != null)
                 {
                     cc.enabled = false;
-                    Debug.Log($"<color=yellow>[MobiusCam] 自动禁用了 CharacterController 重力下坠，玩家已彻底锁定在莫比乌斯轨道上！</color>");
+                    Debug.Log($"<color=yellow>[MobiusCam] 自动禁用了 CharacterController 重力下坠，玩家沿莫比乌斯轨道推石向前！</color>");
                 }
 
                 _initialPlayerPos = playerTransform.position;
                 _initialPlayerRot = playerTransform.rotation;
             }
 
-            // 自动寻找巨石 (优先匹配 MobiusBall / Ball / Rock / Sphere)
+            // 自动寻找巨石 (优先匹配 MobiusBall (3) / MobiusBall / Ball / Rock)
             if (boulderTransform == null)
             {
                 foreach (GameObject go in FindObjectsOfType<GameObject>())
                 {
                     string nameLower = go.name.ToLower();
-                    if (nameLower.Contains("mobiusball") || nameLower.Contains("ball") || nameLower.Contains("rock") || nameLower.Contains("boulder") || nameLower.Contains("sphere"))
+                    if (nameLower.Contains("mobiusball (3)") || nameLower.Contains("mobiusball") || nameLower.Contains("ball") || nameLower.Contains("rock"))
                     {
                         boulderTransform = go.transform;
                         break;
@@ -189,12 +209,12 @@ namespace TheLastCompact.Wakeup
 
         private void LateUpdate()
         {
-            // 🌟 关键修复：必须在 LateUpdate 执行插值，防止 UniversalPlayer/Camera 视角脚本在每帧 LateUpdate 覆盖相机位置！
+            // 🌟 关键修复：在 LateUpdate 执行插值，防止视角脚本在每帧覆盖相机位置！
             SmoothUpdateCameraPosition();
         }
 
         /// <summary>
-        /// 每次推石时调用：推动巨石前进并平滑向后拉远相机
+        /// 每次推石时调用：玩家与巨石沿着莫比乌斯环曲面向前推进，同时镜头向高空拉远
         /// </summary>
         [ContextMenu("Test Push & Zoom Out")]
         public void OnPushBoulder()
@@ -202,31 +222,34 @@ namespace TheLastCompact.Wakeup
             _currentPushCount++;
             _currentProgress = Mathf.Clamp01((float)_currentPushCount / maxPushesForPanorama);
 
-            // 1. 推动巨石滚轮向前位移
-            if (boulderTransform != null)
+            // 1. 玩家 (Player) 沿着莫比乌斯环朝向前进！
+            if (playerTransform != null)
             {
-                Vector3 pushDir = boulderTransform.forward;
-                if (playerTransform != null) pushDir = playerTransform.forward;
-                boulderTransform.position += pushDir * boulderPushStep;
-
-                // 巨石滚动旋转感
-                boulderTransform.Rotate(Vector3.right, boulderPushStep * 25f, Space.Self);
+                Vector3 advanceDir = playerTransform.forward;
+                playerTransform.position += advanceDir * playerStepDistance;
             }
 
-            // 2. 触发第一视角手臂推石动作
+            // 2. 巨石 (Boulder) 始终保持在玩家正前方滚动推进！
+            if (boulderTransform != null && playerTransform != null)
+            {
+                boulderTransform.position = playerTransform.position + playerTransform.forward * boulderFrontDistance + playerTransform.up * boulderHeightOffset;
+                boulderTransform.Rotate(Vector3.right, playerStepDistance * 30f, Space.Self);
+            }
+
+            // 3. 触发第一视角双手发力抵住巨石打击感
             if (Stage3PushArmController.Instance != null)
             {
                 Stage3PushArmController.Instance.PlayPushMotion();
             }
 
-            // 3. 计算全新的相机拉远全景位姿
+            // 4. 计算全新的相机拉远全景位姿
             UpdateCameraTargetOffset();
 
-            // 4. 通知行为数据与打破循环机制
+            // 5. 通知行为数据与打破循环机制
             if (PlayerBehaviorData.Instance != null) PlayerBehaviorData.Instance.AddWork();
             if (Stage3InactionBreakController.Instance != null) Stage3InactionBreakController.Instance.OnPush();
 
-            Debug.Log($"<color=cyan>[MobiusCam] 莫比乌斯推石第 {_currentPushCount} 次！全景拉远进度: {_currentProgress * 100f:F0}%</color>");
+            Debug.Log($"<color=cyan>[MobiusCam] 莫比乌斯推石第 {_currentPushCount} 次！玩家与巨石向前推进中... 全景拉远进度: {_currentProgress * 100f:F0}%</color>");
         }
 
         private void UpdateCameraTargetOffset()
