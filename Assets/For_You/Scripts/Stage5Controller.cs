@@ -293,6 +293,16 @@ namespace TheLastCompact.Wakeup
             return clip;
         }
 
+        [Header("Phase 3 特效与可读性调校")]
+        [Tooltip("Phase 3 最大音频失真度（降低失真以提高画面与声音的可读性）")]
+        [Range(0f, 1f)] public float phase3MaxDistortion = 0.25f;
+
+        [Tooltip("Phase 3 最低 LowPass 截止频率（维持高频清晰通透）")]
+        public float phase3LowPassCutoff = 3500f;
+
+        [Tooltip("Phase 3 音调 Pitch 下限")]
+        public float phase3Pitch = 0.92f;
+
         /// <summary>
         /// 核心：夸张演变的单曲 BGM + DSP 音频滤镜扭曲系统 + 混响 + 嘈杂人声图层
         /// 随 phaseProgress (0→1) 极其显著地渐变，确保肉耳 100% 能听出阶段质变！
@@ -317,44 +327,44 @@ namespace TheLastCompact.Wakeup
             {
                 // Phase 2 (0.35 ~ 0.70): 显著变闷压高频 + 电音失真 + 混响渐强 + 嘈杂人声渐入
                 float t = Mathf.InverseLerp(0.35f, 0.70f, phaseProgress);
-                _distortionFilter.distortionLevel = Mathf.Lerp(0.05f, 0.65f, t); // 剧烈增加失真颗粒
-                _lowPassFilter.cutoffFrequency = Mathf.Lerp(22000f, 1500f, t);   // 剧烈压低高频 (22kHz ➔ 1.5kHz 极度显眼变闷)
-                _chorusFilter.depth = Mathf.Lerp(0.0f, 0.55f, t);                // 磁带相位偏高抖动
-                _reverbFilter.reverbPreset = AudioReverbPreset.Auditorium;  // 开启大音乐厅长混响
-                _reverbFilter.decayTime = Mathf.Lerp(1.0f, 3.5f, t);
-                _bgmAudioSource.pitch = Mathf.Lerp(0.95f, 0.80f, t);              // 明显降速降调
+                _distortionFilter.distortionLevel = Mathf.Lerp(0.02f, 0.15f, t); // 温和失真
+                _lowPassFilter.cutoffFrequency = Mathf.Lerp(22000f, 6000f, t);   // 维持清晰通透
+                _chorusFilter.depth = Mathf.Lerp(0.0f, 0.25f, t);
+                _reverbFilter.reverbPreset = AudioReverbPreset.Room;
+                _reverbFilter.decayTime = Mathf.Lerp(1.0f, 2.0f, t);
+                _bgmAudioSource.pitch = Mathf.Lerp(0.98f, 0.94f, t);
 
                 if (_crowdAudioSource != null && crowdNoiseClip != null)
                 {
-                    _crowdAudioSource.volume = Mathf.Lerp(0f, crowdNoiseVolume * 0.7f, t);
+                    _crowdAudioSource.volume = Mathf.Lerp(0f, crowdNoiseVolume * 0.35f, t);
                 }
             }
             else if (phaseProgress < 0.96f)
             {
-                // Phase 3 (0.70 ~ 0.96): 极端水下极沉低音脉冲 + 失真拉满 + 极大洞穴混响 + 嘈杂人声声浪冲顶
+                // Phase 3 (0.70 ~ 0.96): 减轻特效重度，极大提升内容与文字的画面/声音可读性！
                 float t = Mathf.InverseLerp(0.70f, 0.96f, phaseProgress);
-                _distortionFilter.distortionLevel = Mathf.Lerp(0.65f, 0.92f, t); // 极限黑化破音
-                _lowPassFilter.cutoffFrequency = Mathf.Lerp(1500f, 380f, t);      // 塌陷至 380Hz (只剩极其恐怖的基音低频嗡嗡声)
-                _chorusFilter.depth = Mathf.Lerp(0.55f, 0.95f, t);               // 诡异音高漫游
-                _reverbFilter.reverbPreset = AudioReverbPreset.Cave;             // 极限洞穴冷酷混响
-                _reverbFilter.decayTime = Mathf.Lerp(3.5f, 6.0f, t);
-                _bgmAudioSource.pitch = Mathf.Lerp(0.80f, 0.60f, t);             // 极沉 0.6x 慢速恶魔音调
+                _distortionFilter.distortionLevel = Mathf.Lerp(0.15f, phase3MaxDistortion, t); // 轻微温和破音，绝不炸耳
+                _lowPassFilter.cutoffFrequency = Mathf.Lerp(6000f, phase3LowPassCutoff, t);     // 保持 3500Hz 清晰人声与视频音效
+                _chorusFilter.depth = Mathf.Lerp(0.25f, 0.40f, t);
+                _reverbFilter.reverbPreset = AudioReverbPreset.Room;                            // 使用自然房间混响取代恐怖洞穴
+                _reverbFilter.decayTime = Mathf.Lerp(2.0f, 2.8f, t);
+                _bgmAudioSource.pitch = Mathf.Lerp(0.94f, phase3Pitch, t);                      // 自然音乐步调
 
                 if (_crowdAudioSource != null && crowdNoiseClip != null)
                 {
-                    _crowdAudioSource.volume = Mathf.Lerp(crowdNoiseVolume * 0.7f, crowdNoiseVolume, t);
+                    _crowdAudioSource.volume = Mathf.Lerp(crowdNoiseVolume * 0.35f, crowdNoiseVolume * 0.5f, t);
                 }
             }
             else
             {
                 // Phase 4 (0.96 ~ 1.00): 抉择时刻保持定格
-                _distortionFilter.distortionLevel = 0.35f;
-                _lowPassFilter.cutoffFrequency = 2500f;
-                _chorusFilter.depth = 0.2f;
-                _reverbFilter.reverbPreset = AudioReverbPreset.Room;
-                _bgmAudioSource.pitch = 0.88f;
+                _distortionFilter.distortionLevel = 0.10f;
+                _lowPassFilter.cutoffFrequency = 8000f;
+                _chorusFilter.depth = 0.1f;
+                _reverbFilter.reverbPreset = AudioReverbPreset.Off;
+                _bgmAudioSource.pitch = 1.0f;
 
-                if (_crowdAudioSource != null) _crowdAudioSource.volume = crowdNoiseVolume * 0.2f;
+                if (_crowdAudioSource != null) _crowdAudioSource.volume = 0f;
             }
         }
 

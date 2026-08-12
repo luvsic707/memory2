@@ -299,31 +299,32 @@ namespace TheLastCompact.Wakeup
             if (sideWallRenderers != null && _initialWallPositions != null && _initialWallScales != null)
             {
                 bool isPhase1 = phaseProgress < 0.35f;
-                float physIntensity = phaseProgress > 0.70f ? Mathf.InverseLerp(0.70f, 1.0f, phaseProgress) * physicalWarpIntensity : 0f;
+                // 🌟 大幅减轻 Phase 3 物理变形抖动，保持画面平稳高可读性
+                float physIntensity = phaseProgress > 0.70f ? Mathf.InverseLerp(0.70f, 1.0f, phaseProgress) * (physicalWarpIntensity * 0.2f) : 0f;
 
                 for (int i = 0; i < sideWallRenderers.Length; i++)
                 {
                     if (sideWallRenderers[i] != null)
                     {
-                        // 1. 严格基于你在 Scene 里搭好的初始 Scale 进行 5% 微小软呼吸，绝不改变长条结构！
+                        // 1. 严格基于你在 Scene 里搭好的初始 Scale 进行 5% 微小软呼吸
                         Vector3 baseScale = _initialWallScales[i];
                         Vector3 jellyScale = baseScale;
                         if (phaseProgress < 0.70f)
                         {
-                            float breathe = Mathf.Sin(time * 1.5f + i * 0.8f) * 0.03f;
+                            float breathe = Mathf.Sin(time * 1.5f + i * 0.8f) * 0.02f;
                             jellyScale = new Vector3(baseScale.x * (1.0f + breathe), baseScale.y * (1.0f - breathe), baseScale.z * (1.0f + breathe * 0.5f));
                         }
                         sideWallRenderers[i].transform.localScale = jellyScale;
 
-                        // 2. 物理位置微震
+                        // 2. 极轻微的平稳浮动（绝无剧烈晃动）
                         Vector3 waveOffset = new Vector3(
-                            Mathf.Sin(time * 2.2f + i) * 0.03f,
-                            Mathf.Cos(time * 1.8f + i) * 0.03f,
-                            Mathf.Sin(time * 1.5f + i) * 0.02f
+                            Mathf.Sin(time * 1.5f + i) * 0.015f,
+                            Mathf.Cos(time * 1.2f + i) * 0.015f,
+                            Mathf.Sin(time * 1.0f + i) * 0.010f
                         ) * (isPhase1 ? 0.2f : (0.2f + physIntensity));
 
                         sideWallRenderers[i].transform.localPosition = _initialWallPositions[i] + waveOffset;
-                        float angleOffset = Mathf.Sin(time * 4.0f + i) * 2.5f * physIntensity;
+                        float angleOffset = Mathf.Sin(time * 2.0f + i) * 0.4f * physIntensity;
                         sideWallRenderers[i].transform.localRotation = _initialWallRotations[i] * Quaternion.Euler(angleOffset, 0f, angleOffset);
                     }
                 }
@@ -457,8 +458,8 @@ namespace TheLastCompact.Wakeup
             }
             else
             {
-                // Phase 3: 狂乱高频 1.0s ~ 0.5s 切屏
-                _currentInterval = Mathf.Lerp(1.0f, 0.5f, Mathf.InverseLerp(0.70f, 1.00f, phaseProgress));
+                // Phase 3: 大幅放缓切屏频率至 3.2s ~ 2.5s，确保画质与内容的可读性
+                _currentInterval = Mathf.Lerp(3.2f, 2.5f, Mathf.InverseLerp(0.70f, 1.00f, phaseProgress));
             }
         }
 
@@ -582,12 +583,12 @@ namespace TheLastCompact.Wakeup
             {
                 _resistanceUiGo = new GameObject("Phase3_ResistanceUI");
                 _resistanceUiGo.transform.SetParent(frontWallRenderer.transform, false);
-                _resistanceUiGo.transform.localPosition = new Vector3(0f, 0.1f, -0.1f);
+                _resistanceUiGo.transform.localPosition = new Vector3(0f, 0.45f, -0.1f);
 
                 _resistanceTmp = _resistanceUiGo.AddComponent<TextMeshPro>();
-                _resistanceTmp.fontSize = 0.45f;
+                _resistanceTmp.fontSize = 0.28f;
                 _resistanceTmp.alignment = TextAlignmentOptions.Center;
-                _resistanceTmp.color = new Color(1.0f, 0.2f, 0.2f, 1.0f);
+                _resistanceTmp.color = new Color(1.0f, 0.9f, 0.4f, 0.75f);
             }
             if (_resistanceUiGo != null) _resistanceUiGo.SetActive(true);
         }
