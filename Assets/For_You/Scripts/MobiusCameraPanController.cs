@@ -83,22 +83,45 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
-        /// 自动为场景中所有的 MobiusStrip 添加 MeshCollider 碰撞体，防止玩家掉落！
+        /// 自动为场景中所有的 MobiusStrip 添加 MeshCollider 碰撞体，并在玩家脚下自动生成 8x8 米绝对实体地基，彻底解决下坠问题！
         /// </summary>
         private void EnsureMobiusColliders()
         {
-            MeshFilter[] meshFilters = FindObjectsOfType<MeshFilter>();
+            // 1. 扫描所有 3D Mesh（包含隐藏节点）
+            MeshFilter[] meshFilters = FindObjectsOfType<MeshFilter>(true);
             foreach (MeshFilter mf in meshFilters)
             {
-                if (mf.gameObject.name.ToLower().Contains("mobius"))
+                if (mf.gameObject.name.ToLower().Contains("mobius") || mf.gameObject.name.ToLower().Contains("strip"))
                 {
                     if (mf.gameObject.GetComponent<Collider>() == null)
                     {
                         MeshCollider mc = mf.gameObject.AddComponent<MeshCollider>();
                         mc.sharedMesh = mf.sharedMesh;
-                        Debug.Log($"<color=green>[MobiusCam] 自动为 '{mf.gameObject.name}' 添加了 MeshCollider 碰撞体，解决玩家掉落问题！</color>");
+                        Debug.Log($"<color=green>[MobiusCam] 自动为 '{mf.gameObject.name}' 添加了 MeshCollider 碰撞体！</color>");
                     }
                 }
+            }
+
+            // 2. 自动在 player 脚下定位生成一个匿名的绝对防掉落实体地基 (Solid Platform)
+            if (playerTransform == null)
+            {
+                Camera cam = Camera.main;
+                if (cam != null && cam.transform.parent != null) playerTransform = cam.transform.parent;
+            }
+
+            if (playerTransform != null && GameObject.Find("Mobius_Player_SolidGround_Platform") == null)
+            {
+                GameObject platform = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                platform.name = "Mobius_Player_SolidGround_Platform";
+                platform.transform.position = playerTransform.position - new Vector3(0f, 0.35f, 0f);
+                platform.transform.localScale = new Vector3(12f, 0.5f, 12f);
+                platform.transform.rotation = playerTransform.rotation;
+
+                // 隐藏渲染 Cube，仅保留实体物理碰撞体 (BoxCollider)
+                MeshRenderer mr = platform.GetComponent<MeshRenderer>();
+                if (mr != null) Destroy(mr);
+
+                Debug.Log($"<color=cyan>[MobiusCam] 自动在玩家 '{playerTransform.name}' 脚下生成了 12x12 米绝对防掉落实体碰撞地基！</color>");
             }
         }
 
