@@ -23,6 +23,15 @@ namespace TheLastCompact.Wakeup
         [Tooltip("走廊四周的 4 面墙体 Cube（左、右、天花板、地面）")]
         public Renderer[] sideWallRenderers;
 
+        [Header("多宫格 3D 视频矩阵走廊 (Multi-Panel Video Matrix Corridor)")]
+        [Tooltip("启用 3D 多宫格错落视频画廊墙（模仿参考视频中贴满走廊四周的多画面排列效果）")]
+        public bool enableMultiPanelVideoMatrix = true;
+
+        [Tooltip("走廊四周多宫格视频/图像面板的数量 (默认 16 块错落贴于左、右、天花板、地面)")]
+        public int multiPanelCount = 16;
+
+        private List<GameObject> _matrixPanels = new List<GameObject>();
+
         [Header("走廊穿梭流动性控制 (Continuous Forward Flow Fly)")]
         [Tooltip("启用走廊无限向前平滑穿梭流动（模仿参考视频中的无缝推进感）")]
         public bool enableContinuousForwardFly = true;
@@ -160,6 +169,7 @@ namespace TheLastCompact.Wakeup
             }
 
             CreateInvisibleGroundFloor();
+            CreateMultiPanelVideoMatrix();
 
             PickNextMedia();
             _currentTex = _nextTex != null ? _nextTex : Texture2D.blackTexture;
@@ -370,6 +380,114 @@ namespace TheLastCompact.Wakeup
                     _wallMat.SetFloat("_FlowSpeed", flySpeed * 0.6f);
                 }
             }
+
+            // 🌟 驱动多宫格 3D 视频面板沿着走廊四周流畅后退流逝与无缝循环 Texture 刷新！
+            if (enableMultiPanelVideoMatrix && enableContinuousForwardFly)
+            {
+                Camera mainCam = Camera.main;
+                float streamSpeed = forwardFlySpeed * (1.0f + phaseProgress * 0.7f);
+
+                for (int i = 0; i < _matrixPanels.Count; i++)
+                {
+                    if (_matrixPanels[i] != null)
+                    {
+                        _matrixPanels[i].transform.position -= Vector3.forward * (streamSpeed * Time.deltaTime);
+
+                        if (mainCam != null && _matrixPanels[i].transform.position.z < mainCam.transform.position.z - 3.5f)
+                        {
+                            Vector3 p = _matrixPanels[i].transform.position;
+                            p.z += (multiPanelCount / 4) * 4.5f; // 无缝重新排列到前方 18~20 米深处！
+                            _matrixPanels[i].transform.position = p;
+
+                            // 动态换上一张全新的媒体视频/图片素材！
+                            MeshRenderer mr = _matrixPanels[i].GetComponent<MeshRenderer>();
+                            if (mr != null && mediaDatabase != null)
+                            {
+                                Texture nextTex = mediaDatabase.GetEntertainmentTexture();
+                                if (nextTex != null)
+                                {
+                                    if (mr.material.HasProperty("_MainTex")) mr.material.SetTexture("_MainTex", nextTex);
+                                    if (mr.material.HasProperty("_BaseMap")) mr.material.SetTexture("_BaseMap", nextTex);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 模仿参考视频：将 16+ 块视频/图像面板错落贴在走廊左、右、天花板、地面四周！
+        /// </summary>
+        private void CreateMultiPanelVideoMatrix()
+        {
+            if (!enableMultiPanelVideoMatrix) return;
+
+            GameObject matrixRoot = new GameObject("MultiPanelVideoMatrix_Root");
+            matrixRoot.transform.SetParent(transform, false);
+
+            for (int i = 0; i < multiPanelCount; i++)
+            {
+                GameObject panelGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                panelGo.name = $"VideoPanel_Tile_{i}";
+                panelGo.transform.SetParent(matrixRoot.transform, false);
+
+                int side = i % 4;
+                float zPos = (i / 4) * 4.5f + Random.Range(-0.4f, 0.4f);
+
+                Vector3 pos = Vector3.zero;
+                Quaternion rot = Quaternion.identity;
+                Vector3 scale = new Vector3(2.6f, 2.0f, 1f);
+
+                switch (side)
+                {
+                    case 0: // 左墙贴片
+                        pos = new Vector3(-1.42f, Random.Range(-0.35f, 0.55f), zPos);
+                        rot = Quaternion.Euler(0f, 90f, 0f);
+                        break;
+                    case 1: // 右墙贴片
+                        pos = new Vector3(1.42f, Random.Range(-0.35f, 0.55f), zPos);
+                        rot = Quaternion.Euler(0f, -90f, 0f);
+                        break;
+                    case 2: // 天花板贴片
+                        pos = new Vector3(Random.Range(-0.55f, 0.55f), 1.52f, zPos);
+                        rot = Quaternion.Euler(90f, 0f, 0f);
+                        scale = new Vector3(2.0f, 2.6f, 1f);
+                        break;
+                    case 3: // 地面贴片
+                    default:
+                        pos = new Vector3(Random.Range(-0.55f, 0.55f), -1.52f, zPos);
+                        rot = Quaternion.Euler(-90f, 0f, 0f);
+                        scale = new Vector3(2.0f, 2.6f, 1f);
+                        break;
+                }
+
+                panelGo.transform.position = pos;
+                panelGo.transform.rotation = rot;
+                panelGo.transform.localScale = scale;
+
+                Collider col = panelGo.GetComponent<Collider>();
+                if (col != null) Destroy(col);
+
+                MeshRenderer mr = panelGo.GetComponent<MeshRenderer>();
+                Shader unlitShader = Shader.Find("Universal Render Pipeline/Unlit");
+                if (unlitShader == null) unlitShader = Shader.Find("Unlit/Texture");
+                Material mat = new Material(unlitShader);
+
+                if (mediaDatabase != null)
+                {
+                    Texture tex = mediaDatabase.GetEntertainmentTexture();
+                    if (tex != null)
+                    {
+                        if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", tex);
+                        if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
+                    }
+                }
+
+                mr.material = mat;
+                _matrixPanels.Add(panelGo);
+            }
+            Debug.Log($"<color=cyan>[MultiPanelMatrix] 成功搭建 16 宫格 3D 走廊错落视频画廊墙！</color>");
         }
 
         private float _cumulativeFlyZ = 0f;
