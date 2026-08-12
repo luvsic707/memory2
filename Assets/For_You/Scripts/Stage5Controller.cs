@@ -631,6 +631,11 @@ namespace TheLastCompact.Wakeup
             GameObject envGo = new GameObject("FeedEnvironment");
             envGo.transform.SetParent(transform, false);
             _environment = envGo.AddComponent<FeedEnvironment>();
+
+            GameObject relicGo = new GameObject("Stage5RelicSpawner");
+            relicGo.transform.SetParent(transform, false);
+            relicGo.AddComponent<Stage5RelicSpawner>();
+            Debug.Log("[Stage5] 自动挂载高级 3D 算法遗迹物化生成器。");
         }
 
         private void OnCardSpawned(ContentCard card)
