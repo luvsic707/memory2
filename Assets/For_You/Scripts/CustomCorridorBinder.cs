@@ -270,6 +270,7 @@ namespace TheLastCompact.Wakeup
 
             CreateInvisibleGroundFloor();
             CreateFarEndCapWall();
+            CreatePerfectCorridorPlanes();
             CreateMultiPanelVideoMatrix();
 
             PickNextMedia();
@@ -542,9 +543,10 @@ namespace TheLastCompact.Wakeup
         }
 
         private Renderer _farEndCapRenderer;
+        private Renderer[] _perfectWallPlanes;
 
         /// <summary>
-        /// 在走廊极尽头 (Z = 22.5m) 创建高清媒体封底墙，彻底封死尽头黑洞！
+        /// 在走廊极尽头 (Z = 13.8m, Y = 1.0m) 创建 10x10 巨型高清媒体封底墙，彻底无缝封死尽头黑洞！
         /// </summary>
         private void CreateFarEndCapWall()
         {
@@ -552,9 +554,9 @@ namespace TheLastCompact.Wakeup
             endCapGo.name = "Tunnel_FarEndCap_Wall";
             endCapGo.transform.SetParent(transform, false);
 
-            endCapGo.transform.position = new Vector3(0f, 0f, 14.5f);
+            endCapGo.transform.position = new Vector3(0f, 1.0f, 13.8f);
             endCapGo.transform.rotation = Quaternion.identity;
-            endCapGo.transform.localScale = new Vector3(6.5f, 6.5f, 1.0f);
+            endCapGo.transform.localScale = new Vector3(10.0f, 10.0f, 1.0f);
 
             Collider col = endCapGo.GetComponent<Collider>();
             if (col != null) Destroy(col);
@@ -569,7 +571,71 @@ namespace TheLastCompact.Wakeup
             if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
 
             _farEndCapRenderer.material = mat;
-            Debug.Log("<color=green>[CustomCorridorBinder] 成功创建走廊极尽头高清媒体封底墙 (Z = 22.5m)！</color>");
+            Debug.Log("<color=green>[CustomCorridorBinder] 成功创建走廊极尽头高清 10x10 媒体封底墙，零缝隙封死尽头！</color>");
+        }
+
+        /// <summary>
+        /// 创建 4 面绝对吻合、方向端正、高清平整的 3D 走廊墙面 (左、右、顶、地)
+        /// </summary>
+        private void CreatePerfectCorridorPlanes()
+        {
+            GameObject wallRoot = new GameObject("PerfectCorridorPlanes_Root");
+            wallRoot.transform.SetParent(transform, false);
+
+            _perfectWallPlanes = new Renderer[4];
+
+            Shader unlitShader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (unlitShader == null) unlitShader = Shader.Find("Unlit/Texture");
+
+            for (int i = 0; i < 4; i++)
+            {
+                GameObject plane = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                plane.name = $"PerfectWallPlane_{i}";
+                plane.transform.SetParent(wallRoot.transform, false);
+
+                Vector3 pos = Vector3.zero;
+                Quaternion rot = Quaternion.identity;
+                Vector3 scale = new Vector3(16.0f, 4.0f, 1.0f);
+
+                switch (i)
+                {
+                    case 0: // 左墙
+                        pos = new Vector3(-2.45f, 1.0f, 6.0f);
+                        rot = Quaternion.Euler(0f, 90f, 0f);
+                        break;
+                    case 1: // 右墙
+                        pos = new Vector3(2.45f, 1.0f, 6.0f);
+                        rot = Quaternion.Euler(0f, -90f, 0f);
+                        break;
+                    case 2: // 天花板
+                        pos = new Vector3(0f, 3.0f, 6.0f);
+                        rot = Quaternion.Euler(90f, 0f, 0f);
+                        scale = new Vector3(4.9f, 16.0f, 1.0f);
+                        break;
+                    case 3: // 地面
+                    default:
+                        pos = new Vector3(0f, -1.0f, 6.0f);
+                        rot = Quaternion.Euler(-90f, 0f, 0f);
+                        scale = new Vector3(4.9f, 16.0f, 1.0f);
+                        break;
+                }
+
+                plane.transform.position = pos;
+                plane.transform.rotation = rot;
+                plane.transform.localScale = scale;
+
+                Collider col = plane.GetComponent<Collider>();
+                if (col != null) Destroy(col);
+
+                MeshRenderer mr = plane.GetComponent<MeshRenderer>();
+                Material mat = new Material(unlitShader);
+                if (mat.HasProperty("_Color")) mat.SetColor("_Color", Color.white);
+                if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
+
+                mr.material = mat;
+                _perfectWallPlanes[i] = mr;
+            }
+            Debug.Log("<color=green>[CustomCorridorBinder] 成功构建 4 面绝对吻合、方向端正的 3D 走廊墙面！</color>");
         }
 
         /// <summary>
@@ -970,6 +1036,41 @@ namespace TheLastCompact.Wakeup
                         mat.mainTexture = endCapTex;
                         if (mat.HasProperty("_Color")) mat.SetColor("_Color", Color.white);
                         if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
+                    }
+                }
+            }
+
+            if (_perfectWallPlanes != null && _perfectWallPlanes.Length > 0)
+            {
+                for (int i = 0; i < _perfectWallPlanes.Length; i++)
+                {
+                    if (_perfectWallPlanes[i] != null)
+                    {
+                        Material mat = _perfectWallPlanes[i].material;
+                        if (mat != null)
+                        {
+                            Texture targetTex = null;
+                            if (mediaDatabase != null)
+                            {
+                                switch (i)
+                                {
+                                    case 0: targetTex = mediaDatabase.GetEntertainmentTexture(); break;
+                                    case 1: targetTex = mediaDatabase.GetThemeTexture("work"); break;
+                                    case 2: targetTex = mediaDatabase.GetThemeTexture("push"); break;
+                                    case 3: default: targetTex = mediaDatabase.GetThemeTexture("banana"); break;
+                                }
+                            }
+                            if (targetTex == null) targetTex = (i % 2 == 0) ? texA : texB;
+
+                            if (targetTex != null)
+                            {
+                                if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", targetTex);
+                                if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", targetTex);
+                                mat.mainTexture = targetTex;
+                            }
+                            if (mat.HasProperty("_Color")) mat.SetColor("_Color", Color.white);
+                            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
+                        }
                     }
                 }
             }
