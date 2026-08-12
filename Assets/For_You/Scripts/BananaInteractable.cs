@@ -170,10 +170,13 @@ namespace TheLastCompact.Wakeup
 
         public void SpawnNewBanana()
         {
+            if (bananaPrefab == null && Stage1Controller.Instance != null)
+            {
+                bananaPrefab = Stage1Controller.Instance.bananaPrefab;
+            }
             if (bananaPrefab == null)
             {
-                Debug.LogError($"[Banana] '{gameObject.name}' 未指定 bananaPrefab！无法生成新香蕉。");
-                return;
+                bananaPrefab = gameObject;
             }
 
             // 在当前物体上方加上随机偏移生成
