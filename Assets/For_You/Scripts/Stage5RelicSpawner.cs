@@ -33,8 +33,8 @@ namespace TheLastCompact.Wakeup
         [Tooltip("遗迹生成间隔（秒）")]
         public float spawnInterval = 3.2f;
 
-        [Tooltip("遗迹基础缩放比例")]
-        public float baseRelicScale = 1.35f;
+        [Tooltip("遗迹基础缩放比例（控制尺寸防遮挡）")]
+        public float baseRelicScale = 0.55f;
 
         [Header("超现实 Contemporary Pop 霓虹配色")]
         public Color neonRedColor = new Color(1.0f, 0.0f, 0.35f, 1.0f);     // 尖刺霓虹洋红 (参考图主色)

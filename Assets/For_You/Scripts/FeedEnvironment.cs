@@ -143,32 +143,8 @@ namespace TheLastCompact.Wakeup
         /// </summary>
         private void CreateTunnel()
         {
-            _tunnelGo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            _tunnelGo.name = "FeedTunnel";
-            _tunnelGo.transform.SetParent(transform, false);
-
-            // 移除碰撞体
-            Collider col = _tunnelGo.GetComponent<Collider>();
-            if (col != null) Destroy(col);
-
-            // 设置透明材质
-            _tunnelRenderer = _tunnelGo.GetComponent<Renderer>();
-            Shader shader = FindTunnelShader();
-            Material mat = new Material(shader);
-            if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1);
-            if (mat.HasProperty("_Blend")) mat.SetFloat("_Blend", 0);
-            if (mat.HasProperty("_SrcBlend")) mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            if (mat.HasProperty("_DstBlend")) mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-            if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", 0);
-            if (mat.HasProperty("_Cull")) mat.SetInt("_Cull", 1); // Front cull: 从内部看
-            mat.renderQueue = 2900;
-            _tunnelRenderer.material = mat;
-
-            // 初始完全透明
-            _tunnelRenderer.GetPropertyBlock(_mpb);
-            _mpb.SetColor("_BaseColor", new Color(0.1f, 0.15f, 0.3f, 0f));
-            _mpb.SetColor("_Color", new Color(0.1f, 0.15f, 0.3f, 0f));
-            _tunnelRenderer.SetPropertyBlock(_mpb);
+            // 彻底禁用遮挡视野的巨型 FeedTunnel 圆柱遮挡体，保持镜头通透高可读性
+            if (_tunnelGo != null) _tunnelGo.SetActive(false);
         }
 
         private void UpdateTunnel()
