@@ -847,7 +847,7 @@ namespace TheLastCompact.Wakeup
                 }
             }
 
-            // 🌟 强力修复：为 Scene 里的 Cube 墙面重置 1:1 比例 Tiling，确保画面无拉伸变形、超高清晰度与极佳可读性！
+            // 🌟 按照顶级艺术设计需求：将 6 个 Cube 墙体设置为纯粹优雅的深黑/暗色底色，作为高清视频画廊的完美承载背景！
             if (sideWallRenderers != null && sideWallRenderers.Length > 0)
             {
                 for (int i = 0; i < sideWallRenderers.Length; i++)
@@ -858,38 +858,12 @@ namespace TheLastCompact.Wakeup
                         Material mat = sideWallRenderers[i].material;
                         if (mat != null)
                         {
-                            Texture targetTex = null;
-                            if (mediaDatabase != null)
-                            {
-                                switch (i % 5)
-                                {
-                                    case 0: targetTex = mediaDatabase.GetEntertainmentTexture(); break;
-                                    case 1: targetTex = mediaDatabase.GetThemeTexture("banana"); break;
-                                    case 2: targetTex = mediaDatabase.GetThemeTexture("prayer"); break;
-                                    case 3: targetTex = mediaDatabase.GetThemeTexture("push"); break;
-                                    case 4: default: targetTex = mediaDatabase.GetThemeTexture("work"); break;
-                                }
-                            }
-                            if (targetTex == null) targetTex = (i % 2 == 0) ? texA : texB;
-
-                            if (targetTex != null)
-                            {
-                                if (mat.HasProperty("_MainTex"))
-                                {
-                                    mat.SetTexture("_MainTex", targetTex);
-                                    mat.SetTextureScale("_MainTex", Vector2.one);
-                                    mat.SetTextureOffset("_MainTex", Vector2.zero);
-                                }
-                                if (mat.HasProperty("_BaseMap"))
-                                {
-                                    mat.SetTexture("_BaseMap", targetTex);
-                                    mat.SetTextureScale("_BaseMap", Vector2.one);
-                                    mat.SetTextureOffset("_BaseMap", Vector2.zero);
-                                }
-                                mat.mainTexture = targetTex;
-                            }
-                            if (mat.HasProperty("_Color")) mat.SetColor("_Color", Color.white);
-                            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
+                            Color darkBaseColor = new Color(0.04f, 0.04f, 0.06f, 1.0f);
+                            if (mat.HasProperty("_Color")) mat.SetColor("_Color", darkBaseColor);
+                            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", darkBaseColor);
+                            if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", null);
+                            if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", null);
+                            mat.mainTexture = null;
                         }
                     }
                 }
