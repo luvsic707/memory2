@@ -178,7 +178,9 @@ namespace TheLastCompact.Wakeup
                 {
                     if (sideWallRenderers[i] != null)
                     {
-                        sideWallRenderers[i].material = _wallMat;
+                        Material wallMatInst = new Material(_wallMat);
+                        sideWallRenderers[i].material = wallMatInst;
+
                         _initialWallPositions[i] = sideWallRenderers[i].transform.localPosition;
                         _initialWallRotations[i] = sideWallRenderers[i].transform.localRotation;
                         _initialWallScales[i] = sideWallRenderers[i].transform.localScale;
@@ -186,7 +188,7 @@ namespace TheLastCompact.Wakeup
                         sideWallRenderers[i].enabled = !disableSolidBoxShell;
                     }
                 }
-                Debug.Log("<color=green>[CustomCorridorBinder] 成功保留四周 Cube 墙体外壳来承载多维视频与图像内容！</color>");
+                Debug.Log("<color=green>[CustomCorridorBinder] 成功保留四周 Cube 墙体外壳，并为每个 Cube 实例化独立 Material！</color>");
             }
 
             CreateInvisibleGroundFloor();
@@ -777,6 +779,32 @@ namespace TheLastCompact.Wakeup
                 if (subWallTex != null && _wallMat.HasProperty("_SubTex"))
                 {
                     _wallMat.SetTexture("_SubTex", subWallTex);
+                }
+            }
+
+            // 🌟 关键修复：逐个为 Scene 里的 Cube, Cube (1) ~ Cube (5) 赋予材质 Texture 与白色漫反射，保证绝对不留空白粉红！
+            if (sideWallRenderers != null && sideWallRenderers.Length > 0)
+            {
+                for (int i = 0; i < sideWallRenderers.Length; i++)
+                {
+                    if (sideWallRenderers[i] != null && sideWallRenderers[i].enabled)
+                    {
+                        Material mat = sideWallRenderers[i].material;
+                        if (mat != null)
+                        {
+                            Texture targetTex = (i % 2 == 0) ? texA : texB;
+                            if (targetTex == null && mediaDatabase != null) targetTex = mediaDatabase.GetEntertainmentTexture();
+
+                            if (targetTex != null)
+                            {
+                                if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", targetTex);
+                                if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", targetTex);
+                                mat.mainTexture = targetTex;
+                            }
+                            if (mat.HasProperty("_Color")) mat.SetColor("_Color", Color.white);
+                            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", Color.white);
+                        }
+                    }
                 }
             }
         }
