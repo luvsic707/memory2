@@ -50,6 +50,13 @@ namespace TheLastCompact.Wakeup
 
         private void Start()
         {
+            GameObject existingLockBox = GameObject.Find("HUD_ReticleLockBox");
+            if (existingLockBox != null)
+            {
+                Destroy(existingLockBox);
+                Debug.Log("[Stage5PopGeometryEffect] 成功自动销毁场景遗留的 HUD_ReticleLockBox 遮挡绿框！");
+            }
+
             FindCamera();
             CreateReticleLockBox();
             CreateSpeedLineParticleRain();
@@ -200,48 +207,13 @@ namespace TheLastCompact.Wakeup
 
         private void CreateReticleLockBox()
         {
-            _reticleLockBox = new GameObject("HUD_ReticleLockBox");
-            _reticleLockBox.transform.SetParent(transform, false);
-
-            MeshFilter mf = _reticleLockBox.AddComponent<MeshFilter>();
-            MeshRenderer mr = _reticleLockBox.AddComponent<MeshRenderer>();
-
-            GameObject prim = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            mf.sharedMesh = prim.GetComponent<MeshFilter>().sharedMesh;
-            Destroy(prim);
-
-            Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
-            if (shader == null) shader = Shader.Find("Unlit/Color");
-
-            Material mat = new Material(shader);
-            Color lockColor = new Color(0.2f, 1.0f, 0.3f, 0.9f);
-            if (mat.HasProperty("_Color")) mat.SetColor("_Color", lockColor);
-            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", lockColor);
-
-            mr.material = mat;
-            _reticleLockBox.SetActive(false);
+            // 彻底禁用巨型绿色 HUD_ReticleLockBox 视线框，防止射线击中墙面时生成阻挡视野的巨型绿色平面
+            _reticleLockBox = null;
         }
 
         private void UpdateReticleLockBox()
         {
-            if (_reticleLockBox == null || _camTransform == null) return;
-
-            Ray ray = new Ray(_camTransform.position, _camTransform.forward);
-            RaycastHit hit;
-
-            if (Physics.Raycast(ray, out hit, 50f))
-            {
-                if (hit.transform != null && hit.transform != _camTransform)
-                {
-                    _reticleLockBox.SetActive(true);
-                    _reticleLockBox.transform.position = hit.transform.position;
-                    _reticleLockBox.transform.rotation = Quaternion.LookRotation(_camTransform.forward);
-                    _reticleLockBox.transform.localScale = hit.transform.lossyScale * 1.35f;
-                    return;
-                }
-            }
-
-            _reticleLockBox.SetActive(false);
+            if (_reticleLockBox != null) _reticleLockBox.SetActive(false);
         }
 
         private void CreateSpeedLineParticleRain()
