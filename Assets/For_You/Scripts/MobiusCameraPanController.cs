@@ -58,23 +58,25 @@ namespace TheLastCompact.Wakeup
             }
         }
 
-        [Header("莫比乌斯环曲面轨迹推进参数")]
-        [Tooltip("莫比乌斯环 3D Transform 引用（若留空将自动寻找 MobiusStrip (3)）")]
-        public Transform mobiusTrackTransform;
-
-        [Tooltip("每次推石玩家沿着莫比乌斯环曲面平移推进的步长距离 (米，0.38m 营造沉重的拟真推石速度)")]
-        public float playerStepDistance = 0.38f;
-
-        [Header("玩家双手与 MobiusBall (3) 紧密贴合参数")]
-        [Tooltip("巨石紧贴在玩家手心正前方的相对距离 (米，0.95m 确保双手 100% 物理死死贴在球面上)")]
-        public float boulderPairFrontDistance = 0.95f;
-
-        [Tooltip("巨石相对于手心的高度偏置 (米)")]
-        public float boulderPairHeightOffset = 0.10f;
-
         [Header("锁定玩家在莫比乌斯轨道 (彻底解决掉落)")]
         [Tooltip("【默认开启】：关闭 WASD 重力自由下坠，将玩家固定锚定在 MobiusStrip (3) 轨迹上，绝对不会下坠掉落！")]
         public bool lockPlayerToTrack = true;
+
+        [Header("镜头全景拉远参数")]
+        [Tooltip("触发显示莫比乌斯全景所需的推石总次数")]
+        public int maxPushesForPanorama = 16;
+
+        [Tooltip("全景视角最大后退拉远距离 (米)")]
+        public float maxPanoramaDistance = 45f;
+
+        [Tooltip("全景视角最大上升高度 (米)")]
+        public float maxPanoramaHeight = 25f;
+
+        [Tooltip("全景视角下俯倾斜角度 (度)")]
+        public float maxPanoramaPitchAngle = 42f;
+
+        [Tooltip("镜头平滑拉远过渡速度")]
+        public float cameraSmoothSpeed = 2.5f;
 
         private Vector3 _initialPlayerPos;
         private Quaternion _initialPlayerRot;
