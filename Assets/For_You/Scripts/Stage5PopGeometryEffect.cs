@@ -6,28 +6,36 @@ using TheLastCompact.Core;
 namespace TheLastCompact.Wakeup
 {
     /// <summary>
-    /// Stage 5 视频同款魔幻 Pop 几何粒子与 HUD 目标锁定系统 (Video-Style Pop Geometry & Reticle System)
-    /// 100% 还原用户视频 Preview 效果：
-    /// 1. 浮空 2D/3D 线框方块 [ ]、发光三角形 Δ、绿/粉交叉 X、加号 + 与圆圈 O 阵列；
-    /// 2. 急速穿梭的白/绿速度光线雨 particle rain；
-    /// 3. 准心指向目标时的荧光绿 HUD 目标锁定框 (Target Lock Box)。
+    /// Stage 5 双向流动性与多维视频投影系统 (Dual-Direction Flow & Video Projected Geometry System)
+    /// 1. 【双向流动性】：支持 Player 向前穿梭 + 周围 3D 几何图形/环境向 Player 扑面涌现 (Surge Inward) 双重对流！
+    /// 2. 【多维视频/图像纹理投影】：周围浮空的 3D 卡片与几何体表面，直接投影 mediaDatabase 里的动态视频与图像素材！
     /// </summary>
     public class Stage5PopGeometryEffect : MonoBehaviour
     {
         public static Stage5PopGeometryEffect Instance { get; private set; }
 
+        [Header("媒体数据库（视频/图像投影）")]
+        public CardMediaDatabase mediaDatabase;
+
+        [Header("双向流动性控制 (Inspector 自由开关与调速)")]
+        [Tooltip("启用环境与几何元素向 Player 方向扑面涌现 (Surge Inward)")]
+        public bool enableEnvironmentSurgeInward = true;
+
+        [Tooltip("环境扑面涌现的速度 (米/秒)")]
+        public float surgeSpeed = 3.5f;
+
         [Header("Pop 几何符号配置")]
         [Tooltip("走廊内同时存在的 Pop 几何符号最大数量")]
-        public int maxGeometryCount = 20;
+        public int maxGeometryCount = 24;
 
         [Tooltip("符号生成半径")]
-        public float spawnRadius = 0.85f;
+        public float spawnRadius = 0.95f;
 
         [Header("视频同款配色")]
-        public Color neonGreen = new Color(0.2f, 1.0f, 0.4f, 1.0f);   // 荧光绿 (主色)
-        public Color neonPink = new Color(1.0f, 0.15f, 0.6f, 1.0f);   // 霓虹粉
-        public Color neonCyan = new Color(0.0f, 0.95f, 1.0f, 1.0f);   // 电光青
-        public Color neonYellow = new Color(1.0f, 0.9f, 0.1f, 1.0f);   // 亮黄
+        public Color neonGreen = new Color(0.2f, 1.0f, 0.4f, 1.0f);
+        public Color neonPink = new Color(1.0f, 0.15f, 0.6f, 1.0f);
+        public Color neonCyan = new Color(0.0f, 0.95f, 1.0f, 1.0f);
+        public Color neonYellow = new Color(1.0f, 0.9f, 0.1f, 1.0f);
 
         private List<GameObject> _activeElements = new List<GameObject>();
         private GameObject _reticleLockBox;
@@ -59,36 +67,46 @@ namespace TheLastCompact.Wakeup
             FindCamera();
             if (_camTransform == null) return;
 
-            // 准心射线检测与 HUD 锁定框更新
             UpdateReticleLockBox();
 
-            // 保持 SpeedLineRain 粒子跟随相机
             if (_speedLineParticles != null)
             {
                 _speedLineParticles.transform.position = _camTransform.position + _camTransform.forward * 3.5f;
             }
 
-            // 无缝循环回收落到相机身后的 Pop 几何符号，重新置于前方
+            // 🌟 核心突破：双向流动——周围 3D 几何图形向 Player 扑面涌现 (Surge Inward) 与循环
             for (int i = 0; i < _activeElements.Count; i++)
             {
                 if (_activeElements[i] != null)
                 {
-                    float distZ = _activeElements[i].transform.position.z - _camTransform.position.z;
-                    if (distZ < -1.5f)
+                    PopElementFloating floating = _activeElements[i].GetComponent<PopElementFloating>();
+
+                    if (enableEnvironmentSurgeInward)
+                    {
+                        // 向 Player 扑面涌现移动
+                        _activeElements[i].transform.position -= _camTransform.forward * (surgeSpeed * Time.deltaTime);
+                        if (floating != null) floating.ShiftStartPos(-_camTransform.forward * (surgeSpeed * Time.deltaTime));
+                    }
+
+                    // 当扑面涌现经过 Player 落在身后时，无缝重新生成在前方深处，并随机刷新媒体 Texture
+                    float distZ = Vector3.Dot(_activeElements[i].transform.position - _camTransform.position, _camTransform.forward);
+                    if (distZ < -2.0f)
                     {
                         float sideSign = Random.value > 0.5f ? 1.0f : -1.0f;
                         float xOffset = (spawnRadius * sideSign) * Random.Range(0.6f, 1.0f);
                         float yOffset = Random.Range(-0.4f, 0.6f);
-                        Vector3 newPos = _camTransform.position + _camTransform.forward * Random.Range(6.0f, 10.0f) + _camTransform.right * xOffset + _camTransform.up * yOffset;
+                        Vector3 newPos = _camTransform.position + _camTransform.forward * Random.Range(8.0f, 13.0f) + _camTransform.right * xOffset + _camTransform.up * yOffset;
+                        
                         _activeElements[i].transform.position = newPos;
-
-                        PopElementFloating floating = _activeElements[i].GetComponent<PopElementFloating>();
-                        if (floating != null) floating.ResetStartPos(newPos);
+                        if (floating != null)
+                        {
+                            floating.ResetStartPos(newPos);
+                            floating.ApplyRandomMediaTexture(mediaDatabase); // 动态刷新投影材质！
+                        }
                     }
                 }
             }
 
-            // 清理已销毁元素
             _activeElements.RemoveAll(item => item == null);
         }
 
@@ -100,22 +118,19 @@ namespace TheLastCompact.Wakeup
             for (int i = 0; i < maxGeometryCount; i++)
             {
                 SpawnPopGeometryElement();
-                yield return new WaitForSeconds(0.15f);
+                yield return new WaitForSeconds(0.12f);
             }
         }
 
-        /// <summary>
-        /// 视频同款：生成线框方块 [ ]、三角形 Δ、交叉 X、加号 +
-        /// </summary>
         public void SpawnPopGeometryElement()
         {
             if (_camTransform == null) return;
 
-            GameObject elemGo = new GameObject($"PopElem_{Time.time:F1}");
+            GameObject elemGo = new GameObject($"PopElem_Media_{Time.time:F1}");
             elemGo.transform.SetParent(transform, false);
 
             float sideSign = Random.value > 0.5f ? 1.0f : -1.0f;
-            float zOffset = Random.Range(2.0f, 8.0f);
+            float zOffset = Random.Range(3.0f, 12.0f);
             float yOffset = Random.Range(-0.4f, 0.6f);
             float xOffset = spawnRadius * sideSign * Random.Range(0.6f, 1.0f);
 
@@ -126,8 +141,7 @@ namespace TheLastCompact.Wakeup
 
             elemGo.transform.position = spawnPos;
 
-            // 随机选择符号类型
-            int symbolType = Random.Range(0, 4); // 0: Square/Box, 1: Triangle, 2: Cross X, 3: Plus +
+            int symbolType = Random.Range(0, 4);
             Color symbolColor = GetRandomNeonColor();
 
             BuildSymbolMeshAndMaterial(elemGo, symbolType, symbolColor);
@@ -135,9 +149,9 @@ namespace TheLastCompact.Wakeup
             SphereCollider col = elemGo.AddComponent<SphereCollider>();
             col.radius = 0.5f;
 
-            // 浮动与旋转组件
             PopElementFloating floating = elemGo.AddComponent<PopElementFloating>();
             floating.color = symbolColor;
+            floating.ApplyRandomMediaTexture(mediaDatabase); // 应用媒体纹理投影
 
             _activeElements.Add(elemGo);
         }
@@ -148,14 +162,14 @@ namespace TheLastCompact.Wakeup
             MeshRenderer mr = parent.AddComponent<MeshRenderer>();
 
             PrimitiveType pType = PrimitiveType.Cube;
-            Vector3 scale = Vector3.one * Random.Range(0.25f, 0.45f);
+            Vector3 scale = Vector3.one * Random.Range(0.3f, 0.55f);
 
             switch (type)
             {
-                case 0: pType = PrimitiveType.Cube; scale = new Vector3(0.35f, 0.35f, 0.05f); break; // 视频同款线框矩形框
-                case 1: pType = PrimitiveType.Cylinder; scale = new Vector3(0.3f, 0.02f, 0.3f); break; // 视频同款三角形/圆盘
-                case 2: pType = PrimitiveType.Cube; scale = new Vector3(0.4f, 0.08f, 0.08f); break; // 视频同款 X 交叉
-                case 3: default: pType = PrimitiveType.Sphere; scale = Vector3.one * 0.22f; break; // 加号/珠串
+                case 0: pType = PrimitiveType.Cube; scale = new Vector3(0.5f, 0.5f, 0.05f); break; // 视频卡片板
+                case 1: pType = PrimitiveType.Cylinder; scale = new Vector3(0.4f, 0.02f, 0.4f); break;
+                case 2: pType = PrimitiveType.Cube; scale = new Vector3(0.5f, 0.1f, 0.1f); break;
+                case 3: default: pType = PrimitiveType.Sphere; scale = Vector3.one * 0.3f; break;
             }
 
             GameObject prim = GameObject.CreatePrimitive(pType);
@@ -165,6 +179,7 @@ namespace TheLastCompact.Wakeup
             parent.transform.localScale = scale;
 
             Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null) shader = Shader.Find("Unlit/Texture");
             if (shader == null) shader = Shader.Find("Unlit/Color");
 
             Material mat = new Material(shader);
@@ -183,9 +198,6 @@ namespace TheLastCompact.Wakeup
             return neonYellow;
         }
 
-        /// <summary>
-        /// 视频同款：准心指向目标时的荧光绿 HUD 目标锁定框
-        /// </summary>
         private void CreateReticleLockBox()
         {
             _reticleLockBox = new GameObject("HUD_ReticleLockBox");
@@ -202,7 +214,7 @@ namespace TheLastCompact.Wakeup
             if (shader == null) shader = Shader.Find("Unlit/Color");
 
             Material mat = new Material(shader);
-            Color lockColor = new Color(0.2f, 1.0f, 0.3f, 0.9f); // 亮绿框
+            Color lockColor = new Color(0.2f, 1.0f, 0.3f, 0.9f);
             if (mat.HasProperty("_Color")) mat.SetColor("_Color", lockColor);
             if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", lockColor);
 
@@ -232,9 +244,6 @@ namespace TheLastCompact.Wakeup
             _reticleLockBox.SetActive(false);
         }
 
-        /// <summary>
-        /// 视频同款：垂直流逝的白色/荧光绿速度光线雨 (Speed Line Rain)
-        /// </summary>
         private void CreateSpeedLineParticleRain()
         {
             GameObject particleGo = new GameObject("SpeedLineRainParticles");
@@ -243,45 +252,65 @@ namespace TheLastCompact.Wakeup
 
             _speedLineParticles = particleGo.AddComponent<ParticleSystem>();
             var main = _speedLineParticles.main;
-            main.startSpeed = 15f;
+            main.startSpeed = 16f;
             main.startSize = 0.08f;
-            main.startColor = new Color(1.0f, 1.0f, 1.0f, 0.7f);
-            main.maxParticles = 150;
+            main.startColor = new Color(1.0f, 1.0f, 1.0f, 0.75f);
+            main.maxParticles = 180;
             main.simulationSpace = ParticleSystemSimulationSpace.World;
 
             var emission = _speedLineParticles.emission;
-            emission.rateOverTime = 40;
+            emission.rateOverTime = 45;
 
             var shape = _speedLineParticles.shape;
             shape.shapeType = ParticleSystemShapeType.Box;
-            shape.scale = new Vector3(4f, 4f, 1f);
+            shape.scale = new Vector3(4.5f, 4.5f, 1f);
 
             ParticleSystemRenderer psr = particleGo.GetComponent<ParticleSystemRenderer>();
             psr.renderMode = ParticleSystemRenderMode.Stretch;
-            psr.lengthScale = 4.0f; // 细长拉伸 Speed Lines!
+            psr.lengthScale = 4.5f;
         }
     }
 
-    /// <summary>
-    /// 浮空元素缓速自转与悬浮
-    /// </summary>
     public class PopElementFloating : MonoBehaviour
     {
         public Color color;
         private Vector3 _rotSpeed;
         private Vector3 _startPos;
         private float _timeOffset;
+        private MeshRenderer _renderer;
 
         private void Start()
         {
             _startPos = transform.position;
             _rotSpeed = new Vector3(Random.Range(30f, 90f), Random.Range(40f, 100f), Random.Range(20f, 60f));
             _timeOffset = Random.Range(0f, 10f);
+            _renderer = GetComponent<MeshRenderer>();
+        }
+
+        public void ShiftStartPos(Vector3 delta)
+        {
+            _startPos += delta;
         }
 
         public void ResetStartPos(Vector3 pos)
         {
             _startPos = pos;
+        }
+
+        /// <summary>
+        /// 将 mediaDatabase 中的视频/图片素材动态投影到该 3D 几何体表面
+        /// </summary>
+        public void ApplyRandomMediaTexture(CardMediaDatabase db)
+        {
+            if (_renderer == null) _renderer = GetComponent<MeshRenderer>();
+            if (_renderer == null || db == null) return;
+
+            Texture tex = db.GetEntertainmentTexture();
+            if (tex != null && _renderer.material != null)
+            {
+                if (_renderer.material.HasProperty("_MainTex")) _renderer.material.SetTexture("_MainTex", tex);
+                if (_renderer.material.HasProperty("_BaseMap")) _renderer.material.SetTexture("_BaseMap", tex);
+            }
         }
 
         private void Update()

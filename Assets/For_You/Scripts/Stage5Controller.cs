@@ -638,8 +638,9 @@ namespace TheLastCompact.Wakeup
 
             GameObject popGo = new GameObject("Stage5PopGeometryEffect");
             popGo.transform.SetParent(transform, false);
-            popGo.AddComponent<Stage5PopGeometryEffect>();
-            Debug.Log("[Stage5] 自动挂载视频同款魔幻 Pop 几何阵列与 HUD 锁定框系统。");
+            Stage5PopGeometryEffect popEffect = popGo.AddComponent<Stage5PopGeometryEffect>();
+            popEffect.mediaDatabase = mediaDatabase;
+            Debug.Log("[Stage5] 自动挂载双向流动与视频投影 Pop 几何阵列。");
         }
 
         private void OnCardSpawned(ContentCard card)
