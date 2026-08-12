@@ -24,6 +24,10 @@ namespace TheLastCompact.Wakeup
         [Tooltip("走廊四周的 4 面墙体 Cube（左、右、天花板、地面）")]
         public Renderer[] sideWallRenderers;
 
+        [Header("拆解生硬长盒与切片式走廊框架 (Deconstruct Solid Box Shell)")]
+        [Tooltip("隐藏/拆解原本静态生硬的长方形外壳 (Cube 1~5)，用无缝弯曲流动的 3D 视频画廊与切片框架替代")]
+        public bool disableSolidBoxShell = true;
+
         [Header("多宫格 3D 视频矩阵走廊 (Multi-Panel Video Matrix Corridor)")]
         [Tooltip("启用 3D 多宫格错落视频画廊墙（模仿参考视频中贴满走廊四周的多画面排列效果）")]
         public bool enableMultiPanelVideoMatrix = true;
@@ -178,7 +182,16 @@ namespace TheLastCompact.Wakeup
                         _initialWallPositions[i] = sideWallRenderers[i].transform.localPosition;
                         _initialWallRotations[i] = sideWallRenderers[i].transform.localRotation;
                         _initialWallScales[i] = sideWallRenderers[i].transform.localScale;
+
+                        if (disableSolidBoxShell)
+                        {
+                            sideWallRenderers[i].enabled = false;
+                        }
                     }
+                }
+                if (disableSolidBoxShell)
+                {
+                    Debug.Log("<color=green>[CustomCorridorBinder] 已成功拆解/隐藏生硬笔直的 Cube 长盒外壳！全面使用弯曲流动的多宫格 3D 视频画廊！</color>");
                 }
             }
 
