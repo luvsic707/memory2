@@ -31,6 +31,10 @@ namespace TheLastCompact.Wakeup
         [Tooltip("保留周围 4 面 Cube 墙体来承载主要视频内容 (设置为 false 完整保留 Scene 里的 Cube 墙面)")]
         public bool disableSolidBoxShell = false;
 
+        [Header("🎨 墙体材质与透明度手动控制 (Manual Material Control)")]
+        [Tooltip("是否在运行期强制替换 Scene 里 Cube 的 Material (默认 false，100% 保持你在 Scene 编辑器和 Inspector 里手动设置的 Material、Shader、贴图与双面不透明属性！设置为 true 则使用代码自动投影视频)")]
+        public bool overrideMaterialsAtRuntime = false;
+
         [Header("多宫格 3D 视频矩阵走廊 (Multi-Panel Video Matrix Corridor)")]
         [Tooltip("启用 3D 多宫格错落视频画廊墙（默认 false，直接完整呈现 Scene 里编辑好的 Cube 墙面，保证 Scene 与 Game 绝对 1:1 完全一致）")]
         public bool enableMultiPanelVideoMatrix = false;
@@ -249,20 +253,24 @@ namespace TheLastCompact.Wakeup
                 {
                     if (sideWallRenderers[i] != null)
                     {
-                        Material wallMatInst = new Material(unlitShader);
-                        Texture tex = (mediaDatabase != null) ? mediaDatabase.GetEntertainmentTexture() : null;
-                        if (tex != null)
+                        if (overrideMaterialsAtRuntime)
                         {
-                            if (wallMatInst.HasProperty("_MainTex")) wallMatInst.SetTexture("_MainTex", tex);
-                            if (wallMatInst.HasProperty("_BaseMap")) wallMatInst.SetTexture("_BaseMap", tex);
-                            wallMatInst.mainTexture = tex;
-                        }
-                        if (wallMatInst.HasProperty("_Color")) wallMatInst.SetColor("_Color", Color.white);
-                        if (wallMatInst.HasProperty("_BaseColor")) wallMatInst.SetColor("_BaseColor", Color.white);
-                        if (wallMatInst.HasProperty("_Cull")) wallMatInst.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
-                        if (wallMatInst.HasProperty("_CullMode")) wallMatInst.SetInt("_CullMode", (int)UnityEngine.Rendering.CullMode.Off);
+                            Material wallMatInst = new Material(unlitShader);
+                            Texture tex = (mediaDatabase != null) ? mediaDatabase.GetEntertainmentTexture() : null;
+                            if (tex != null)
+                            {
+                                if (wallMatInst.HasProperty("_MainTex")) wallMatInst.SetTexture("_MainTex", tex);
+                                if (wallMatInst.HasProperty("_BaseMap")) wallMatInst.SetTexture("_BaseMap", tex);
+                                wallMatInst.mainTexture = tex;
+                            }
+                            if (wallMatInst.HasProperty("_Color")) wallMatInst.SetColor("_Color", Color.white);
+                            if (wallMatInst.HasProperty("_BaseColor")) wallMatInst.SetColor("_BaseColor", Color.white);
+                            if (wallMatInst.HasProperty("_Cull")) wallMatInst.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
+                            if (wallMatInst.HasProperty("_CullMode")) wallMatInst.SetInt("_CullMode", (int)UnityEngine.Rendering.CullMode.Off);
 
-                        sideWallRenderers[i].material = wallMatInst;
+                            sideWallRenderers[i].material = wallMatInst;
+                        }
+
                         _initialWallPositions[i] = sideWallRenderers[i].transform.localPosition;
                         _initialWallRotations[i] = sideWallRenderers[i].transform.localRotation;
                         _initialWallScales[i] = sideWallRenderers[i].transform.localScale;
@@ -961,8 +969,8 @@ namespace TheLastCompact.Wakeup
                 }
             }
 
-            // 🌟 强力为四周 6 个 Cube 墙体与悬浮视频贴片赋上高清视频与画报 Texture，确保四周 100% 满布动态媒体画面！
-            if (sideWallRenderers != null && sideWallRenderers.Length > 0)
+            // 🌟 仅在 overrideMaterialsAtRuntime 开启时才在运行期自动替换材质；默认保持你在 Scene 和 Inspector 里手动调好的 Material
+            if (overrideMaterialsAtRuntime && sideWallRenderers != null && sideWallRenderers.Length > 0)
             {
                 for (int i = 0; i < sideWallRenderers.Length; i++)
                 {
