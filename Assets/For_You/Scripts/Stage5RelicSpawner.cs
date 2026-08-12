@@ -6,32 +6,26 @@ using TheLastCompact.Core;
 namespace TheLastCompact.Wakeup
 {
     /// <summary>
-    /// Stage 5 高级 3D 遗迹/算法物化生成器 (Stage 5 3D Relic & Materialization Spawner)
-    /// 
-    /// 巧妙设计理念：
-    /// 1. 【2D ➔ 3D 物化浮凸】：当墙面视频切屏时，前关的 3D 核心遗迹（香蕉/圣手/莫比乌斯巨石/90年代显示器）
-    ///    会从 2D 墙面中优雅“脱胎/浮凸出来”，化为全息 3D 实体悬浮在走廊空间中！
-    /// 2. 【失重浮沉与磁力凝视】：3D 遗迹在走廊两旁如太空遗迹般缓速自转与微呼吸。
-    ///    当玩家准心注视遗迹时，遗迹产生磁力吸引向玩家倾斜，注视满 0.4 秒后化为量子星粉粒子解构消散！
-    /// 3. 【精准行为驱动】：严格依据 PlayerBehaviorData 的前关数值决定出现的遗迹类型。
+    /// Stage 5 超级显眼 3D 遗迹/算法物化生成器 (High-Visibility 3D Relic Spawner)
+    /// 解决问题：之前因 0.2 进度门槛与位置偏出墙体导致看不到，现已彻底优化为开局即刻高亮悬浮在视野中央！
     /// </summary>
     public class Stage5RelicSpawner : MonoBehaviour
     {
         public static Stage5RelicSpawner Instance { get; private set; }
 
         [Header("3D 遗迹生成参数")]
-        [Tooltip("走廊两旁最大允许同时悬浮的 3D 遗迹数量")]
+        [Tooltip("走廊内同时悬浮的 3D 遗迹最大数量")]
         public int maxActiveRelics = 4;
 
         [Tooltip("遗迹生成间隔（秒）")]
-        public float spawnInterval = 4.0f;
+        public float spawnInterval = 3.0f;
 
-        [Tooltip("遗迹悬浮在走廊四周的半径范围")]
-        public float floatRadius = 2.2f;
+        [Tooltip("遗迹在走廊内部左右分布半径（必须在走廊内部 x = -0.8 ~ 0.8 以内）")]
+        public float corridorXRadius = 0.75f;
 
-        [Header("遗迹材质与光泽")]
-        [Tooltip("遗迹全息高光发光 Color")]
-        public Color holographicColor = new Color(0.2f, 0.9f, 1.0f, 0.85f);
+        [Header("遗迹尺寸与高光")]
+        [Tooltip("遗迹基础缩放比例（必须足够宏大显眼）")]
+        public float baseRelicScale = 1.4f;
 
         private List<GameObject> _activeRelics = new List<GameObject>();
         private float _spawnTimer = 0f;
@@ -46,6 +40,21 @@ namespace TheLastCompact.Wakeup
         private void Start()
         {
             FindPlayer();
+            // 🌟 开局立即强行生成 3 个，确保一进场景 100% 能看清走廊里的 3D 遗迹！
+            StartCoroutine(InitialSpawnSequence());
+        }
+
+        private IEnumerator InitialSpawnSequence()
+        {
+            yield return new WaitForSeconds(0.5f);
+            FindPlayer();
+            if (_playerTransform == null) yield break;
+
+            for (int i = 0; i < maxActiveRelics; i++)
+            {
+                SpawnMaterializedRelic(0.5f, i);
+                yield return new WaitForSeconds(0.3f);
+            }
         }
 
         private void FindPlayer()
@@ -59,43 +68,59 @@ namespace TheLastCompact.Wakeup
             FindPlayer();
             if (_playerTransform == null) return;
 
-            float progress = Stage5Controller.Instance != null ? Stage5Controller.Instance.phaseProgress : 0f;
-            if (progress < 0.20f) return; // Phase 1 前期保持走廊清爽
+            // 按 T 键调试强行生成 3D 遗迹
+            if (Input.GetKeyDown(KeyCode.T))
+            {
+                SpawnMaterializedRelic(0.8f, 0);
+            }
 
             _spawnTimer += Time.deltaTime;
             if (_spawnTimer >= spawnInterval && _activeRelics.Count < maxActiveRelics)
             {
                 _spawnTimer = 0f;
-                SpawnMaterializedRelic(progress);
+                SpawnMaterializedRelic(0.5f, _activeRelics.Count);
             }
 
-            // 清理空或摧毁的遗迹
             _activeRelics.RemoveAll(item => item == null);
         }
 
-        /// <summary>
-        /// 从墙面物化浮凸出 3D 遗迹
-        /// </summary>
-        private void SpawnMaterializedRelic(float phaseProgress)
+        [ContextMenu("Force Spawn 3D Relic Right Now")]
+        public void ForceSpawnRelic()
         {
+            FindPlayer();
+            SpawnMaterializedRelic(0.9f, 0);
+        }
+
+        /// <summary>
+        /// 从墙面物化浮凸出 3D 遗迹（直接放在玩家视野正前方）
+        /// </summary>
+        private void SpawnMaterializedRelic(float phaseProgress, int index)
+        {
+            if (_playerTransform == null) return;
+
             string theme = GetDominantTheme();
 
-            GameObject relicGo = new GameObject($"Relic_{theme}_{Time.time:F0}");
+            GameObject relicGo = new GameObject($"Relic_3D_{theme}_{Time.time:F0}");
             relicGo.transform.SetParent(transform, false);
 
-            // 在玩家前方 3m ~ 8m，左右两侧墙面附近生成
-            float sideSign = Random.value > 0.5f ? 1.0f : -1.0f;
-            float zOffset = Random.Range(3.5f, 9.0f);
-            float yOffset = Random.Range(-0.5f, 0.8f);
+            // 精准计算放置在走廊内部视野正前方（x: -0.75 ~ +0.75, y: -0.3 ~ +0.6, z: 2.2 ~ 6.0）
+            float sideSign = (index % 2 == 0) ? 1.0f : -1.0f;
+            float zOffset = 2.5f + (index * 1.5f);
+            float yOffset = Random.Range(-0.3f, 0.5f);
+            float xOffset = (corridorXRadius * sideSign) * Random.Range(0.6f, 1.0f);
 
-            Vector3 spawnPos = _playerTransform.position + _playerTransform.forward * zOffset + _playerTransform.right * (floatRadius * sideSign) + _playerTransform.up * yOffset;
+            Vector3 spawnPos = _playerTransform.position 
+                             + _playerTransform.forward * zOffset 
+                             + _playerTransform.right * xOffset 
+                             + _playerTransform.up * yOffset;
+
             relicGo.transform.position = spawnPos;
 
-            // 构建 3D 网格模型
+            // 构建 3D 实体模型
             MeshFilter mf = relicGo.AddComponent<MeshFilter>();
             MeshRenderer mr = relicGo.AddComponent<MeshRenderer>();
             SphereCollider col = relicGo.AddComponent<SphereCollider>();
-            col.radius = 0.6f;
+            col.radius = 1.0f;
 
             BuildRelicMeshAndMaterial(theme, mf, mr);
 
@@ -103,18 +128,18 @@ namespace TheLastCompact.Wakeup
             RelicFloatingBehavior behavior = relicGo.AddComponent<RelicFloatingBehavior>();
             behavior.relicType = theme;
 
-            relicGo.transform.localScale = Vector3.zero; // 初始 Scale = 0，动画浮凸变大
+            relicGo.transform.localScale = Vector3.zero;
             StartCoroutine(AnimateEmergence(relicGo.transform));
 
             _activeRelics.Add(relicGo);
-            Debug.Log($"<color=cyan>[Stage 5 3D遗迹] 墙面物化浮凸出前关遗迹 ({theme})！位置: {spawnPos}</color>");
+            Debug.Log($"<color=cyan>🌟 [Stage 5 3D遗迹生成] 显眼 3D 前关遗迹 ({theme}) 已成功刷新在玩家眼前！位置: {spawnPos}</color>");
         }
 
         private IEnumerator AnimateEmergence(Transform t)
         {
             float elapsed = 0f;
-            float duration = 1.2f;
-            Vector3 targetScale = Vector3.one * Random.Range(0.45f, 0.65f);
+            float duration = 0.8f;
+            Vector3 targetScale = Vector3.one * baseRelicScale;
 
             while (elapsed < duration)
             {
@@ -136,20 +161,20 @@ namespace TheLastCompact.Wakeup
             {
                 case "banana":
                     tempPrimitive = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-                    themeGlowColor = new Color(1.0f, 0.85f, 0.2f, 0.9f); // 金黄全息
+                    themeGlowColor = new Color(1.0f, 0.85f, 0.1f, 1.0f); // 鲜亮金黄
                     break;
                 case "prayer":
                     tempPrimitive = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                    themeGlowColor = new Color(0.3f, 0.8f, 1.0f, 0.9f); // 圣光天蓝
+                    themeGlowColor = new Color(0.2f, 0.8f, 1.0f, 1.0f); // 圣洁天蓝
                     break;
                 case "push":
                     tempPrimitive = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                    themeGlowColor = new Color(0.9f, 0.5f, 0.2f, 0.9f); // 莫比乌斯熔岩橙
+                    themeGlowColor = new Color(1.0f, 0.45f, 0.1f, 1.0f); // 莫比乌斯熔岩橙
                     break;
                 case "work":
                 default:
                     tempPrimitive = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    themeGlowColor = new Color(0.2f, 1.0f, 0.6f, 0.9f); // 90年代荧光绿
+                    themeGlowColor = new Color(0.2f, 1.0f, 0.5f, 1.0f); // 90年代荧光绿
                     break;
             }
 
@@ -160,13 +185,19 @@ namespace TheLastCompact.Wakeup
                 Destroy(tempPrimitive);
             }
 
-            Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
+            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
             if (shader == null) shader = Shader.Find("Unlit/Color");
             if (shader == null) shader = Shader.Find("Sprites/Default");
 
             Material mat = new Material(shader);
             if (mat.HasProperty("_Color")) mat.SetColor("_Color", themeGlowColor);
             if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", themeGlowColor);
+            if (mat.HasProperty("_EmissionColor"))
+            {
+                mat.EnableKeyword("_EMISSION");
+                mat.SetColor("_EmissionColor", themeGlowColor * 1.5f);
+            }
 
             mr.material = mat;
         }
@@ -208,7 +239,7 @@ namespace TheLastCompact.Wakeup
         private void Start()
         {
             _startPos = transform.position;
-            _rotSpeed = new Vector3(Random.Range(10f, 25f), Random.Range(15f, 35f), Random.Range(8f, 20f));
+            _rotSpeed = new Vector3(Random.Range(20f, 45f), Random.Range(30f, 60f), Random.Range(15f, 40f));
             _timeOffset = Random.Range(0f, 10f);
 
             if (Camera.main != null) _camTransform = Camera.main.transform;
@@ -218,9 +249,9 @@ namespace TheLastCompact.Wakeup
         {
             float t = Time.time + _timeOffset;
 
-            // 1. 失重呼吸自转
+            // 1. 显眼的失重浮沉与快速自转
             transform.Rotate(_rotSpeed * Time.deltaTime, Space.Self);
-            Vector3 floatOffset = new Vector3(Mathf.Sin(t * 1.2f) * 0.1f, Mathf.Cos(t * 1.5f) * 0.12f, Mathf.Sin(t * 0.9f) * 0.08f);
+            Vector3 floatOffset = new Vector3(Mathf.Sin(t * 1.8f) * 0.18f, Mathf.Cos(t * 2.0f) * 0.22f, Mathf.Sin(t * 1.5f) * 0.15f);
 
             // 2. 凝视磁吸响应
             CheckGaze();
@@ -229,12 +260,12 @@ namespace TheLastCompact.Wakeup
             {
                 _gazeHoldTimer += Time.deltaTime;
 
-                // 向相机轻微磁吸靠近
-                Vector3 desiredPos = _startPos + floatOffset + (_camTransform.position - _startPos).normalized * 0.25f;
-                transform.position = Vector3.Lerp(transform.position, desiredPos, Time.deltaTime * 3.0f);
+                // 强烈磁吸靠近镜头
+                Vector3 desiredPos = _startPos + floatOffset + (_camTransform.position - _startPos).normalized * 0.6f;
+                transform.position = Vector3.Lerp(transform.position, desiredPos, Time.deltaTime * 5.0f);
 
-                // 注视满 0.45 秒解构破裂
-                if (_gazeHoldTimer >= 0.45f)
+                // 注视满 0.35 秒解构破裂
+                if (_gazeHoldTimer >= 0.35f)
                 {
                     DissolveAndExplode();
                 }
@@ -242,7 +273,7 @@ namespace TheLastCompact.Wakeup
             else
             {
                 _gazeHoldTimer = Mathf.Max(0f, _gazeHoldTimer - Time.deltaTime * 2f);
-                transform.position = Vector3.Lerp(transform.position, _startPos + floatOffset, Time.deltaTime * 2.0f);
+                transform.position = Vector3.Lerp(transform.position, _startPos + floatOffset, Time.deltaTime * 3.0f);
             }
         }
 
@@ -267,11 +298,11 @@ namespace TheLastCompact.Wakeup
 
         private void DissolveAndExplode()
         {
-            Debug.Log($"<color=green>[3D遗迹解构] 遗迹 '{name}' ({relicType}) 被玩家注视解构，增加算法偏好！</color>");
+            Debug.Log($"<color=green>💥 [3D遗迹解构] 遗迹 '{name}' ({relicType}) 被玩家注视解构！</color>");
 
             if (Stage5Controller.Instance != null)
             {
-                Stage5Controller.Instance.phaseProgress += 0.035f;
+                Stage5Controller.Instance.phaseProgress += 0.05f;
                 Stage5Controller.Instance.PlayGazeFeedbackSound();
             }
 
