@@ -571,11 +571,19 @@ namespace TheLastCompact.Wakeup
 
                 if (mediaDatabase != null)
                 {
-                    Texture tex = mediaDatabase.GetEntertainmentTexture();
+                    Texture tex = null;
+                    int r = i % 5;
+                    if (r == 0) tex = mediaDatabase.GetEntertainmentTexture();
+                    else if (r == 1) tex = mediaDatabase.GetThemeTexture("banana");
+                    else if (r == 2) tex = mediaDatabase.GetThemeTexture("prayer");
+                    else if (r == 3) tex = mediaDatabase.GetThemeTexture("push");
+                    else tex = mediaDatabase.GetThemeTexture("work");
+
                     if (tex != null)
                     {
                         if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", tex);
                         if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", tex);
+                        mat.mainTexture = tex;
                     }
                 }
 
@@ -839,7 +847,7 @@ namespace TheLastCompact.Wakeup
                 }
             }
 
-            // 🌟 强力修复：逐个为 Scene 里的全部 6 个 Cube (Cube, Cube (1) ~ Cube (5)) 赋予独一无二的媒体视频与图像 Texture！
+            // 🌟 强力修复：逐个为 Scene 里的全部 6 个 Cube (Cube, Cube (1) ~ Cube (5)) 赋予随机交错的多维视频/图像 Texture 与 Tiling 平铺！
             if (sideWallRenderers != null && sideWallRenderers.Length > 0)
             {
                 for (int i = 0; i < sideWallRenderers.Length; i++)
@@ -853,14 +861,29 @@ namespace TheLastCompact.Wakeup
                             Texture targetTex = null;
                             if (mediaDatabase != null)
                             {
-                                targetTex = (i % 2 == 0) ? mediaDatabase.GetEntertainmentTexture() : (texB != null ? texB : texA);
+                                switch (i % 5)
+                                {
+                                    case 0: targetTex = mediaDatabase.GetEntertainmentTexture(); break;
+                                    case 1: targetTex = mediaDatabase.GetThemeTexture("banana"); break;
+                                    case 2: targetTex = mediaDatabase.GetThemeTexture("prayer"); break;
+                                    case 3: targetTex = mediaDatabase.GetThemeTexture("push"); break;
+                                    case 4: default: targetTex = mediaDatabase.GetThemeTexture("work"); break;
+                                }
                             }
                             if (targetTex == null) targetTex = (i % 2 == 0) ? texA : texB;
 
                             if (targetTex != null)
                             {
-                                if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", targetTex);
-                                if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", targetTex);
+                                if (mat.HasProperty("_MainTex"))
+                                {
+                                    mat.SetTexture("_MainTex", targetTex);
+                                    mat.SetTextureScale("_MainTex", new Vector2(3.0f, 2.0f));
+                                }
+                                if (mat.HasProperty("_BaseMap"))
+                                {
+                                    mat.SetTexture("_BaseMap", targetTex);
+                                    mat.SetTextureScale("_BaseMap", new Vector2(3.0f, 2.0f));
+                                }
                                 mat.mainTexture = targetTex;
                             }
                             if (mat.HasProperty("_Color")) mat.SetColor("_Color", Color.white);
