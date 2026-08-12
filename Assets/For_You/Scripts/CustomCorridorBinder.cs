@@ -522,9 +522,9 @@ namespace TheLastCompact.Wakeup
             endCapGo.name = "Tunnel_FarEndCap_Wall";
             endCapGo.transform.SetParent(transform, false);
 
-            endCapGo.transform.position = new Vector3(0f, 0f, 22.5f);
+            endCapGo.transform.position = new Vector3(0f, 0f, 10.5f);
             endCapGo.transform.rotation = Quaternion.identity;
-            endCapGo.transform.localScale = new Vector3(5.2f, 5.2f, 1.0f);
+            endCapGo.transform.localScale = new Vector3(4.2f, 4.2f, 1.0f);
 
             Collider col = endCapGo.GetComponent<Collider>();
             if (col != null) Destroy(col);
@@ -560,7 +560,7 @@ namespace TheLastCompact.Wakeup
                 panelGo.transform.SetParent(matrixRoot.transform, false);
 
                 int side = i % 4;
-                float zPos = (i / 4) * 4.5f + Random.Range(-0.4f, 0.4f);
+                float zPos = 1.0f + (i / 4) * 2.2f + Random.Range(-0.3f, 0.3f);
 
                 Vector3 pos = Vector3.zero;
                 Quaternion rot = Quaternion.identity;
