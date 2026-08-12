@@ -305,24 +305,19 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
-        /// 当拉远达到 50% 时自动解锁玩家鼠标 360 度自由视角
+        /// 当拉远达到 50% 时自动解锁玩家鼠标 360 度自由视角 (由本脚本接管，绝对零重力下坠)
         /// </summary>
         private void UnlockMouseLookControl()
         {
-            if (playerTransform != null)
+            if (_mainCam != null)
             {
-                MonoBehaviour universalPlayerScript = playerTransform.GetComponent("UniversalPlayer") as MonoBehaviour;
-                if (universalPlayerScript == null) universalPlayerScript = playerTransform.GetComponent("CorridorPlayer") as MonoBehaviour;
-
-                if (universalPlayerScript != null)
-                {
-                    universalPlayerScript.enabled = true;
-                    Debug.Log($"<color=green>[MobiusCam] 🌟 镜头拉远进度达到 {unlockMouseLookThreshold * 100f:F0}%！已成功解锁鼠标 360 度自由环视全景！</color>");
-                }
+                _mouseYaw = _mainCam.transform.eulerAngles.y;
+                _mousePitch = _mainCam.transform.eulerAngles.x;
             }
 
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
+            Debug.Log($"<color=green>[MobiusCam] 🌟 镜头拉远达到 {unlockMouseLookThreshold * 100f:F0}%！已解锁高空 360 度自由视角，相机永久悬停高空，绝对零下坠！</color>");
         }
 
         /// <summary>
@@ -369,10 +364,25 @@ namespace TheLastCompact.Wakeup
             if (startCameraPoint != null && endCameraPoint != null)
             {
                 Vector3 desiredWorldPos = Vector3.Lerp(startCameraPoint.position, endCameraPoint.position, _currentProgress);
-                Quaternion desiredWorldRot = Quaternion.Slerp(startCameraPoint.rotation, endCameraPoint.rotation, _currentProgress);
 
+                // 强制锁定高空悬停坐标，绝对不会被重力拖下去！
                 _mainCam.transform.position = Vector3.Lerp(_mainCam.transform.position, desiredWorldPos, Time.deltaTime * cameraSmoothSpeed);
-                _mainCam.transform.rotation = Quaternion.Slerp(_mainCam.transform.rotation, desiredWorldRot, Time.deltaTime * cameraSmoothSpeed);
+
+                if (_hasUnlockedMouseLook)
+                {
+                    // 解锁鼠标 360 度旋转视角 (零下坠)
+                    _mouseYaw += Input.GetAxis("Mouse X") * 2.0f;
+                    _mousePitch -= Input.GetAxis("Mouse Y") * 2.0f;
+                    _mousePitch = Mathf.Clamp(_mousePitch, -80f, 80f);
+
+                    Quaternion freeRot = Quaternion.Euler(_mousePitch, _mouseYaw, 0f);
+                    _mainCam.transform.rotation = Quaternion.Slerp(_mainCam.transform.rotation, freeRot, Time.deltaTime * 10f);
+                }
+                else
+                {
+                    Quaternion desiredWorldRot = Quaternion.Slerp(startCameraPoint.rotation, endCameraPoint.rotation, _currentProgress);
+                    _mainCam.transform.rotation = Quaternion.Slerp(_mainCam.transform.rotation, desiredWorldRot, Time.deltaTime * cameraSmoothSpeed);
+                }
                 return;
             }
 
