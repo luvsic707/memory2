@@ -358,19 +358,16 @@ namespace TheLastCompact.Wakeup
                 }
             }
 
-            // 🌟 核心突破：走廊无限向前平滑穿梭流动 (Endless Fly-Through Corridor Stream)
+            // 🌟 核心突破：真正无缝、绝对无闪烁复位的无限隧道推进 (True Seamless Infinite Tunnel Flow)
             if (enableContinuousForwardFly)
             {
                 float flySpeed = forwardFlySpeed * (1.0f + phaseProgress * 0.7f);
                 _cumulativeFlyZ += flySpeed * Time.deltaTime;
 
-                Camera mainCam = Camera.main;
-                if (mainCam != null)
+                // 摄像机零闪烁、零跳变，依靠墙面动态 UV 贴图与流体 Shader 在视觉上形成 100% 顺滑无限延伸推进！
+                if (_wallMat != null)
                 {
-                    // 摄像机/视角沿着走廊平滑向前穿梭推进，模仿参考视频中的无缝空间流动感！
-                    Vector3 camPos = mainCam.transform.position;
-                    camPos.z = (_cumulativeFlyZ % 30.0f); // 30米无缝循环无限向前穿梭
-                    mainCam.transform.position = camPos;
+                    _wallMat.SetFloat("_FlowSpeed", flySpeed * 0.6f);
                 }
             }
         }
