@@ -4,11 +4,12 @@ using TheLastCompact.Core;
 namespace TheLastCompact.Wakeup
 {
     /// <summary>
-    /// 香蕉交互与堆叠生成组件 (纯网格凹陷咬痕缺口系统)
-    /// 1. 彻底删除任何外凸球体与实体大包，纯粹通过 3D 网格顶点向内深缩雕刻出“半圆凹陷缺口 (Concave Bite Notch)”。
-    /// 2. 凹陷深处自动混合奶油白果肉着色与锯齿牙印。
-    /// 3. 连续咬满 maxBites 次 (如 4~5 次) 后，香蕉被彻底吃完销毁。
-    /// 4. 每次按 Q 交互百分百保证生成 1~2 只新香蕉堆叠下落，计数器 counter+1。
+    /// 香蕉交互与堆叠生成组件 (对标参考图 2 真正的自顶向下物理咬切切削系统)
+    /// 1. 对标图 2 真实吃香蕉规律：从香蕉顶端向底端逐口将顶部切除断掉 (Sever Top Portion)，呈现真正的被咬截面切口。
+    /// 2. 在切面边缘精确雕刻半圆齿痕缺口 (Crescent Notch) 与锯齿牙印，切面着色奶油白果肉。
+    /// 3. 彻底杜绝中间压扁、褶皱与外凸大包，完美还原被咬掉一块的物理真实感。
+    /// 4. 连续咬满 maxBites 次 (如 4~5 次) 后，香蕉被彻底吃完销毁。
+    /// 5. 每次按 Q 交互百分百保证生成 1~2 只新香蕉堆叠下落，计数器 counter+1。
     /// </summary>
     public class BananaInteractable : MonoBehaviour, IInteractable
     {
@@ -26,7 +27,7 @@ namespace TheLastCompact.Wakeup
         public bool spawnAsInteractive = true;
 
         [Header("咬痕与多阶段吃香蕉配置 (Progressive Bite System)")]
-        [Tooltip("一只香蕉最多可以被咬的次数 (默认 4 次，每次交互凹陷缺一个口)")]
+        [Tooltip("一只香蕉最多可以被咬的次数 (默认 4 次，每次交互自上而下咬掉一口)")]
         [Range(1, 10)] public int maxBites = 4;
 
         [Tooltip("当前已被咬的次数")]
@@ -128,7 +129,7 @@ namespace TheLastCompact.Wakeup
             // 1. 播放咀嚼音效
             PlayEatSoundEffect();
 
-            // 2. 驱动 3D 模型产生纯网格向内凹陷咬痕缺口 + 果肉碎屑粒子 (彻底无凸起大包)
+            // 2. 驱动 3D 模型产生自顶向下物理咬切切面 + 齿痕缺口 + 果肉碎屑粒子 (对标图 2 真实咬切)
             ApplyBiteMarkDeformation();
 
             // 特殊香蕉：直接吃掉通关
@@ -176,7 +177,9 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
-        /// 凹陷咬痕形变：纯网格向内深削凹陷缺口 (彻底杜绝任何外凸球体与大包)
+        /// 自顶向下物理咬切与月牙缺口雕刻 (对标参考图 2 真正的被咬一口)
+        /// 1. 从香蕉顶端向底端逐口将顶部切除断掉 (Sever Top Portion)，呈现真正的被咬截面切口；
+        /// 2. 在切面边缘雕刻半圆齿痕缺口与露肉纹理，杜绝任何中间变扁/大包现象。
         /// </summary>
         public void ApplyBiteMarkDeformation()
         {
@@ -207,6 +210,26 @@ namespace TheLastCompact.Wakeup
             }
 
             Vector3[] verts = _bittenMeshCopy.vertices;
+            Bounds bounds = _bittenMeshCopy.bounds;
+            Vector3 ext = bounds.extents;
+
+            // 1. 判定香蕉的主延伸轴 (X, Y, 或 Z 轴)
+            int mainAxis = 1; // 0=X, 1=Y, 2=Z
+            if (ext.x >= ext.y && ext.x >= ext.z) mainAxis = 0;
+            else if (ext.z >= ext.x && ext.z >= ext.y) mainAxis = 2;
+
+            float maxVal = bounds.max[mainAxis];
+            float minVal = bounds.min[mainAxis];
+
+            // 2. 根据 currentBites 计算本次咬面的切削面坐标 (自顶端向底端推进：25% -> 50% -> 75%)
+            float biteProgress = (float)currentBites / maxBites;
+            float cutThreshold = Mathf.Lerp(maxVal, minVal, biteProgress * 0.85f);
+
+            Vector3 cutCenterLocal = bounds.center;
+            cutCenterLocal[mainAxis] = cutThreshold;
+
+            bool modified = false;
+            Color whiteFleshColor = new Color(0.98f, 0.95f, 0.82f, 1f);
             Color[] colors = _bittenMeshCopy.colors;
             if (colors == null || colors.Length != verts.Length)
             {
@@ -214,60 +237,39 @@ namespace TheLastCompact.Wakeup
                 for (int c = 0; c < colors.Length; c++) colors[c] = Color.white;
             }
 
-            Bounds bounds = _bittenMeshCopy.bounds;
-            Vector3 ext = bounds.extents;
-
-            // 1. 自动寻找香蕉的主轴线 (Y、Z 或 X 轴中较长的一条)
-            float biteT = (float)currentBites / (maxBites + 1);
-            Vector3 biteSurfacePos = bounds.center;
-            Vector3 centerSpine = bounds.center;
-
-            float maxAxisLen = Mathf.Max(ext.x, Mathf.Max(ext.y, ext.z));
-            float biteRadius = maxAxisLen * 0.35f;
-
-            if (ext.y >= ext.x && ext.y >= ext.z) // Y 轴为主轴
-            {
-                float targetY = Mathf.Lerp(bounds.max.y * 0.75f, bounds.min.y * 0.75f, biteT);
-                centerSpine = new Vector3(bounds.center.x, targetY, bounds.center.z);
-                float sideX = (currentBites % 2 == 1) ? ext.x * 0.7f : -ext.x * 0.7f;
-                biteSurfacePos = new Vector3(bounds.center.x + sideX, targetY, bounds.center.z);
-            }
-            else if (ext.z >= ext.x && ext.z >= ext.y) // Z 轴为主轴
-            {
-                float targetZ = Mathf.Lerp(bounds.max.z * 0.75f, bounds.min.z * 0.75f, biteT);
-                centerSpine = new Vector3(bounds.center.x, bounds.center.y, targetZ);
-                float sideX = (currentBites % 2 == 1) ? ext.x * 0.7f : -ext.x * 0.7f;
-                biteSurfacePos = new Vector3(bounds.center.x + sideX, bounds.center.y, targetZ);
-            }
-            else // X 轴为主轴
-            {
-                float targetX = Mathf.Lerp(bounds.max.x * 0.75f, bounds.min.x * 0.75f, biteT);
-                centerSpine = new Vector3(targetX, bounds.center.y, bounds.center.z);
-                float sideY = (currentBites % 2 == 1) ? ext.y * 0.7f : -ext.y * 0.7f;
-                biteSurfacePos = new Vector3(targetX, bounds.center.y + sideY, bounds.center.z);
-            }
-
-            // 2. 雕刻纯 3D 网格向内凹陷缺口 (Concave Crescent Bite Notch)
-            bool modified = false;
-            Color whiteFleshColor = new Color(0.98f, 0.95f, 0.82f, 1f);
+            // 让咬缺口在边缘产生一个半圆月牙凹陷 (Crescent Notch)
+            float sideOffset = (currentBites % 2 == 1) ? ext[(mainAxis + 1) % 3] * 0.4f : -ext[(mainAxis + 1) % 3] * 0.4f;
 
             for (int i = 0; i < verts.Length; i++)
             {
-                float dist = Vector3.Distance(verts[i], biteSurfacePos);
-                if (dist < biteRadius)
+                Vector3 v = verts[i];
+                float valOnAxis = v[mainAxis];
+
+                // 位于切削面之上的顶端顶点：强制切平并向内收缩形成咬断的切面
+                if (valOnAxis > cutThreshold)
                 {
-                    // 衰减系数：越靠近咬痕中心，向香蕉内部中轴拉缩得越深
-                    float falloff = Mathf.Pow(1f - (dist / biteRadius), 1.4f);
+                    // 压缩高度至切削面
+                    v[mainAxis] = cutThreshold;
 
-                    // 深度向香蕉内侧中轴坍塌，形成凹陷缺口
-                    Vector3 innerCarved = Vector3.Lerp(verts[i], centerSpine, falloff * 0.88f);
+                    // 在切削面上加入锯齿牙印与半圆缺口
+                    float distToCenter = Vector2.Distance(
+                        new Vector2(v[(mainAxis + 1) % 3], v[(mainAxis + 2) % 3]),
+                        new Vector2(bounds.center[(mainAxis + 1) % 3] + sideOffset, bounds.center[(mainAxis + 2) % 3])
+                    );
 
-                    // 锯齿微牙印细节
-                    float toothNoise = (Mathf.Sin(verts[i].x * 45f) + Mathf.Cos(verts[i].z * 45f)) * 0.006f * falloff;
-                    verts[i] = innerCarved + (verts[i] - centerSpine).normalized * toothNoise;
+                    float notchRadius = ext[(mainAxis + 1) % 3] * 0.6f;
+                    if (distToCenter < notchRadius)
+                    {
+                        float notchFalloff = Mathf.Pow(1f - (distToCenter / notchRadius), 1.5f);
+                        v[mainAxis] -= notchFalloff * (ext[mainAxis] * 0.15f); // 咬痕凹陷
+                    }
 
-                    // 将凹陷缺口深处的顶点着色为奶油白果肉颜色
-                    colors[i] = Color.Lerp(colors[i], whiteFleshColor, falloff);
+                    // 锯齿咬痕纹理
+                    float toothNoise = (Mathf.Sin(v.x * 40f) + Mathf.Cos(v.z * 40f)) * 0.008f;
+                    v[mainAxis] += toothNoise;
+
+                    verts[i] = v;
+                    colors[i] = whiteFleshColor; // 切面顶点变白果肉色
                     modified = true;
                 }
             }
@@ -284,8 +286,8 @@ namespace TheLastCompact.Wakeup
                 if (mc != null) mc.sharedMesh = _bittenMeshCopy;
             }
 
-            // 3. 喷溅香蕉果肉碎屑粒子
-            Vector3 worldBitePos = mf.transform.TransformPoint(biteSurfacePos);
+            // 3. 在切面世界坐标处喷溅香蕉果肉碎屑粒子
+            Vector3 worldBitePos = mf.transform.TransformPoint(cutCenterLocal);
             SpawnBiteCrumbs(worldBitePos);
         }
 
