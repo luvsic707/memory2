@@ -4,10 +4,10 @@ using TheLastCompact.Core;
 namespace TheLastCompact.Wakeup
 {
     /// <summary>
-    /// 香蕉交互与堆叠生成组件 (纯网格自顶向下咬切系统)
-    /// 1. 彻底清空所有实体 Cylinders/球体，绝无任何空中悬浮切片或大包。
-    /// 2. 纯网格顶点向内切削与切面奶油白着色，自顶向下逐口咬切。
-    /// 3. 每次按 Q 交互生成 2 到 10 个 100% 崭新完整的香蕉模型下落。
+    /// 香蕉交互与堆叠生成组件 (纯网格自顶向下咬切 + 全局 100% 崭新完整香蕉生成系统)
+    /// 1. 彻底解决生成残缺香蕉的问题：通过 _globalPristineFreshMesh 保证每次 Q 键交互生成出的 2 到 10 个香蕉全是 100% 崭新、完整的香蕉模型！
+    /// 2. 交互的当前香蕉自顶向下逐口咬切，咬满 maxBites 次 (如 4~5 次) 后销毁。
+    /// 3. 完美联动 PlayerBehaviorData 计数与畸形/变异香蕉刷新。
     /// </summary>
     public class BananaInteractable : MonoBehaviour, IInteractable
     {
@@ -48,6 +48,7 @@ namespace TheLastCompact.Wakeup
         // 实现 IInteractable 接口的属性
         public string InteractHint => interactHint;
 
+        private static Mesh _globalPristineFreshMesh;
         private Mesh _originalFreshMesh;
         private Mesh _bittenMeshCopy;
 
@@ -57,11 +58,18 @@ namespace TheLastCompact.Wakeup
             if (GetComponent<BananaJuice>() == null)
                 gameObject.AddComponent<BananaJuice>();
 
-            // 缓存原本未被咬过的 100% 崭新完整 Mesh 模板
+            // 全局保护：只记录未被咬过的 100% 崭新完整 Mesh 模板
             MeshFilter mf = GetComponentInChildren<MeshFilter>();
             if (mf != null && mf.sharedMesh != null)
             {
-                _originalFreshMesh = mf.sharedMesh;
+                if (!mf.sharedMesh.name.EndsWith("_Bitten"))
+                {
+                    _originalFreshMesh = mf.sharedMesh;
+                    if (_globalPristineFreshMesh == null)
+                    {
+                        _globalPristineFreshMesh = mf.sharedMesh;
+                    }
+                }
             }
         }
 
@@ -135,7 +143,7 @@ namespace TheLastCompact.Wakeup
             // 1. 播放咀嚼音效
             PlayEatSoundEffect();
 
-            // 2. 驱动 3D 模型产生纯网格自顶向下物理咬切 (彻底无悬浮切片)
+            // 2. 驱动 3D 模型产生纯网格自顶向下物理咬切
             ApplyBiteMarkDeformation();
 
             // 特殊香蕉：直接吃掉通关
@@ -179,7 +187,7 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
-        /// 纯 3D 网格自顶向下物理咬切 (杜绝任何独立悬浮切片与物体)
+        /// 纯 3D 网格自顶向下物理咬切
         /// </summary>
         public void ApplyBiteMarkDeformation()
         {
@@ -307,11 +315,14 @@ namespace TheLastCompact.Wakeup
             MeshFilter mf = GetComponentInChildren<MeshFilter>();
             if (mf != null)
             {
-                if (_originalFreshMesh == null) _originalFreshMesh = mf.sharedMesh;
-                if (_originalFreshMesh != null) mf.sharedMesh = _originalFreshMesh;
+                Mesh freshMesh = _globalPristineFreshMesh != null ? _globalPristineFreshMesh : _originalFreshMesh;
+                if (freshMesh != null && !freshMesh.name.EndsWith("_Bitten"))
+                {
+                    mf.sharedMesh = freshMesh;
 
-                MeshCollider mc = GetComponentInChildren<MeshCollider>();
-                if (mc != null && _originalFreshMesh != null) mc.sharedMesh = _originalFreshMesh;
+                    MeshCollider mc = GetComponentInChildren<MeshCollider>();
+                    if (mc != null) mc.sharedMesh = freshMesh;
+                }
             }
         }
 
@@ -373,11 +384,12 @@ namespace TheLastCompact.Wakeup
                 newBanana.name = "SpawningBanana_Prop";
 
                 BananaInteractable newInteract = newBanana.GetComponent<BananaInteractable>();
-                if (newInteract != null)
+                if (newInteract == null)
                 {
-                    newInteract.ResetToFreshUnbittenState();
-                    newInteract.spawnAsInteractive = true;
+                    newInteract = newBanana.AddComponent<BananaInteractable>();
                 }
+                newInteract.ResetToFreshUnbittenState();
+                newInteract.spawnAsInteractive = true;
 
                 float distFactor = Stage1Controller.Instance != null ? Stage1Controller.Instance.GetCurrentDistortionFactor() : 0f;
                 newBanana.transform.localScale = transform.lossyScale * (1f + distFactor * 0.15f);
