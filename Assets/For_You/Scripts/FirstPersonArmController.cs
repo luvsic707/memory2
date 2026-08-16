@@ -26,6 +26,14 @@ namespace TheLastCompact.Wakeup
         [Tooltip("手部在视角视野中的自然微弱呼吸摇摆幅度")]
         public float swayAmount = 0.005f;
 
+        [Header("抓拉幅度参数")]
+        [Tooltip("往 Player 方向回拉的幅度比例 (0.4 = 40%, 0.65 = 65% 移动幅度稍大更清晰)")]
+        [Range(0.1f, 0.9f)]
+        public float dragRatio = 0.65f;
+
+        [Tooltip("手抓握香蕉时的精细碰撞位移 Offset")]
+        public Vector3 graspOffset = new Vector3(-0.02f, -0.01f, 0.0f);
+
         private Vector3 _defaultLocalPos;
         private Quaternion _defaultLocalRot;
         private Transform _armTransform;
@@ -178,8 +186,8 @@ namespace TheLastCompact.Wakeup
                     yield return null;
                 }
 
-                // ── Phase 2: 抓住后，手 + 香蕉一起往 player 方向回拉 40% ──
-                Vector3 dragBackLocalPos = Vector3.Lerp(contactLocalPos, startLocalPos, 0.4f);
+                // ── Phase 2: 抓住后，手 + 香蕉一起往 player 方向回拉 ──
+                Vector3 dragBackLocalPos = Vector3.Lerp(contactLocalPos, startLocalPos, dragRatio);
                 Quaternion dragBackLocalRot = startLocalRot * Quaternion.Euler(18f, -12f, 15f);
 
                 // 香蕉跟随的目标世界坐标：以手部父物体为参照，把 dragBackLocalPos 转回世界坐标
