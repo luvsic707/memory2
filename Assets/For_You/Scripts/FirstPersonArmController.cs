@@ -6,10 +6,10 @@ namespace TheLastCompact.Wakeup
 {
     /// <summary>
     /// 第一视角手部触碰、拖拽与复位控制器
-    /// 1. 手部向前伸出接触香蕉模型 (Reach Forward & Contact)；
-    /// 2. 接触香蕉后手部往回拖拽香蕉模型 (Drag Backwards Together)；
+    /// 1. 手部向前伸出精准接触香蕉模型 3D 位置 (Reach Forward & Contact via InverseTransformPoint)；
+    /// 2. 接触香蕉后手部向玩家方向 (startLocalPos) 相对回拖 40% 距离；
     /// 3. 手部松开并平滑复位 (Release & Return)；
-    /// 4. 手部复位后，香蕉模型弹性弹回原位并触发咬切截面与生成。
+    /// 4. 触发香蕉回弹与切面/生成逻辑。
     /// </summary>
     public class FirstPersonArmController : MonoBehaviour
     {
@@ -124,8 +124,8 @@ namespace TheLastCompact.Wakeup
 
         /// <summary>
         /// 驱动手部产生 4 阶段精细抓拉动作：
-        /// 1. 手前伸接触香蕉；
-        /// 2. 接触后手往回拖拽香蕉；
+        /// 1. 手前伸精准接触香蕉 3D 转换落点；
+        /// 2. 接触后手往 Player 方向相对回拉 40%；
         /// 3. 手松开并平滑复位；
         /// 4. 触发香蕉回弹与切面/生成逻辑。
         /// </summary>
@@ -146,10 +146,17 @@ namespace TheLastCompact.Wakeup
             Vector3 startLocalPos = _defaultLocalPos;
             Quaternion startLocalRot = _defaultLocalRot;
 
-            // ── Phase 1: 手前伸与香蕉模型相接触 (Reach Forward & Contact) ────
-            Vector3 contactLocalOffset = new Vector3(-0.02f, -0.01f, 0.12f);
+            // 关键修复：把香蕉的世界坐标转换成本地坐标，作为真正的接触点
+            Transform refParent = _armTransform.parent;
+            Vector3 contactLocalPos = refParent != null
+                ? refParent.InverseTransformPoint(targetBananaWorldPos)
+                : targetBananaWorldPos;
+
+            // 在此基础上叠加一个极小的手型微调抓握姿态 offset
+            Vector3 graspOffset = new Vector3(-0.02f, -0.01f, 0.0f);
+            contactLocalPos += graspOffset;
+
             Quaternion contactLocalRot = startLocalRot * Quaternion.Euler(12f, -8f, 10f);
-            Vector3 contactLocalPos = startLocalPos + contactLocalOffset;
 
             float elapsed = 0f;
             float reachDuration = 0.10f;
@@ -163,10 +170,9 @@ namespace TheLastCompact.Wakeup
                 yield return null;
             }
 
-            // ── Phase 2: 接触到香蕉后往回拖拽一下 (Drag Backwards Together) ───
-            Vector3 dragBackLocalOffset = new Vector3(-0.06f, -0.05f, 0.04f);
+            // ── Phase 2: 抓住后往回拖拽，方向朝 player（即朝 startLocalPos 靠近 40%）──
+            Vector3 dragBackLocalPos = Vector3.Lerp(contactLocalPos, startLocalPos, 0.4f);
             Quaternion dragBackLocalRot = startLocalRot * Quaternion.Euler(18f, -12f, 15f);
-            Vector3 dragBackLocalPos = startLocalPos + dragBackLocalOffset;
 
             elapsed = 0f;
             float dragDuration = 0.10f;
@@ -180,7 +186,7 @@ namespace TheLastCompact.Wakeup
                 yield return null;
             }
 
-            // ── Phase 3: 手松开并平滑复位到默认姿态 (Release & Return) ──────
+            // ── Phase 3: 手松开并平滑复位 ──────
             elapsed = 0f;
             float returnDuration = 0.12f;
             while (elapsed < returnDuration)
@@ -197,7 +203,6 @@ namespace TheLastCompact.Wakeup
             _armTransform.localRotation = startLocalRot;
             _isGrabbing = false;
 
-            // ── Phase 4: 手完全复位后，香蕉弹回原位并触发咬切与生成 ────────
             onCompleteCallback?.Invoke();
         }
     }
