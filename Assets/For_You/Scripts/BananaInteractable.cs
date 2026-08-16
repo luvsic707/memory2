@@ -4,9 +4,9 @@ using TheLastCompact.Core;
 namespace TheLastCompact.Wakeup
 {
     /// <summary>
-    /// 香蕉交互与堆叠生成组件 (参考图 2 的半圆月牙缺口 + 露出内部白果肉系统)
-    /// 1. 每次按下 Q 键交互，香蕉切出锐利的半圆月牙缺口 (Crescent Bite Cutout)，并在缺口深处露出奶油白果肉 (Exposed White Flesh)。
-    /// 2. 保持整体模型不平缩变扁，精确呈现像真实水果被咬一口的样子。
+    /// 香蕉交互与堆叠生成组件 (纯网格凹陷咬痕缺口系统)
+    /// 1. 彻底删除任何外凸球体与实体大包，纯粹通过 3D 网格顶点向内深缩雕刻出“半圆凹陷缺口 (Concave Bite Notch)”。
+    /// 2. 凹陷深处自动混合奶油白果肉着色与锯齿牙印。
     /// 3. 连续咬满 maxBites 次 (如 4~5 次) 后，香蕉被彻底吃完销毁。
     /// 4. 每次按 Q 交互百分百保证生成 1~2 只新香蕉堆叠下落，计数器 counter+1。
     /// </summary>
@@ -128,7 +128,7 @@ namespace TheLastCompact.Wakeup
             // 1. 播放咀嚼音效
             PlayEatSoundEffect();
 
-            // 2. 驱动 3D 模型切出半圆月牙缺口 + 露出内部奶油白香蕉果肉
+            // 2. 驱动 3D 模型产生纯网格向内凹陷咬痕缺口 + 果肉碎屑粒子 (彻底无凸起大包)
             ApplyBiteMarkDeformation();
 
             // 特殊香蕉：直接吃掉通关
@@ -176,7 +176,7 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
-        /// 凹陷咬痕形变与白果肉露肉系统 (像参考图 2 一样切出半圆月牙缺口 + 露出内部白果肉)
+        /// 凹陷咬痕形变：纯网格向内深削凹陷缺口 (彻底杜绝任何外凸球体与大包)
         /// </summary>
         public void ApplyBiteMarkDeformation()
         {
@@ -207,53 +207,67 @@ namespace TheLastCompact.Wakeup
             }
 
             Vector3[] verts = _bittenMeshCopy.vertices;
+            Color[] colors = _bittenMeshCopy.colors;
+            if (colors == null || colors.Length != verts.Length)
+            {
+                colors = new Color[verts.Length];
+                for (int c = 0; c < colors.Length; c++) colors[c] = Color.white;
+            }
+
             Bounds bounds = _bittenMeshCopy.bounds;
             Vector3 ext = bounds.extents;
 
-            // 1. 定位咬痕中心点 (Bite Center)：自顶部 (Top) 向底部 (Bottom) 逐口咬出半圆月牙缺口
-            float biteRatio = (float)currentBites / (maxBites + 1);
-            Vector3 biteCenter = bounds.center;
-            
-            // 计算半圆月牙咬痕切口的物理半径 (精准人嘴咬痕比例：约香蕉长度的 15%-20%)
-            float biteRadius = Mathf.Max(ext.x, Mathf.Max(ext.y, ext.z)) * 0.32f;
+            // 1. 自动寻找香蕉的主轴线 (Y、Z 或 X 轴中较长的一条)
+            float biteT = (float)currentBites / (maxBites + 1);
+            Vector3 biteSurfacePos = bounds.center;
+            Vector3 centerSpine = bounds.center;
+
+            float maxAxisLen = Mathf.Max(ext.x, Mathf.Max(ext.y, ext.z));
+            float biteRadius = maxAxisLen * 0.35f;
 
             if (ext.y >= ext.x && ext.y >= ext.z) // Y 轴为主轴
             {
-                float targetY = Mathf.Lerp(bounds.max.y * 0.75f, bounds.min.y * 0.75f, biteRatio);
-                float sideX = (currentBites % 2 == 1) ? ext.x * 0.45f : -ext.x * 0.45f;
-                biteCenter = new Vector3(bounds.center.x + sideX, targetY, bounds.center.z);
+                float targetY = Mathf.Lerp(bounds.max.y * 0.75f, bounds.min.y * 0.75f, biteT);
+                centerSpine = new Vector3(bounds.center.x, targetY, bounds.center.z);
+                float sideX = (currentBites % 2 == 1) ? ext.x * 0.7f : -ext.x * 0.7f;
+                biteSurfacePos = new Vector3(bounds.center.x + sideX, targetY, bounds.center.z);
             }
             else if (ext.z >= ext.x && ext.z >= ext.y) // Z 轴为主轴
             {
-                float targetZ = Mathf.Lerp(bounds.max.z * 0.75f, bounds.min.z * 0.75f, biteRatio);
-                float sideX = (currentBites % 2 == 1) ? ext.x * 0.45f : -ext.x * 0.45f;
-                biteCenter = new Vector3(bounds.center.x + sideX, bounds.center.y, targetZ);
+                float targetZ = Mathf.Lerp(bounds.max.z * 0.75f, bounds.min.z * 0.75f, biteT);
+                centerSpine = new Vector3(bounds.center.x, bounds.center.y, targetZ);
+                float sideX = (currentBites % 2 == 1) ? ext.x * 0.7f : -ext.x * 0.7f;
+                biteSurfacePos = new Vector3(bounds.center.x + sideX, bounds.center.y, targetZ);
             }
             else // X 轴为主轴
             {
-                float targetX = Mathf.Lerp(bounds.max.x * 0.75f, bounds.min.x * 0.75f, biteRatio);
-                float sideY = (currentBites % 2 == 1) ? ext.y * 0.45f : -ext.y * 0.45f;
-                biteCenter = new Vector3(targetX, bounds.center.y + sideY, bounds.center.z);
+                float targetX = Mathf.Lerp(bounds.max.x * 0.75f, bounds.min.x * 0.75f, biteT);
+                centerSpine = new Vector3(targetX, bounds.center.y, bounds.center.z);
+                float sideY = (currentBites % 2 == 1) ? ext.y * 0.7f : -ext.y * 0.7f;
+                biteSurfacePos = new Vector3(targetX, bounds.center.y + sideY, bounds.center.z);
             }
 
-            // 2. 雕刻半圆月牙咬痕缺口 (Crescent Bite Cutout)
+            // 2. 雕刻纯 3D 网格向内凹陷缺口 (Concave Crescent Bite Notch)
             bool modified = false;
-            Vector3 centerSpine = bounds.center;
+            Color whiteFleshColor = new Color(0.98f, 0.95f, 0.82f, 1f);
 
             for (int i = 0; i < verts.Length; i++)
             {
-                float dist = Vector3.Distance(verts[i], biteCenter);
+                float dist = Vector3.Distance(verts[i], biteSurfacePos);
                 if (dist < biteRadius)
                 {
-                    // 仅对咬痕球体内的顶点切削：强行拉入凹陷内侧，形成锐利的半圆月牙缺口
-                    float falloff = Mathf.Pow(1f - (dist / biteRadius), 1.2f);
-                    
-                    // 向香蕉中心坍塌深凹
-                    Vector3 innerCarved = Vector3.Lerp(verts[i], centerSpine, falloff * 0.92f);
-                    
-                    // 齿痕微噪点
-                    float toothNoise = (Mathf.Sin(verts[i].x * 50f) + Mathf.Cos(verts[i].z * 50f)) * 0.005f * falloff;
+                    // 衰减系数：越靠近咬痕中心，向香蕉内部中轴拉缩得越深
+                    float falloff = Mathf.Pow(1f - (dist / biteRadius), 1.4f);
+
+                    // 深度向香蕉内侧中轴坍塌，形成凹陷缺口
+                    Vector3 innerCarved = Vector3.Lerp(verts[i], centerSpine, falloff * 0.88f);
+
+                    // 锯齿微牙印细节
+                    float toothNoise = (Mathf.Sin(verts[i].x * 45f) + Mathf.Cos(verts[i].z * 45f)) * 0.006f * falloff;
                     verts[i] = innerCarved + (verts[i] - centerSpine).normalized * toothNoise;
+
+                    // 将凹陷缺口深处的顶点着色为奶油白果肉颜色
+                    colors[i] = Color.Lerp(colors[i], whiteFleshColor, falloff);
                     modified = true;
                 }
             }
@@ -261,6 +275,7 @@ namespace TheLastCompact.Wakeup
             if (modified)
             {
                 _bittenMeshCopy.vertices = verts;
+                _bittenMeshCopy.colors = colors;
                 _bittenMeshCopy.RecalculateBounds();
                 _bittenMeshCopy.RecalculateNormals();
                 mf.mesh = _bittenMeshCopy;
@@ -269,44 +284,9 @@ namespace TheLastCompact.Wakeup
                 if (mc != null) mc.sharedMesh = _bittenMeshCopy;
             }
 
-            // 3. 在半圆月牙缺口深处生成“奶油白/浅黄内部果肉缺口” (Exposed White Flesh Mesh)
-            CreateExposedWhiteFleshNotch(mf.transform.TransformPoint(biteCenter), biteRadius * mf.transform.lossyScale.x * 0.75f);
-
-            // 4. 喷溅香蕉果肉碎屑粒子
-            Vector3 worldBitePos = mf.transform.TransformPoint(biteCenter);
+            // 3. 喷溅香蕉果肉碎屑粒子
+            Vector3 worldBitePos = mf.transform.TransformPoint(biteSurfacePos);
             SpawnBiteCrumbs(worldBitePos);
-        }
-
-        /// <summary>
-        /// 在咬痕缺口处生成像图 2 一样露出内部白黄色香蕉果肉的月牙几何体 (Exposed White Fruit Flesh)
-        /// </summary>
-        private void CreateExposedWhiteFleshNotch(Vector3 worldPos, float radius)
-        {
-            GameObject fleshNotch = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            fleshNotch.name = $"Bite_WhiteFlesh_{currentBites}";
-            fleshNotch.transform.SetParent(transform, true);
-            fleshNotch.transform.position = worldPos;
-            fleshNotch.transform.localScale = Vector3.one * radius;
-
-            Renderer r = fleshNotch.GetComponent<Renderer>();
-            if (r != null)
-            {
-                Shader s = Shader.Find("Universal Render Pipeline/Lit");
-                if (s == null) s = Shader.Find("Standard");
-                if (s == null) s = Shader.Find("Unlit/Color");
-                
-                Material fleshMat = new Material(s);
-                // 参考图 2 香蕉果肉颜色：奶油浅黄/纯果肉白 Color(0.98f, 0.96f, 0.84f)
-                Color whiteFleshColor = new Color(0.98f, 0.95f, 0.82f, 1f);
-                
-                fleshMat.SetColor("_BaseColor", whiteFleshColor);
-                if (fleshMat.HasProperty("_Color")) fleshMat.SetColor("_Color", whiteFleshColor);
-                if (fleshMat.HasProperty("_Smoothness")) fleshMat.SetFloat("_Smoothness", 0.2f);
-                
-                r.sharedMaterial = fleshMat;
-            }
-
-            Destroy(fleshNotch.GetComponent<Collider>());
         }
 
         /// <summary>
