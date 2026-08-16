@@ -22,6 +22,9 @@ namespace TheLastCompact.Wakeup
         [Tooltip("松手弹回时的 Overshoot 弹性倍率")]
         public float overshoot = 1.15f;
 
+        [Tooltip("点击旋转偏摆角度")]
+        public float wobbleAngle = 18f;
+
         [Header("摄像机震屏")]
         [Tooltip("震屏幅度")]
         public float shakeIntensity = 0.02f;
