@@ -62,31 +62,41 @@ namespace TheLastCompact.Wakeup
             }
             else
             {
-                // 2. 智能自动寻找 Main Camera 或 Player 下建好的 FPS_Arm_Holder 节点！
-                Transform foundHolder = transform.Find("FPS_Arm_Holder");
-                if (foundHolder == null && transform.parent != null)
+                // 2. 智能自动寻找场景/Player下已建好的 3D 手部模型 (Hand/Arm/Gorilla)
+                Transform foundHand = AutoFindHandMeshInHierarchy();
+                if (foundHand != null)
                 {
-                    foundHolder = transform.parent.Find("FPS_Arm_Holder");
-                }
-                if (foundHolder == null)
-                {
-                    foundHolder = GameObject.Find("FPS_Arm_Holder")?.transform;
-                }
-
-                if (foundHolder != null)
-                {
-                    armVisual = foundHolder.gameObject;
-                    _armTransform = foundHolder;
+                    armVisual = foundHand.gameObject;
+                    _armTransform = foundHand;
                 }
                 else
                 {
-                    // 若完全没有创建，新建占位 Holder
-                    GameObject holderGo = new GameObject("FPS_Arm_Holder");
-                    holderGo.transform.SetParent(transform, false);
-                    holderGo.transform.localPosition = new Vector3(0.35f, -0.35f, 0.6f);
-                    holderGo.transform.localRotation = Quaternion.Euler(20f, -25f, 10f);
-                    _armTransform = holderGo.transform;
-                    armVisual = holderGo;
+                    // 3. 寻找 Main Camera 或 Player 下建好的 FPS_Arm_Holder 节点
+                    Transform foundHolder = transform.Find("FPS_Arm_Holder");
+                    if (foundHolder == null && transform.parent != null)
+                    {
+                        foundHolder = transform.parent.Find("FPS_Arm_Holder");
+                    }
+                    if (foundHolder == null)
+                    {
+                        foundHolder = GameObject.Find("FPS_Arm_Holder")?.transform;
+                    }
+
+                    if (foundHolder != null)
+                    {
+                        armVisual = foundHolder.gameObject;
+                        _armTransform = foundHolder;
+                    }
+                    else
+                    {
+                        // 若完全没有创建，新建占位 Holder
+                        GameObject holderGo = new GameObject("FPS_Arm_Holder");
+                        holderGo.transform.SetParent(transform, false);
+                        holderGo.transform.localPosition = new Vector3(0.35f, -0.35f, 0.6f);
+                        holderGo.transform.localRotation = Quaternion.Euler(20f, -25f, 10f);
+                        _armTransform = holderGo.transform;
+                        armVisual = holderGo;
+                    }
                 }
             }
 
@@ -97,6 +107,25 @@ namespace TheLastCompact.Wakeup
                 _defaultLocalRot = _armTransform.localRotation;
                 Debug.Log($"<color=green>[FirstPersonArm] 锁定了你在 Inspector 中调好的手臂位置: {_defaultLocalPos}，旋转: {_defaultLocalRot.eulerAngles}</color>");
             }
+        }
+
+        private Transform AutoFindHandMeshInHierarchy()
+        {
+            Camera mainCam = Camera.main;
+            Transform rootT = mainCam != null ? mainCam.transform : transform;
+            if (rootT.parent != null) rootT = rootT.parent;
+
+            Renderer[] renderers = rootT.GetComponentsInChildren<Renderer>(true);
+            foreach (var r in renderers)
+            {
+                string nameLower = r.gameObject.name.ToLower();
+                if (nameLower.Contains("arm") || nameLower.Contains("hand") || nameLower.Contains("gorilla") || nameLower.Contains("player"))
+                {
+                    Debug.Log($"<color=cyan>[FirstPersonArmController] 自动定位匹配到玩家第一视角手部模型: {r.gameObject.name}</color>");
+                    return r.transform;
+                }
+            }
+            return null;
         }
 
         private void Update()
