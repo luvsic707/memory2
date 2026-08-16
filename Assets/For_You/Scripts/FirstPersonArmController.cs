@@ -5,10 +5,9 @@ using UnityEngine;
 namespace TheLastCompact.Wakeup
 {
     /// <summary>
-    /// 第一视角手部模型控制器 (完全撤回抓取程序化动画位移，恢复最稳定顺畅的场景原生手部姿态)
-    /// 1. 彻底撤回所有手部前伸与旋转抓取位移，绝无任何模型错位、翻转或漂移 Bug。
-    /// 2. 100% 保持你在 Inspector 中调好的 FlesherApe 原生手部位置。
-    /// 3. 当玩家按下 Q 键时，瞬间顺畅触发咬切、堆叠 2-10 个崭新香蕉与音效计数。
+    /// 第一视角手部托举与轻微拖拽控制器
+    /// 1. 按 Q 交互时，手部向前微伸托住香蕉并轻微拖拽 (Tug)，松手后香蕉模型产生弹性回弹。
+    /// 2. 100% 保持在 Inspector 中调好的手部默认位置，不修改任何其他核心逻辑。
     /// </summary>
     public class FirstPersonArmController : MonoBehaviour
     {
@@ -28,6 +27,7 @@ namespace TheLastCompact.Wakeup
         private Vector3 _defaultLocalPos;
         private Quaternion _defaultLocalRot;
         private Transform _armTransform;
+        private bool _isTugging = false;
 
         private void Awake()
         {
@@ -109,7 +109,7 @@ namespace TheLastCompact.Wakeup
 
         private void Update()
         {
-            if (_armTransform == null) return;
+            if (_armTransform == null || _isTugging) return;
 
             // 第一视角手部微弱呼吸摇摆
             float time = Time.time;
@@ -121,12 +121,59 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
-        /// 触发交互吃香蕉逻辑 (已撤回抓取程序化位移，直接瞬间顺畅触发逻辑)
+        /// 按 Q 键交互：手往前托住香蕉轻微拖拽，松开后香蕉模型回弹
         /// </summary>
         public void PlayGrabAndEatMotion(Vector3 targetBananaWorldPos, System.Action onGrabbedCallback = null)
         {
-            // 秒级直接触发咬切截面、生成 2-10 个崭新完整香蕉与咀嚼音效
+            if (_isTugging || _armTransform == null)
+            {
+                onGrabbedCallback?.Invoke();
+                return;
+            }
+            StartCoroutine(TugAndReleaseRoutine(onGrabbedCallback));
+        }
+
+        private IEnumerator TugAndReleaseRoutine(System.Action onGrabbedCallback)
+        {
+            _isTugging = true;
+
+            Vector3 startPos = _defaultLocalPos;
+            Quaternion startRot = _defaultLocalRot;
+
+            // 1. 手部向视角前方微伸托住并轻微拖拽 (Tug Forward & Down slightly)
+            Vector3 tugOffset = new Vector3(-0.012f, -0.02f, 0.055f);
+            Quaternion tugRot = startRot * Quaternion.Euler(5f, -3f, 4f);
+            Vector3 targetTugPos = startPos + tugOffset;
+
+            float t = 0f;
+            float tugDuration = 0.09f;
+            while (t < tugDuration)
+            {
+                t += Time.deltaTime;
+                float easeT = Mathf.Sin((t / tugDuration) * Mathf.PI * 0.5f);
+                _armTransform.localPosition = Vector3.Lerp(startPos, targetTugPos, easeT);
+                _armTransform.localRotation = Quaternion.Slerp(startRot, tugRot, easeT);
+                yield return null;
+            }
+
+            // 2. 松开手部！瞬间触发回调（咬切截面 + 2-10 崭新香蕉下落 + 计数 + 声音）
             onGrabbedCallback?.Invoke();
+
+            // 3. 手部顺滑归位 (Release & Return)
+            t = 0f;
+            float returnDuration = 0.12f;
+            while (t < returnDuration)
+            {
+                t += Time.deltaTime;
+                float easeT = t * (2f - t);
+                _armTransform.localPosition = Vector3.Lerp(targetTugPos, startPos, easeT);
+                _armTransform.localRotation = Quaternion.Slerp(tugRot, startRot, easeT);
+                yield return null;
+            }
+
+            _armTransform.localPosition = startPos;
+            _armTransform.localRotation = startRot;
+            _isTugging = false;
         }
     }
 }
