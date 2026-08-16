@@ -131,8 +131,8 @@ namespace TheLastCompact.Wakeup
             eatenCount++;
             Debug.Log($"[Stage1] 吃掉香蕉。当前计数：{eatenCount}");
 
-            // 有丝分裂：随计数增多，每次生成数量增加（每4个+1，上限6）
-            int mitosisCount = Mathf.Clamp(eatenCount / 4 + 1, 1, 6);
+            // 每次交互随机生成 2 到 10 个 100% 崭新完整的香蕉模型
+            int mitosisCount = Random.Range(2, 11);
             for (int i = 0; i < mitosisCount; i++)
             {
                 SpawnBananaFromSource(eatenBanana);
@@ -169,37 +169,40 @@ namespace TheLastCompact.Wakeup
             // 随机偏移位置（沿用 source 的 spawnRadius/spawnHeightOffset）
             Vector3 offset = new Vector3(
                 Random.Range(-source.spawnRadius, source.spawnRadius),
-                source.spawnHeightOffset,
+                source.spawnHeightOffset + Random.Range(0f, 0.5f),
                 Random.Range(-source.spawnRadius, source.spawnRadius)
             );
             Vector3 spawnPos  = source.transform.position + offset;
 
-            // ── 决定变异 ──────────────────────────────────────────────────
+            // ── 决定变异（小概率刷新畸形/变异香蕉）───────────────────────
             bool isMutant = Random.value < mutantChance;
 
             // ── 实例化 ───────────────────────────────────────────────────
             GameObject newBanana = Instantiate(prefab, spawnPos, Random.rotation);
             newBanana.name = isMutant ? "Banana_Mutant" : "Banana_Normal";
 
+            // 确保新生成的香蕉重置为 100% 崭新完整的未被咬状态
+            BananaInteractable bi = newBanana.GetComponent<BananaInteractable>();
+            if (bi == null)
+            {
+                bi = newBanana.AddComponent<BananaInteractable>();
+                bi.bananaPrefab = prefab;
+                bi.spawnAsInteractive = true;
+            }
+            bi.ResetToFreshUnbittenState();
+
             // 基础缩放（使用缓存的场景原始香蕉缩放作为参考）
             newBanana.transform.localScale = templateScale;
 
             if (isMutant)
             {
-                // 变异香蕉：应用夸张视觉效果
+                // 变异/畸形香蕉：应用夸张视觉效果（荧光彩绿、巨型、微缩或极度扭曲）
                 ApplyMutantVisuals(newBanana);
 
-                // 🌟 核心规则：只要是变异香蕉，吃掉即触发通关进入 Stage 2！
-                BananaInteractable bi = newBanana.GetComponent<BananaInteractable>();
-                if (bi == null)
-                {
-                    bi = newBanana.AddComponent<BananaInteractable>();
-                    bi.bananaPrefab       = prefab;
-                    bi.spawnAsInteractive = true;
-                }
+                // 🌟 核心规则：只要是变异/畸形香蕉，吃掉即触发通关进入 Stage 2！
                 bi.isGlowingBanana = true;
 
-                Debug.Log("<color=yellow>[Stage1] 生成了一只变异香蕉！与其交互即可通关进入 Stage 2。</color>");
+                Debug.Log("<color=yellow>[Stage1] 成功刷新了一只畸形/变异香蕉！与其交互即可通关进入 Stage 2。</color>");
             }
             else
             {
@@ -214,7 +217,6 @@ namespace TheLastCompact.Wakeup
 
                 if (!source.spawnAsInteractive)
                 {
-                    var bi = newBanana.GetComponent<BananaInteractable>();
                     if (bi != null) Destroy(bi);
                 }
             }
