@@ -6,9 +6,9 @@ namespace TheLastCompact.Wakeup
 {
     /// <summary>
     /// 第一视角手部模型 (FlesherApe) 抓取与啃咬动作控制器
-    /// 1. 100% 绑定 Inspector 中配置的 FlesherApe 手部模型。
-    /// 2. 当玩家交互/按下 Q 键吃香蕉时，FlesherApe 手部模型会自动顺滑向香蕉前伸抓取 (Reach Out) ➔ 抱捏抓握 (Finger Curl & Grab) ➔ 送回嘴边咀嚼 (Pull to Mouth) ➔ 平滑复位。
-    /// 3. 支持自动检测 Animator 触发器与手指骨骼弯曲，赋予 FlesherApe 最逼真的 3D 抓取动作。
+    /// 1. 100% 兼容 Animator 状态机：支持 Trigger 触发 "Grab" / "Eat" 抓取动画剪辑。
+    /// 2. 在 LateUpdate() 中执行手臂前伸与手指勾抓，彻底防止 Animator 逐帧覆盖 transform 位置与角度。
+    /// 3. 当玩家按下 Q 键吃香蕉时，触发手部抓取与咬切逻辑。
     /// </summary>
     public class FirstPersonArmController : MonoBehaviour
     {
@@ -39,6 +39,10 @@ namespace TheLastCompact.Wakeup
         private Animator _apeAnimator;
         private Transform[] _fingerBones;
         private Quaternion[] _fingerDefaultRotations;
+
+        private Vector3 _currentGrabLocalPos;
+        private Quaternion _currentGrabLocalRot;
+        private float _currentCurlFactor = 0f;
 
         private void Awake()
         {
@@ -109,6 +113,7 @@ namespace TheLastCompact.Wakeup
                 _defaultLocalPos = _armTransform.localPosition;
                 _defaultLocalRot = _armTransform.localRotation;
                 _apeAnimator = _armTransform.GetComponentInChildren<Animator>();
+                if (_apeAnimator == null) _apeAnimator = _armTransform.GetComponentInParent<Animator>();
 
                 CacheFingerBones();
 
@@ -148,7 +153,7 @@ namespace TheLastCompact.Wakeup
             for (int i = 0; i < _fingerBones.Length; i++)
             {
                 if (_fingerBones[i] == null) continue;
-                Quaternion targetRot = _fingerDefaultRotations[i] * Quaternion.Euler(curlFactor * 45f, 0f, 0f);
+                Quaternion targetRot = _fingerDefaultRotations[i] * Quaternion.Euler(curlFactor * 55f, 0f, 0f);
                 _fingerBones[i].localRotation = Quaternion.Slerp(_fingerDefaultRotations[i], targetRot, curlFactor);
             }
         }
@@ -172,21 +177,34 @@ namespace TheLastCompact.Wakeup
             return null;
         }
 
-        private void Update()
+        private void LateUpdate()
         {
-            if (_armTransform == null || _isGrabbing) return;
+            if (_armTransform == null) return;
 
-            // 第一视角手部自然呼吸摆动 (Idle Sway & Look Lag)
-            float time = Time.time;
-            float swayX = Mathf.Sin(time * 1.8f) * swayAmount;
-            float swayY = Mathf.Cos(time * 2.2f) * (swayAmount * 1.2f);
-            float swayZ = Mathf.Sin(time * 1.5f) * (swayAmount * 0.8f);
+            if (!_isGrabbing)
+            {
+                // 在 LateUpdate 中更新呼吸摇摆，防止被 Animator 逐帧重置覆盖
+                float time = Time.time;
+                float swayX = Mathf.Sin(time * 1.8f) * swayAmount;
+                float swayY = Mathf.Cos(time * 2.2f) * (swayAmount * 1.2f);
+                float swayZ = Mathf.Sin(time * 1.5f) * (swayAmount * 0.8f);
 
-            float mouseX = Input.GetAxis("Mouse X");
-            float mouseY = Input.GetAxis("Mouse Y");
-            Vector3 lagOffset = new Vector3(-mouseX * 0.012f, -mouseY * 0.012f, 0f);
+                float mouseX = Input.GetAxis("Mouse X");
+                float mouseY = Input.GetAxis("Mouse Y");
+                Vector3 lagOffset = new Vector3(-mouseX * 0.012f, -mouseY * 0.012f, 0f);
 
-            _armTransform.localPosition = Vector3.Lerp(_armTransform.localPosition, _defaultLocalPos + new Vector3(swayX, swayY, swayZ) + lagOffset, Time.deltaTime * 6f);
+                _armTransform.localPosition = Vector3.Lerp(_armTransform.localPosition, _defaultLocalPos + new Vector3(swayX, swayY, swayZ) + lagOffset, Time.deltaTime * 6f);
+            }
+            else
+            {
+                // 抓取过程中在 LateUpdate 强制应用前伸与抱捏，防止被 Animator 覆盖！
+                if (_currentGrabLocalPos != Vector3.zero)
+                {
+                    _armTransform.localPosition = _currentGrabLocalPos;
+                    _armTransform.localRotation = _currentGrabLocalRot;
+                }
+                SetFingerCurl(_currentCurlFactor);
+            }
         }
 
         /// <summary>
@@ -202,15 +220,16 @@ namespace TheLastCompact.Wakeup
         {
             _isGrabbing = true;
 
-            // 若有 Animator，触发 Grab 动画状态
+            // 1. 若 FlesherApe 挂有 Animator，自动发送 Animator Trigger
             if (_apeAnimator != null)
             {
                 _apeAnimator.SetTrigger("Grab");
                 _apeAnimator.SetTrigger("Eat");
+                try { _apeAnimator.Play("Grab", 0, 0f); } catch { }
             }
 
-            Vector3 startLocalPos = _armTransform.localPosition;
-            Quaternion startLocalRot = _armTransform.localRotation;
+            Vector3 startLocalPos = _defaultLocalPos;
+            Quaternion startLocalRot = _defaultLocalRot;
 
             Transform parentT = _armTransform.parent != null ? _armTransform.parent : transform;
             Vector3 targetLocalPos = parentT.InverseTransformPoint(targetWorldPos);
@@ -220,23 +239,22 @@ namespace TheLastCompact.Wakeup
             Vector3 grabLocalPos = startLocalPos + reachDir * reachDistance;
             Quaternion grabLocalRot = startLocalRot * Quaternion.Euler(22f, -12f, 15f);
 
-            // 1. FlesherApe 手部优雅伸出向香蕉目标 + 手指抓握收紧 (Reach Out & Grab)
+            // 2. FlesherApe 手部优雅伸出向香蕉目标 + 手指抓握收紧 (Reach Out & Grab)
             float t = 0f;
             while (t < 1f)
             {
                 t += Time.deltaTime * grabSpeed;
                 float easeT = Mathf.Sin(t * Mathf.PI * 0.5f);
-                _armTransform.localPosition = Vector3.Lerp(startLocalPos, grabLocalPos, easeT);
-                _armTransform.localRotation = Quaternion.Slerp(startLocalRot, grabLocalRot, easeT);
-
-                SetFingerCurl(easeT);
+                _currentGrabLocalPos = Vector3.Lerp(startLocalPos, grabLocalPos, easeT);
+                _currentGrabLocalRot = Quaternion.Slerp(startLocalRot, grabLocalRot, easeT);
+                _currentCurlFactor = easeT;
                 yield return null;
             }
 
             // 抓到香蕉瞬间的回调（吃蕉咬切 + 生成新香蕉 + 播放声音）
             onGrabbedCallback?.Invoke();
 
-            // 2. FlesherApe 手部将香蕉送回嘴边 (Pull to Mouth)
+            // 3. FlesherApe 手部将香蕉送回嘴边 (Pull to Mouth)
             Vector3 mouthLocalPos = _defaultLocalPos + new Vector3(-0.06f, 0.08f, -0.04f);
             Quaternion mouthLocalRot = startLocalRot * Quaternion.Euler(18f, -8f, 10f);
 
@@ -245,33 +263,33 @@ namespace TheLastCompact.Wakeup
             {
                 t += Time.deltaTime * (grabSpeed * 0.85f);
                 float easeT = t * t * (3f - 2f * t);
-                _armTransform.localPosition = Vector3.Lerp(grabLocalPos, mouthLocalPos, easeT);
-                _armTransform.localRotation = Quaternion.Slerp(grabLocalRot, mouthLocalRot, easeT);
+                _currentGrabLocalPos = Vector3.Lerp(grabLocalPos, mouthLocalPos, easeT);
+                _currentGrabLocalRot = Quaternion.Slerp(grabLocalRot, mouthLocalRot, easeT);
                 yield return null;
             }
 
-            // 3. 咀嚼轻微咽下抖动
+            // 4. 咀嚼轻微咽下抖动
             float eatShake = 0f;
             while (eatShake < 0.12f)
             {
                 eatShake += Time.deltaTime;
-                _armTransform.localPosition = mouthLocalPos + Random.insideUnitSphere * 0.005f;
+                _currentGrabLocalPos = mouthLocalPos + Random.insideUnitSphere * 0.005f;
                 yield return null;
             }
 
-            // 4. 手指松开，平滑恢复至原本 Inspector 调好的姿态
+            // 5. 手指松开，平滑恢复至原本 Inspector 调好的姿态
             t = 0f;
             while (t < 1f)
             {
                 t += Time.deltaTime * 6f;
-                _armTransform.localPosition = Vector3.Lerp(mouthLocalPos, _defaultLocalPos, t);
-                _armTransform.localRotation = Quaternion.Slerp(mouthLocalRot, _defaultLocalRot, t);
-
-                SetFingerCurl(1f - t);
+                _currentGrabLocalPos = Vector3.Lerp(mouthLocalPos, _defaultLocalPos, t);
+                _currentGrabLocalRot = Quaternion.Slerp(mouthLocalRot, _defaultLocalRot, t);
+                _currentCurlFactor = 1f - t;
                 yield return null;
             }
 
-            SetFingerCurl(0f);
+            _currentGrabLocalPos = Vector3.zero;
+            _currentCurlFactor = 0f;
             _isGrabbing = false;
         }
     }
