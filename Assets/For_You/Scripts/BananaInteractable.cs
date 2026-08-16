@@ -4,11 +4,10 @@ using TheLastCompact.Core;
 namespace TheLastCompact.Wakeup
 {
     /// <summary>
-    /// 香蕉交互与堆叠生成组件 (乳白果肉截面 + 崭新香蕉生成系统)
-    /// 1. 咬一口后，咬面中间呈现出像真实香蕉一样的乳白色香蕉瓤 (Milky-White Flesh Cap)。
-    /// 2. 每次交互生成 2 到 10 个 100% 崭新完整的香蕉模型下落 (重置为未被咬过状态)。
-    /// 3. 单根香蕉可交互 4~5 次，连续咬满后彻底吃完销毁。
-    /// 4. 完美保持畸形香蕉刷新与关卡进度联动。
+    /// 香蕉交互与堆叠生成组件 (纯网格自顶向下咬切系统)
+    /// 1. 彻底清空所有实体 Cylinders/球体，绝无任何空中悬浮切片或大包。
+    /// 2. 纯网格顶点向内切削与切面奶油白着色，自顶向下逐口咬切。
+    /// 3. 每次按 Q 交互生成 2 到 10 个 100% 崭新完整的香蕉模型下落。
     /// </summary>
     public class BananaInteractable : MonoBehaviour, IInteractable
     {
@@ -51,7 +50,6 @@ namespace TheLastCompact.Wakeup
 
         private Mesh _originalFreshMesh;
         private Mesh _bittenMeshCopy;
-        private GameObject _activeFleshCap;
 
         private void Awake()
         {
@@ -137,7 +135,7 @@ namespace TheLastCompact.Wakeup
             // 1. 播放咀嚼音效
             PlayEatSoundEffect();
 
-            // 2. 驱动 3D 模型产生自顶向下物理咬切 + 乳白色香蕉瓤截面 (Milky-White Flesh Cap)
+            // 2. 驱动 3D 模型产生纯网格自顶向下物理咬切 (彻底无悬浮切片)
             ApplyBiteMarkDeformation();
 
             // 特殊香蕉：直接吃掉通关
@@ -181,7 +179,7 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
-        /// 自顶向下物理咬切与乳白果肉截面系统 (对标图 2)
+        /// 纯 3D 网格自顶向下物理咬切 (杜绝任何独立悬浮切片与物体)
         /// </summary>
         public void ApplyBiteMarkDeformation()
         {
@@ -231,6 +229,14 @@ namespace TheLastCompact.Wakeup
             cutCenterLocal[mainAxis] = cutThreshold;
 
             bool modified = false;
+            Color whiteFleshColor = new Color(0.98f, 0.96f, 0.85f, 1f);
+            Color[] colors = _bittenMeshCopy.colors;
+            if (colors == null || colors.Length != verts.Length)
+            {
+                colors = new Color[verts.Length];
+                for (int c = 0; c < colors.Length; c++) colors[c] = Color.white;
+            }
+
             float sideOffset = (currentBites % 2 == 1) ? ext[(mainAxis + 1) % 3] * 0.4f : -ext[(mainAxis + 1) % 3] * 0.4f;
 
             for (int i = 0; i < verts.Length; i++)
@@ -238,6 +244,7 @@ namespace TheLastCompact.Wakeup
                 Vector3 v = verts[i];
                 float valOnAxis = v[mainAxis];
 
+                // 切除高于 cutThreshold 的顶端顶点，归平在切面上
                 if (valOnAxis > cutThreshold)
                 {
                     v[mainAxis] = cutThreshold;
@@ -258,6 +265,7 @@ namespace TheLastCompact.Wakeup
                     v[mainAxis] += toothNoise;
 
                     verts[i] = v;
+                    colors[i] = whiteFleshColor; // 切面顶点调为奶油白
                     modified = true;
                 }
             }
@@ -265,6 +273,7 @@ namespace TheLastCompact.Wakeup
             if (modified)
             {
                 _bittenMeshCopy.vertices = verts;
+                _bittenMeshCopy.colors = colors;
                 _bittenMeshCopy.RecalculateBounds();
                 _bittenMeshCopy.RecalculateNormals();
                 mf.mesh = _bittenMeshCopy;
@@ -273,57 +282,9 @@ namespace TheLastCompact.Wakeup
                 if (mc != null) mc.sharedMesh = _bittenMeshCopy;
             }
 
-            // 3. 在切面上呈现乳白色香蕉瓤截面 (Milky-White Flesh Cap)
-            UpdateMilkyWhiteFleshCap(mf, cutCenterLocal, mainAxis, ext);
-
-            // 4. 喷溅香蕉果肉碎屑粒子
+            // 3. 喷溅香蕉果肉碎屑粒子
             Vector3 worldBitePos = mf.transform.TransformPoint(cutCenterLocal);
             SpawnBiteCrumbs(worldBitePos);
-        }
-
-        /// <summary>
-        /// 在咬断截面上呈现乳白色香蕉瓤 (Milky-White Flesh Cap)
-        /// </summary>
-        private void UpdateMilkyWhiteFleshCap(MeshFilter mf, Vector3 cutCenterLocal, int mainAxis, Vector3 ext)
-        {
-            if (_activeFleshCap == null)
-            {
-                _activeFleshCap = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                _activeFleshCap.name = "Bite_Flesh_Cap";
-                _activeFleshCap.transform.SetParent(mf.transform, false);
-
-                Destroy(_activeFleshCap.GetComponent<Collider>());
-
-                Renderer r = _activeFleshCap.GetComponent<Renderer>();
-                if (r != null)
-                {
-                    Shader s = Shader.Find("Universal Render Pipeline/Lit");
-                    if (s == null) s = Shader.Find("Standard");
-                    if (s == null) s = Shader.Find("Unlit/Color");
-
-                    Material fleshMat = new Material(s);
-                    // 参考图 2 香蕉果肉颜色：奶油乳白色 Color(0.98f, 0.96f, 0.85f)
-                    Color milkyWhiteFlesh = new Color(0.98f, 0.96f, 0.85f, 1f);
-                    fleshMat.SetColor("_BaseColor", milkyWhiteFlesh);
-                    if (fleshMat.HasProperty("_Color")) fleshMat.SetColor("_Color", milkyWhiteFlesh);
-                    if (fleshMat.HasProperty("_Smoothness")) fleshMat.SetFloat("_Smoothness", 0.15f);
-
-                    r.sharedMaterial = fleshMat;
-                }
-            }
-
-            _activeFleshCap.transform.localPosition = cutCenterLocal;
-
-            if (mainAxis == 0) // X 轴
-                _activeFleshCap.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
-            else if (mainAxis == 2) // Z 轴
-                _activeFleshCap.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            else // Y 轴
-                _activeFleshCap.transform.localRotation = Quaternion.identity;
-
-            float capDiameterX = ext[(mainAxis + 1) % 3] * 1.85f;
-            float capDiameterZ = ext[(mainAxis + 2) % 3] * 1.85f;
-            _activeFleshCap.transform.localScale = new Vector3(capDiameterX, 0.015f, capDiameterZ);
         }
 
         /// <summary>
@@ -334,15 +295,10 @@ namespace TheLastCompact.Wakeup
             currentBites = 0;
             _bittenMeshCopy = null;
 
-            if (_activeFleshCap != null)
-            {
-                Destroy(_activeFleshCap);
-                _activeFleshCap = null;
-            }
-
+            // 彻底清理所有历史切片/盖子子物体
             foreach (Transform child in transform)
             {
-                if (child.name == "Bite_Flesh_Cap" || child.name.StartsWith("Bite_"))
+                if (child.name.StartsWith("Bite_") || child.name.Contains("Cap") || child.name.Contains("Cylinder"))
                 {
                     Destroy(child.gameObject);
                 }
@@ -402,7 +358,6 @@ namespace TheLastCompact.Wakeup
                 bananaPrefab = gameObject;
             }
 
-            // 每次按 Q 交互生成 2 到 10 个崭新完整的香蕉
             int countToSpawn = Random.Range(2, 11);
             for (int k = 0; k < countToSpawn; k++)
             {
