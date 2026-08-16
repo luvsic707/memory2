@@ -120,17 +120,19 @@ namespace TheLastCompact.Wakeup
                 }
             }
 
-            // 启动精细 4 阶段连贯交互：手前伸触碰 ➔ 往回拖拽 ➔ 手松开复位 ➔ 香蕉模型弹回原位
+            // 启动 4 阶段连贯交互：手前伸触碰 ➔ 手与香蕉一起往 Player 回拖 ➔ 手松开复位 ➔ 香蕉 BackEaseOut 弹回原位
             if (FirstPersonArmController.Instance != null)
             {
-                FirstPersonArmController.Instance.PlayGrabAndEatMotion(transform.position, () => { });
+                FirstPersonArmController.Instance.PlayGrabAndEatMotion(transform, () =>
+                {
+                    StartCoroutine(BananaJuice.ShakeMainCamera(juice.shakeIntensity, juice.shakeDuration));
+                    ExecuteBananaEatLogic();
+                });
             }
-
-            juice.PlayJuice(() =>
+            else
             {
-                StartCoroutine(BananaJuice.ShakeMainCamera(juice.shakeIntensity, juice.shakeDuration));
                 ExecuteBananaEatLogic();
-            });
+            }
         }
 
         private void ExecuteBananaEatLogic()
