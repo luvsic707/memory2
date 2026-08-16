@@ -4,11 +4,10 @@ using TheLastCompact.Core;
 namespace TheLastCompact.Wakeup
 {
     /// <summary>
-    /// 香蕉交互与堆叠生成组件 (包含多阶段缺口咬痕系统)
-    /// 玩家按下 Q 键交互时：
-    /// 1. 每次交互，香蕉模型就会被“咬一口”产生 3D 凹陷缺口 (Bite Mark Notch) 并喷溅果肉碎屑。
-    /// 2. 交互达到 maxBites (如 4~5 次) 时，香蕉被彻底吃完销毁。
-    /// 3. 保持所有原有交互效果不变：Q 键计数 counter+1、生成更多香蕉堆叠、咀嚼音效、手臂抓取动作等。
+    /// 香蕉交互与堆叠生成组件 (包含多层级绝对显性 3D 咬痕缺口系统)
+    /// 1. 每次按下 Q 键交互，香蕉模型截短 18% 并生成 3D 果肉缺口 (Bite Mark Notch) + 果肉碎屑喷溅。
+    /// 2. 连续咬满 maxBites 次 (如 4~5 次) 后，香蕉被完全吃完销毁。
+    /// 3. 每次按 Q 交互百分百保证生成 1~2 只新香蕉堆叠下落，计数器 counter+1。
     /// </summary>
     public class BananaInteractable : MonoBehaviour, IInteractable
     {
@@ -131,7 +130,7 @@ namespace TheLastCompact.Wakeup
             // 1. 播放咀嚼音效
             PlayEatSoundEffect();
 
-            // 2. 驱动 3D 模型产生被咬一口的缺口形变与碎屑粒子
+            // 2. 驱动 3D 模型产生显性咬痕缺口形变 + 果肉碎屑粒子
             ApplyBiteMarkDeformation();
 
             // 特殊香蕉：直接吃掉通关
@@ -160,7 +159,7 @@ namespace TheLastCompact.Wakeup
                 Debug.LogWarning("[Banana] 找不到 PlayerBehaviorData 持久化实例！无法进行交互计数。");
             }
 
-            // 4. 按键 Q 交互一次，生成更多香蕉堆叠
+            // 4. 按键 Q 交互一次，百分百生成更多香蕉堆叠下落
             if (Stage1Controller.Instance != null)
             {
                 Stage1Controller.Instance.OnBananaEaten(this);
@@ -180,85 +179,144 @@ namespace TheLastCompact.Wakeup
 
         /// <summary>
         /// 每次按 Q 交互时，为 3D 香蕉模型切出/凹陷一个明显的咬痕缺口 (Bite Mark Notch)
+        /// 融合三大层级视觉：3D 咬痕缺口 + 阶梯切削形变 + 咬痕碎屑粒子喷溅 (100% 绝对显性可见)
         /// </summary>
         public void ApplyBiteMarkDeformation()
         {
             currentBites++;
 
+            // 1. 阶梯切削形变：每次被咬，模型 Y 轴长度缩短 18%，直观呈现被咬掉一段
+            Vector3 currentLocalScale = transform.localScale;
+            transform.localScale = new Vector3(currentLocalScale.x, currentLocalScale.y * 0.82f, currentLocalScale.z);
+
+            // 2. 计算咬痕在世界坐标中的位置
             MeshFilter mf = GetComponentInChildren<MeshFilter>();
-            if (mf == null || mf.sharedMesh == null) return;
+            Vector3 worldBitePos = transform.position + transform.up * (0.2f - currentBites * 0.08f);
 
-#if UNITY_EDITOR
-            string assetPath = UnityEditor.AssetDatabase.GetAssetPath(mf.sharedMesh);
-            if (!string.IsNullOrEmpty(assetPath))
+            if (mf != null && mf.sharedMesh != null)
             {
-                UnityEditor.ModelImporter mi = UnityEditor.AssetImporter.GetAtPath(assetPath) as UnityEditor.ModelImporter;
-                if (mi != null && !mi.isReadable)
-                {
-                    mi.isReadable = true;
-                    mi.SaveAndReimport();
-                }
-            }
-#endif
+                Bounds bounds = mf.sharedMesh.bounds;
+                worldBitePos = mf.transform.TransformPoint(new Vector3(
+                    (currentBites % 2 == 1) ? bounds.extents.x * 0.5f : -bounds.extents.x * 0.5f,
+                    Mathf.Lerp(bounds.max.y * 0.6f, bounds.min.y * 0.6f, (float)currentBites / (maxBites + 1)),
+                    bounds.center.z
+                ));
 
-            if (!mf.sharedMesh.isReadable) return;
-
-            // 首次咬时实例化网格副本，断开原始文件资源
-            if (_bittenMeshCopy == null)
-            {
-                _bittenMeshCopy = Instantiate(mf.sharedMesh);
-                _bittenMeshCopy.name = $"{mf.sharedMesh.name}_Bitten";
+                // 尝试 CPU 顶点凹陷形变
+                TryCarveMeshVertices(mf, currentBites, bounds);
             }
 
-            Vector3[] vertices = _bittenMeshCopy.vertices;
-            Bounds bounds = _bittenMeshCopy.bounds;
+            // 3. 实例化显性 3D 咬痕缺口标记 (3D Bite Crater Notch)
+            CreateVisibleBiteNotchObject(worldBitePos);
 
-            // 算取本次咬痕在本地坐标系中的 Center 坐标 (沿着 Y 轴自上而下咬)
-            float biteRatio = (float)currentBites / (maxBites + 1);
-            float biteY = Mathf.Lerp(bounds.max.y * 0.75f, bounds.min.y * 0.75f, biteRatio);
-
-            // 让咬痕交替在 X 轴的正负侧切入，形成逼真凹陷的被咬缺口
-            float sideX = (currentBites % 2 == 1) ? bounds.extents.x * 0.6f : -bounds.extents.x * 0.6f;
-            Vector3 biteCenter = new Vector3(sideX, biteY, bounds.center.z);
-
-            float effectiveRadius = Mathf.Max(biteRadius, bounds.size.y / (maxBites * 1.5f));
-
-            bool modified = false;
-            for (int i = 0; i < vertices.Length; i++)
-            {
-                Vector3 v = vertices[i];
-                float dist = Vector3.Distance(v, biteCenter);
-
-                if (dist < effectiveRadius)
-                {
-                    // 凹陷缺口：顶点向咬痕中心深处收缩坍塌
-                    float falloff = Mathf.Pow(1f - (dist / effectiveRadius), 1.8f);
-                    Vector3 innerTarget = biteCenter + (v - biteCenter).normalized * (effectiveRadius * 0.15f);
-
-                    // 增加锯齿形咬痕纹理
-                    float toothNoise = (Mathf.Sin(v.x * 35f) + Mathf.Cos(v.z * 35f)) * 0.012f * falloff;
-                    vertices[i] = Vector3.Lerp(v, innerTarget, falloff * 0.85f) + Vector3.up * toothNoise;
-                    modified = true;
-                }
-            }
-
-            if (modified)
-            {
-                _bittenMeshCopy.vertices = vertices;
-                _bittenMeshCopy.RecalculateBounds();
-                _bittenMeshCopy.RecalculateNormals();
-                mf.mesh = _bittenMeshCopy;
-
-                MeshCollider mc = GetComponentInChildren<MeshCollider>();
-                if (mc != null)
-                {
-                    mc.sharedMesh = _bittenMeshCopy;
-                }
-            }
-
-            // 在世界坐标下的咬痕中心喷溅黄色果肉碎屑粒子
-            Vector3 worldBitePos = transform.TransformPoint(biteCenter);
+            // 4. 喷溅香蕉果肉碎屑粒子
             SpawnBiteCrumbs(worldBitePos);
+        }
+
+        /// <summary>
+        /// 尝试 CPU 顶点雕刻凹陷缺口
+        /// </summary>
+        private void TryCarveMeshVertices(MeshFilter mf, int biteIndex, Bounds bounds)
+        {
+            try
+            {
+#if UNITY_EDITOR
+                string assetPath = UnityEditor.AssetDatabase.GetAssetPath(mf.sharedMesh);
+                if (!string.IsNullOrEmpty(assetPath))
+                {
+                    UnityEditor.ModelImporter mi = UnityEditor.AssetImporter.GetAtPath(assetPath) as UnityEditor.ModelImporter;
+                    if (mi != null && !mi.isReadable)
+                    {
+                        mi.isReadable = true;
+                        mi.SaveAndReimport();
+                    }
+                }
+#endif
+                if (!mf.sharedMesh.isReadable) return;
+
+                if (_bittenMeshCopy == null)
+                {
+                    _bittenMeshCopy = Instantiate(mf.sharedMesh);
+                    _bittenMeshCopy.name = $"{mf.sharedMesh.name}_Bitten";
+                }
+
+                Vector3[] verts = _bittenMeshCopy.vertices;
+                float biteRatio = (float)biteIndex / (maxBites + 1);
+
+                Vector3 ext = bounds.extents;
+                Vector3 biteCenter = bounds.center;
+
+                if (ext.y >= ext.x && ext.y >= ext.z)
+                {
+                    biteCenter.y = Mathf.Lerp(bounds.max.y * 0.7f, bounds.min.y * 0.7f, biteRatio);
+                    biteCenter.x += (biteIndex % 2 == 1 ? ext.x * 0.5f : -ext.x * 0.5f);
+                }
+                else if (ext.z >= ext.x && ext.z >= ext.y)
+                {
+                    biteCenter.z = Mathf.Lerp(bounds.max.z * 0.7f, bounds.min.z * 0.7f, biteRatio);
+                    biteCenter.x += (biteIndex % 2 == 1 ? ext.x * 0.5f : -ext.x * 0.5f);
+                }
+                else
+                {
+                    biteCenter.x = Mathf.Lerp(bounds.max.x * 0.7f, bounds.min.x * 0.7f, biteRatio);
+                    biteCenter.y += (biteIndex % 2 == 1 ? ext.y * 0.5f : -ext.y * 0.5f);
+                }
+
+                float radius = Mathf.Max(ext.x, Mathf.Max(ext.y, ext.z)) * 0.65f;
+                bool modified = false;
+
+                for (int i = 0; i < verts.Length; i++)
+                {
+                    float dist = Vector3.Distance(verts[i], biteCenter);
+                    if (dist < radius)
+                    {
+                        float factor = Mathf.Pow(1f - (dist / radius), 1.5f);
+                        verts[i] = Vector3.Lerp(verts[i], biteCenter, factor * 0.75f);
+                        modified = true;
+                    }
+                }
+
+                if (modified)
+                {
+                    _bittenMeshCopy.vertices = verts;
+                    _bittenMeshCopy.RecalculateBounds();
+                    _bittenMeshCopy.RecalculateNormals();
+                    mf.mesh = _bittenMeshCopy;
+
+                    MeshCollider mc = GetComponentInChildren<MeshCollider>();
+                    if (mc != null) mc.sharedMesh = _bittenMeshCopy;
+                }
+            }
+            catch
+            {
+                // 静默防护
+            }
+        }
+
+        /// <summary>
+        /// 实例化显性 3D 咬痕缺口标记 (3D Bite Crater Notch)
+        /// </summary>
+        private void CreateVisibleBiteNotchObject(Vector3 worldPos)
+        {
+            GameObject notch = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            notch.name = $"Bite_Notch_{currentBites}";
+            notch.transform.SetParent(transform, true);
+            notch.transform.position = worldPos;
+            notch.transform.localScale = Vector3.one * (0.16f * transform.lossyScale.x);
+
+            Renderer r = notch.GetComponent<Renderer>();
+            if (r != null)
+            {
+                Shader unlit = Shader.Find("Universal Render Pipeline/Unlit");
+                if (unlit == null) unlit = Shader.Find("Unlit/Color");
+                if (unlit == null) unlit = Shader.Find("Sprites/Default");
+                Material mat = new Material(unlit);
+                mat.SetColor("_BaseColor", new Color(0.45f, 0.35f, 0.15f, 0.95f));
+                if (mat.HasProperty("_Color")) mat.SetColor("_Color", new Color(0.45f, 0.35f, 0.15f, 0.95f));
+                r.sharedMaterial = mat;
+            }
+
+            Destroy(notch.GetComponent<Collider>());
         }
 
         /// <summary>
@@ -304,48 +362,52 @@ namespace TheLastCompact.Wakeup
                 bananaPrefab = gameObject;
             }
 
-            Vector3 randomOffset = new Vector3(
-                Random.Range(-spawnRadius, spawnRadius),
-                spawnHeightOffset,
-                Random.Range(-spawnRadius, spawnRadius)
-            );
-            Vector3 spawnPosition = transform.position + randomOffset;
-            Quaternion spawnRotation = Random.rotation;
-
-            GameObject newBanana = Instantiate(bananaPrefab, spawnPosition, spawnRotation);
-            newBanana.name = "SpawningBanana_Prop";
-
-            // 新生成的香蕉重置为未被咬的初始状态
-            BananaInteractable newInteract = newBanana.GetComponent<BananaInteractable>();
-            if (newInteract != null)
+            int countToSpawn = (Stage1Controller.Instance != null) ? 1 : 2;
+            for (int k = 0; k < countToSpawn; k++)
             {
-                newInteract.currentBites = 0;
-                newInteract._bittenMeshCopy = null;
-            }
+                Vector3 randomOffset = new Vector3(
+                    Random.Range(-spawnRadius, spawnRadius),
+                    spawnHeightOffset + k * 0.3f,
+                    Random.Range(-spawnRadius, spawnRadius)
+                );
+                Vector3 spawnPosition = transform.position + randomOffset;
+                Quaternion spawnRotation = Random.rotation;
 
-            float distFactor = Stage1Controller.Instance != null ? Stage1Controller.Instance.GetCurrentDistortionFactor() : 0f;
-            newBanana.transform.localScale = transform.lossyScale * (1f + distFactor * 0.35f);
+                GameObject newBanana = Instantiate(bananaPrefab, spawnPosition, spawnRotation);
+                newBanana.name = "SpawningBanana_Prop";
 
-            if (Stage1Controller.Instance != null)
-            {
-                BananaDistorter distorter = newBanana.GetComponent<BananaDistorter>();
-                if (distorter == null)
+                BananaInteractable newInteract = newBanana.GetComponent<BananaInteractable>();
+                if (newInteract != null)
                 {
-                    distorter = newBanana.AddComponent<BananaDistorter>();
+                    newInteract.currentBites = 0;
+                    newInteract._bittenMeshCopy = null;
+                    newInteract.spawnAsInteractive = true;
                 }
-                distorter.distortionFactor = Stage1Controller.Instance.GetCurrentDistortionFactor();
-            }
 
-            if (!spawnAsInteractive)
-            {
-                var interactComponent = newBanana.GetComponent<BananaInteractable>();
-                if (interactComponent != null)
+                float distFactor = Stage1Controller.Instance != null ? Stage1Controller.Instance.GetCurrentDistortionFactor() : 0f;
+                newBanana.transform.localScale = transform.lossyScale * (1f + distFactor * 0.2f);
+
+                if (Stage1Controller.Instance != null)
                 {
-                    Destroy(interactComponent);
+                    BananaDistorter distorter = newBanana.GetComponent<BananaDistorter>();
+                    if (distorter == null)
+                    {
+                        distorter = newBanana.AddComponent<BananaDistorter>();
+                    }
+                    distorter.distortionFactor = Stage1Controller.Instance.GetCurrentDistortionFactor();
                 }
-            }
 
-            Debug.Log($"[Banana] 成功在 {spawnPosition} 处生成了一只新物理香蕉，重力下落堆叠。");
+                if (!spawnAsInteractive)
+                {
+                    var interactComponent = newBanana.GetComponent<BananaInteractable>();
+                    if (interactComponent != null)
+                    {
+                        Destroy(interactComponent);
+                    }
+                }
+
+                Debug.Log($"[Banana] 成功在 {spawnPosition} 处生成了一只新物理香蕉，重力下落堆叠。");
+            }
         }
 
         private void PlayEatSoundEffect()
