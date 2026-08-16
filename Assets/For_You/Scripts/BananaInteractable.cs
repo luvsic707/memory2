@@ -111,30 +111,25 @@ namespace TheLastCompact.Wakeup
             BananaJuice juice = GetComponent<BananaJuice>();
             if (juice == null) juice = gameObject.AddComponent<BananaJuice>();
 
+            if (FirstPersonArmController.Instance == null)
+            {
+                Camera mainCam = Camera.main;
+                if (mainCam != null && mainCam.GetComponent<FirstPersonArmController>() == null)
+                {
+                    mainCam.gameObject.AddComponent<FirstPersonArmController>();
+                }
+            }
+
+            // 启动精细 4 阶段连贯交互：手前伸触碰 ➔ 往回拖拽 ➔ 手松开复位 ➔ 香蕉模型弹回原位
+            if (FirstPersonArmController.Instance != null)
+            {
+                FirstPersonArmController.Instance.PlayGrabAndEatMotion(transform.position, () => { });
+            }
+
             juice.PlayJuice(() =>
             {
                 StartCoroutine(BananaJuice.ShakeMainCamera(juice.shakeIntensity, juice.shakeDuration));
-
-                if (FirstPersonArmController.Instance == null)
-                {
-                    Camera mainCam = Camera.main;
-                    if (mainCam != null)
-                    {
-                        mainCam.gameObject.AddComponent<FirstPersonArmController>();
-                    }
-                }
-
-                if (FirstPersonArmController.Instance != null)
-                {
-                    FirstPersonArmController.Instance.PlayGrabAndEatMotion(transform.position, () =>
-                    {
-                        ExecuteBananaEatLogic();
-                    });
-                }
-                else
-                {
-                    ExecuteBananaEatLogic();
-                }
+                ExecuteBananaEatLogic();
             });
         }
 

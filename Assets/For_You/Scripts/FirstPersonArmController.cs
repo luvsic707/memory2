@@ -5,9 +5,11 @@ using UnityEngine;
 namespace TheLastCompact.Wakeup
 {
     /// <summary>
-    /// 第一视角手部托举与轻微拖拽控制器
-    /// 1. 按 Q 交互时，手部向前微伸托住香蕉并轻微拖拽 (Tug)，松手后香蕉模型产生弹性回弹。
-    /// 2. 100% 保持在 Inspector 中调好的手部默认位置，不修改任何其他核心逻辑。
+    /// 第一视角手部触碰、拖拽与复位控制器
+    /// 1. 手部向前伸出接触香蕉模型 (Reach Forward & Contact)；
+    /// 2. 接触香蕉后手部往回拖拽香蕉模型 (Drag Backwards Together)；
+    /// 3. 手部松开并平滑复位 (Release & Return)；
+    /// 4. 手部复位后，香蕉模型弹性弹回原位并触发咬切截面与生成。
     /// </summary>
     public class FirstPersonArmController : MonoBehaviour
     {
@@ -27,7 +29,7 @@ namespace TheLastCompact.Wakeup
         private Vector3 _defaultLocalPos;
         private Quaternion _defaultLocalRot;
         private Transform _armTransform;
-        private bool _isTugging = false;
+        private bool _isGrabbing = false;
 
         private void Awake()
         {
@@ -109,7 +111,7 @@ namespace TheLastCompact.Wakeup
 
         private void Update()
         {
-            if (_armTransform == null || _isTugging) return;
+            if (_armTransform == null || _isGrabbing) return;
 
             // 第一视角手部微弱呼吸摇摆
             float time = Time.time;
@@ -121,59 +123,82 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
-        /// 按 Q 键交互：手往前托住香蕉轻微拖拽，松开后香蕉模型回弹
+        /// 驱动手部产生 4 阶段精细抓拉动作：
+        /// 1. 手前伸接触香蕉；
+        /// 2. 接触后手往回拖拽香蕉；
+        /// 3. 手松开并平滑复位；
+        /// 4. 触发香蕉回弹与切面/生成逻辑。
         /// </summary>
-        public void PlayGrabAndEatMotion(Vector3 targetBananaWorldPos, System.Action onGrabbedCallback = null)
+        public void PlayGrabAndEatMotion(Vector3 targetBananaWorldPos, System.Action onCompleteCallback = null)
         {
-            if (_isTugging || _armTransform == null)
+            if (_isGrabbing || _armTransform == null)
             {
-                onGrabbedCallback?.Invoke();
+                onCompleteCallback?.Invoke();
                 return;
             }
-            StartCoroutine(TugAndReleaseRoutine(onGrabbedCallback));
+            StartCoroutine(ReachContactDragRoutine(targetBananaWorldPos, onCompleteCallback));
         }
 
-        private IEnumerator TugAndReleaseRoutine(System.Action onGrabbedCallback)
+        private IEnumerator ReachContactDragRoutine(Vector3 targetBananaWorldPos, System.Action onCompleteCallback)
         {
-            _isTugging = true;
+            _isGrabbing = true;
 
-            Vector3 startPos = _defaultLocalPos;
-            Quaternion startRot = _defaultLocalRot;
+            Vector3 startLocalPos = _defaultLocalPos;
+            Quaternion startLocalRot = _defaultLocalRot;
 
-            // 1. 手部向视角前方微伸托住并轻微拖拽 (Tug Forward & Down slightly)
-            Vector3 tugOffset = new Vector3(-0.012f, -0.02f, 0.055f);
-            Quaternion tugRot = startRot * Quaternion.Euler(5f, -3f, 4f);
-            Vector3 targetTugPos = startPos + tugOffset;
+            // ── Phase 1: 手前伸与香蕉模型相接触 (Reach Forward & Contact) ────
+            Vector3 contactLocalOffset = new Vector3(-0.02f, -0.01f, 0.12f);
+            Quaternion contactLocalRot = startLocalRot * Quaternion.Euler(12f, -8f, 10f);
+            Vector3 contactLocalPos = startLocalPos + contactLocalOffset;
 
-            float t = 0f;
-            float tugDuration = 0.09f;
-            while (t < tugDuration)
+            float elapsed = 0f;
+            float reachDuration = 0.10f;
+            while (elapsed < reachDuration)
             {
-                t += Time.deltaTime;
-                float easeT = Mathf.Sin((t / tugDuration) * Mathf.PI * 0.5f);
-                _armTransform.localPosition = Vector3.Lerp(startPos, targetTugPos, easeT);
-                _armTransform.localRotation = Quaternion.Slerp(startRot, tugRot, easeT);
+                elapsed += Time.deltaTime;
+                float t = elapsed / reachDuration;
+                float easeT = Mathf.Sin(t * Mathf.PI * 0.5f);
+                _armTransform.localPosition = Vector3.Lerp(startLocalPos, contactLocalPos, easeT);
+                _armTransform.localRotation = Quaternion.Slerp(startLocalRot, contactLocalRot, easeT);
                 yield return null;
             }
 
-            // 2. 松开手部！瞬间触发回调（咬切截面 + 2-10 崭新香蕉下落 + 计数 + 声音）
-            onGrabbedCallback?.Invoke();
+            // ── Phase 2: 接触到香蕉后往回拖拽一下 (Drag Backwards Together) ───
+            Vector3 dragBackLocalOffset = new Vector3(-0.06f, -0.05f, 0.04f);
+            Quaternion dragBackLocalRot = startLocalRot * Quaternion.Euler(18f, -12f, 15f);
+            Vector3 dragBackLocalPos = startLocalPos + dragBackLocalOffset;
 
-            // 3. 手部顺滑归位 (Release & Return)
-            t = 0f;
+            elapsed = 0f;
+            float dragDuration = 0.10f;
+            while (elapsed < dragDuration)
+            {
+                elapsed += Time.deltaTime;
+                float t = elapsed / dragDuration;
+                float easeT = t * t * (3f - 2f * t);
+                _armTransform.localPosition = Vector3.Lerp(contactLocalPos, dragBackLocalPos, easeT);
+                _armTransform.localRotation = Quaternion.Slerp(contactLocalRot, dragBackLocalRot, easeT);
+                yield return null;
+            }
+
+            // ── Phase 3: 手松开并平滑复位到默认姿态 (Release & Return) ──────
+            elapsed = 0f;
             float returnDuration = 0.12f;
-            while (t < returnDuration)
+            while (elapsed < returnDuration)
             {
-                t += Time.deltaTime;
-                float easeT = t * (2f - t);
-                _armTransform.localPosition = Vector3.Lerp(targetTugPos, startPos, easeT);
-                _armTransform.localRotation = Quaternion.Slerp(tugRot, startRot, easeT);
+                elapsed += Time.deltaTime;
+                float t = elapsed / returnDuration;
+                float easeT = 1f - Mathf.Pow(1f - t, 3f);
+                _armTransform.localPosition = Vector3.Lerp(dragBackLocalPos, startLocalPos, easeT);
+                _armTransform.localRotation = Quaternion.Slerp(dragBackLocalRot, startLocalRot, easeT);
                 yield return null;
             }
 
-            _armTransform.localPosition = startPos;
-            _armTransform.localRotation = startRot;
-            _isTugging = false;
+            _armTransform.localPosition = startLocalPos;
+            _armTransform.localRotation = startLocalRot;
+            _isGrabbing = false;
+
+            // ── Phase 4: 手完全复位后，香蕉弹回原位并触发咬切与生成 ────────
+            onCompleteCallback?.Invoke();
         }
     }
 }
