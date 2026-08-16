@@ -4,10 +4,11 @@ using TheLastCompact.Core;
 namespace TheLastCompact.Wakeup
 {
     /// <summary>
-    /// 香蕉交互与堆叠生成组件 (包含多层级绝对显性 3D 咬痕缺口系统)
-    /// 1. 每次按下 Q 键交互，香蕉模型截短 18% 并生成 3D 果肉缺口 (Bite Mark Notch) + 果肉碎屑喷溅。
-    /// 2. 连续咬满 maxBites 次 (如 4~5 次) 后，香蕉被完全吃完销毁。
-    /// 3. 每次按 Q 交互百分百保证生成 1~2 只新香蕉堆叠下落，计数器 counter+1。
+    /// 香蕉交互与堆叠生成组件 (精确向内凹陷 3D 咬痕缺口系统)
+    /// 1. 每次按下 Q 键交互，香蕉表面的顶点深度向中轴深缩坍塌，精确生成真正的“向内凹陷被咬缺口 (Concave Bite Notch)”。
+    /// 2. 彻底取消外突球体，结合果肉碎屑粒子喷溅，呈现真实被咬的感觉。
+    /// 3. 连续咬满 maxBites 次 (如 4~5 次) 后，香蕉被彻底吃完销毁。
+    /// 4. 每次按 Q 交互百分百保证生成 1~2 只新香蕉堆叠下落，计数器 counter+1。
     /// </summary>
     public class BananaInteractable : MonoBehaviour, IInteractable
     {
@@ -25,14 +26,11 @@ namespace TheLastCompact.Wakeup
         public bool spawnAsInteractive = true;
 
         [Header("咬痕与多阶段吃香蕉配置 (Progressive Bite System)")]
-        [Tooltip("一只香蕉最多可以被咬的次数 (默认 4 次，每次交互缺一个口)")]
+        [Tooltip("一只香蕉最多可以被咬的次数 (默认 4 次，每次交互凹陷缺一个口)")]
         [Range(1, 10)] public int maxBites = 4;
 
         [Tooltip("当前已被咬的次数")]
         public int currentBites = 0;
-
-        [Tooltip("咬痕缺口产生的物理半径 (米)")]
-        public float biteRadius = 0.18f;
 
         [Header("Stage 1 专属特殊香蕉配置")]
         [Tooltip("该香蕉是否为用于场景切换的特殊红光香蕉")]
@@ -130,7 +128,7 @@ namespace TheLastCompact.Wakeup
             // 1. 播放咀嚼音效
             PlayEatSoundEffect();
 
-            // 2. 驱动 3D 模型产生显性咬痕缺口形变 + 果肉碎屑粒子
+            // 2. 驱动 3D 模型产生向内凹陷被咬缺口形变 + 果肉碎屑粒子
             ApplyBiteMarkDeformation();
 
             // 特殊香蕉：直接吃掉通关
@@ -178,145 +176,108 @@ namespace TheLastCompact.Wakeup
         }
 
         /// <summary>
-        /// 每次按 Q 交互时，为 3D 香蕉模型切出/凹陷一个明显的咬痕缺口 (Bite Mark Notch)
-        /// 融合三大层级视觉：3D 咬痕缺口 + 阶梯切削形变 + 咬痕碎屑粒子喷溅 (100% 绝对显性可见)
+        /// 凹陷咬痕形变：将咬痕区域内的顶点深缩拉向香蕉中轴心，真正产生向内凹陷的“被咬缺口” (Concave Bite Notch)
         /// </summary>
         public void ApplyBiteMarkDeformation()
         {
             currentBites++;
 
-            // 1. 阶梯切削形变：每次被咬，模型 Y 轴长度缩短 18%，直观呈现被咬掉一段
-            Vector3 currentLocalScale = transform.localScale;
-            transform.localScale = new Vector3(currentLocalScale.x, currentLocalScale.y * 0.82f, currentLocalScale.z);
-
-            // 2. 计算咬痕在世界坐标中的位置
             MeshFilter mf = GetComponentInChildren<MeshFilter>();
-            Vector3 worldBitePos = transform.position + transform.up * (0.2f - currentBites * 0.08f);
+            if (mf == null || mf.sharedMesh == null) return;
 
-            if (mf != null && mf.sharedMesh != null)
-            {
-                Bounds bounds = mf.sharedMesh.bounds;
-                worldBitePos = mf.transform.TransformPoint(new Vector3(
-                    (currentBites % 2 == 1) ? bounds.extents.x * 0.5f : -bounds.extents.x * 0.5f,
-                    Mathf.Lerp(bounds.max.y * 0.6f, bounds.min.y * 0.6f, (float)currentBites / (maxBites + 1)),
-                    bounds.center.z
-                ));
-
-                // 尝试 CPU 顶点凹陷形变
-                TryCarveMeshVertices(mf, currentBites, bounds);
-            }
-
-            // 3. 实例化显性 3D 咬痕缺口标记 (3D Bite Crater Notch)
-            CreateVisibleBiteNotchObject(worldBitePos);
-
-            // 4. 喷溅香蕉果肉碎屑粒子
-            SpawnBiteCrumbs(worldBitePos);
-        }
-
-        /// <summary>
-        /// 尝试 CPU 顶点雕刻凹陷缺口
-        /// </summary>
-        private void TryCarveMeshVertices(MeshFilter mf, int biteIndex, Bounds bounds)
-        {
-            try
-            {
 #if UNITY_EDITOR
-                string assetPath = UnityEditor.AssetDatabase.GetAssetPath(mf.sharedMesh);
-                if (!string.IsNullOrEmpty(assetPath))
+            string assetPath = UnityEditor.AssetDatabase.GetAssetPath(mf.sharedMesh);
+            if (!string.IsNullOrEmpty(assetPath))
+            {
+                UnityEditor.ModelImporter mi = UnityEditor.AssetImporter.GetAtPath(assetPath) as UnityEditor.ModelImporter;
+                if (mi != null && !mi.isReadable)
                 {
-                    UnityEditor.ModelImporter mi = UnityEditor.AssetImporter.GetAtPath(assetPath) as UnityEditor.ModelImporter;
-                    if (mi != null && !mi.isReadable)
-                    {
-                        mi.isReadable = true;
-                        mi.SaveAndReimport();
-                    }
+                    mi.isReadable = true;
+                    mi.SaveAndReimport();
                 }
+            }
 #endif
-                if (!mf.sharedMesh.isReadable) return;
 
-                if (_bittenMeshCopy == null)
-                {
-                    _bittenMeshCopy = Instantiate(mf.sharedMesh);
-                    _bittenMeshCopy.name = $"{mf.sharedMesh.name}_Bitten";
-                }
+            if (!mf.sharedMesh.isReadable) return;
 
-                Vector3[] verts = _bittenMeshCopy.vertices;
-                float biteRatio = (float)biteIndex / (maxBites + 1);
-
-                Vector3 ext = bounds.extents;
-                Vector3 biteCenter = bounds.center;
-
-                if (ext.y >= ext.x && ext.y >= ext.z)
-                {
-                    biteCenter.y = Mathf.Lerp(bounds.max.y * 0.7f, bounds.min.y * 0.7f, biteRatio);
-                    biteCenter.x += (biteIndex % 2 == 1 ? ext.x * 0.5f : -ext.x * 0.5f);
-                }
-                else if (ext.z >= ext.x && ext.z >= ext.y)
-                {
-                    biteCenter.z = Mathf.Lerp(bounds.max.z * 0.7f, bounds.min.z * 0.7f, biteRatio);
-                    biteCenter.x += (biteIndex % 2 == 1 ? ext.x * 0.5f : -ext.x * 0.5f);
-                }
-                else
-                {
-                    biteCenter.x = Mathf.Lerp(bounds.max.x * 0.7f, bounds.min.x * 0.7f, biteRatio);
-                    biteCenter.y += (biteIndex % 2 == 1 ? ext.y * 0.5f : -ext.y * 0.5f);
-                }
-
-                float radius = Mathf.Max(ext.x, Mathf.Max(ext.y, ext.z)) * 0.65f;
-                bool modified = false;
-
-                for (int i = 0; i < verts.Length; i++)
-                {
-                    float dist = Vector3.Distance(verts[i], biteCenter);
-                    if (dist < radius)
-                    {
-                        float factor = Mathf.Pow(1f - (dist / radius), 1.5f);
-                        verts[i] = Vector3.Lerp(verts[i], biteCenter, factor * 0.75f);
-                        modified = true;
-                    }
-                }
-
-                if (modified)
-                {
-                    _bittenMeshCopy.vertices = verts;
-                    _bittenMeshCopy.RecalculateBounds();
-                    _bittenMeshCopy.RecalculateNormals();
-                    mf.mesh = _bittenMeshCopy;
-
-                    MeshCollider mc = GetComponentInChildren<MeshCollider>();
-                    if (mc != null) mc.sharedMesh = _bittenMeshCopy;
-                }
-            }
-            catch
+            // 首次咬时实例化网格副本，断开原始文件资源
+            if (_bittenMeshCopy == null)
             {
-                // 静默防护
+                _bittenMeshCopy = Instantiate(mf.sharedMesh);
+                _bittenMeshCopy.name = $"{mf.sharedMesh.name}_Bitten";
             }
-        }
 
-        /// <summary>
-        /// 实例化显性 3D 咬痕缺口标记 (3D Bite Crater Notch)
-        /// </summary>
-        private void CreateVisibleBiteNotchObject(Vector3 worldPos)
-        {
-            GameObject notch = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            notch.name = $"Bite_Notch_{currentBites}";
-            notch.transform.SetParent(transform, true);
-            notch.transform.position = worldPos;
-            notch.transform.localScale = Vector3.one * (0.16f * transform.lossyScale.x);
+            Vector3[] verts = _bittenMeshCopy.vertices;
+            Bounds bounds = _bittenMeshCopy.bounds;
 
-            Renderer r = notch.GetComponent<Renderer>();
-            if (r != null)
+            // 1. 自动寻找香蕉的主轴线 (Y、Z 或 X 轴中较长的一条)
+            Vector3 ext = bounds.extents;
+            float maxExt = Mathf.Max(ext.x, Mathf.Max(ext.y, ext.z));
+
+            // 咬痕在主轴上的高度比例 (从 top 70% 到 bottom 70% 逐口推进)
+            float biteT = (float)currentBites / (maxBites + 1);
+
+            Vector3 biteSurfacePos = bounds.center;
+            Vector3 spineCenterPos = bounds.center;
+
+            if (ext.y >= ext.x && ext.y >= ext.z) // Y 轴为主轴
             {
-                Shader unlit = Shader.Find("Universal Render Pipeline/Unlit");
-                if (unlit == null) unlit = Shader.Find("Unlit/Color");
-                if (unlit == null) unlit = Shader.Find("Sprites/Default");
-                Material mat = new Material(unlit);
-                mat.SetColor("_BaseColor", new Color(0.45f, 0.35f, 0.15f, 0.95f));
-                if (mat.HasProperty("_Color")) mat.SetColor("_Color", new Color(0.45f, 0.35f, 0.15f, 0.95f));
-                r.sharedMaterial = mat;
+                float targetY = Mathf.Lerp(bounds.max.y * 0.7f, bounds.min.y * 0.7f, biteT);
+                spineCenterPos = new Vector3(bounds.center.x, targetY, bounds.center.z);
+                float sideX = (currentBites % 2 == 1) ? ext.x * 0.85f : -ext.x * 0.85f;
+                biteSurfacePos = new Vector3(bounds.center.x + sideX, targetY, bounds.center.z);
+            }
+            else if (ext.z >= ext.x && ext.z >= ext.y) // Z 轴为主轴
+            {
+                float targetZ = Mathf.Lerp(bounds.max.z * 0.7f, bounds.min.z * 0.7f, biteT);
+                spineCenterPos = new Vector3(bounds.center.x, bounds.center.y, targetZ);
+                float sideX = (currentBites % 2 == 1) ? ext.x * 0.85f : -ext.x * 0.85f;
+                biteSurfacePos = new Vector3(bounds.center.x + sideX, bounds.center.y, targetZ);
+            }
+            else // X 轴为主轴
+            {
+                float targetX = Mathf.Lerp(bounds.max.x * 0.7f, bounds.min.x * 0.7f, biteT);
+                spineCenterPos = new Vector3(targetX, bounds.center.y, bounds.center.z);
+                float sideY = (currentBites % 2 == 1) ? ext.y * 0.85f : -ext.y * 0.85f;
+                biteSurfacePos = new Vector3(targetX, bounds.center.y + sideY, bounds.center.z);
             }
 
-            Destroy(notch.GetComponent<Collider>());
+            // 咬痕影响半径
+            float effectiveRadius = maxExt * 0.55f;
+            bool modified = false;
+
+            for (int i = 0; i < verts.Length; i++)
+            {
+                float dist = Vector3.Distance(verts[i], biteSurfacePos);
+                if (dist < effectiveRadius)
+                {
+                    // 平滑衰减：距离咬痕表面中心越近，向中轴 spineCenterPos 坍塌拉缩得越深
+                    float falloff = Mathf.Pow(1f - (dist / effectiveRadius), 1.6f);
+
+                    // 向香蕉内部中轴拉缩 (Deep Inward Collapse)
+                    Vector3 collapsedPos = Vector3.Lerp(verts[i], spineCenterPos, falloff * 0.85f);
+
+                    // 锯齿牙印齿痕细节
+                    float toothDetail = (Mathf.Sin(verts[i].x * 40f) + Mathf.Cos(verts[i].z * 40f)) * 0.008f * falloff;
+                    verts[i] = collapsedPos + (verts[i] - spineCenterPos).normalized * toothDetail;
+                    modified = true;
+                }
+            }
+
+            if (modified)
+            {
+                _bittenMeshCopy.vertices = verts;
+                _bittenMeshCopy.RecalculateBounds();
+                _bittenMeshCopy.RecalculateNormals();
+                mf.mesh = _bittenMeshCopy;
+
+                MeshCollider mc = GetComponentInChildren<MeshCollider>();
+                if (mc != null) mc.sharedMesh = _bittenMeshCopy;
+            }
+
+            // 喷溅香蕉果肉碎屑粒子
+            Vector3 worldBitePos = mf.transform.TransformPoint(biteSurfacePos);
+            SpawnBiteCrumbs(worldBitePos);
         }
 
         /// <summary>
