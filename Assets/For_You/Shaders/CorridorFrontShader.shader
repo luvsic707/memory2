@@ -202,14 +202,7 @@ Shader "Wakeup/CorridorFrontShader"
                     finalCol = lerp(colA, colB, saturate(blendAlpha));
                 }
 
-                // 防黑与防绿色占位兜底：若材质未采样到有效画面，渲染赛博发光网格
-                if (max(max(finalCol.r, finalCol.g), finalCol.b) < 0.05 || (finalCol.g > 0.9 && finalCol.r < 0.1 && finalCol.b < 0.1))
-                {
-                    float gridX = frac(uv.x * 12.0);
-                    float gridY = frac(uv.y * 12.0);
-                    float gridLine = (gridX < 0.06 || gridY < 0.06) ? 0.85 : 0.3;
-                    finalCol = float4(0.12 * gridLine, 0.5 * gridLine, 0.65 * gridLine, 1.0);
-                }
+
 
                 // 边缘羽化消融与四周连通
                 if (_BorderFade > 0.01)

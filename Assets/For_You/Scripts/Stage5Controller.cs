@@ -25,9 +25,6 @@ namespace TheLastCompact.Wakeup
         [Tooltip("当前阶段进度 0→1，Inspector 中可观测")]
         [Range(0f, 1f)] public float phaseProgress = 0f;
 
-        [Tooltip("注视/点击卡片时，单次增加的 phaseProgress 增量")]
-        public float progressPerGaze = 0.006f;
-
         [Header("单曲 BGM + 实时 DSP 滤镜 + 嘈杂人声图层")]
         [Tooltip("贯穿全程的单曲 BGM 音轨（留空将自动加载备用音轨）")]
         public AudioClip singleBgmClip;
@@ -50,13 +47,6 @@ namespace TheLastCompact.Wakeup
         [Tooltip("注视音效基础音量")]
         [Range(0f, 1f)]
         public float gazePopVolume = 0.6f;
-
-        [Header("注视检测")]
-        [Tooltip("注视射线的最大检测距离")]
-        public float gazeRayDistance = 50f;
-
-        [Tooltip("持续注视多久算一次交互（秒）")]
-        public float gazeHoldTime = 0.35f;
 
         [Header("声音控制")]
         [Tooltip("Phase C 私密数据出现时，全局音量降到此值")]
@@ -90,9 +80,7 @@ namespace TheLastCompact.Wakeup
         [Tooltip("【测试用】Stage 4 办公室打字/字模交互次数")]
         public int debugWorkCount = 42;
 
-        // 子系统引用
-        private ContentCardSpawner _spawner;
-        private FeedEnvironment _environment;
+        // 子系统引用（现役：CustomCorridorBinder）
 
         // 音频与 DSP 滤镜组件
         private AudioSource _bgmAudioSource;
@@ -105,11 +93,6 @@ namespace TheLastCompact.Wakeup
 
         private int _gazeComboCount = 0;
         private float _lastGazeTime = 0f;
-
-        // 注视状态
-        private ContentCard _currentGazedCard = null;
-        private float _gazeTimer = 0f;
-        private bool _gazeTriggered = false;
 
         // 结尾选择
         private bool _endChoiceSpawned = false;
@@ -533,25 +516,21 @@ namespace TheLastCompact.Wakeup
             if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1))
             {
                 phaseProgress = 0.05f;
-                if (_spawner != null) _spawner.enabled = true;
                 Debug.Log("<color=green>[Stage5 调试] 跳转至 Phase 1 (Sensory Liberation)</color>");
             }
             else if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2))
             {
                 phaseProgress = 0.40f;
-                if (_spawner != null) _spawner.enabled = true;
                 Debug.Log("<color=yellow>[Stage5 调试] 跳转至 Phase 2 (Compulsive Addiction)</color>");
             }
             else if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3))
             {
                 phaseProgress = 0.75f;
-                if (_spawner != null) _spawner.enabled = true;
                 Debug.Log("<color=orange>[Stage5 调试] 跳转至 Phase 3 (Data Exposed)</color>");
             }
             else if (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4))
             {
                 phaseProgress = 0.92f;
-                if (_spawner != null) _spawner.enabled = true;
                 Debug.Log("<color=red>[Stage5 调试] 跳转至 Phase 3 (Private Data Nuclear Log)</color>");
             }
             else if (Input.GetKeyDown(KeyCode.Alpha5) || Input.GetKeyDown(KeyCode.Keypad5))
@@ -563,9 +542,7 @@ namespace TheLastCompact.Wakeup
             // 取消固定硬编码时间自增！进度完全交由 CustomCorridorBinder 与内容交互驱动
             phaseProgress = Mathf.Clamp01(phaseProgress);
 
-            // 同步旋钮与视觉滑块给子系统
-            if (_spawner != null) _spawner.phaseProgress = phaseProgress;
-            if (_environment != null) _environment.phaseProgress = phaseProgress;
+            // 子系统进度同步（CustomCorridorBinder 直接由 Update 读取 phaseProgress）
 
             CustomCorridorBinder binder = FindObjectOfType<CustomCorridorBinder>();
             if (binder != null)
@@ -581,9 +558,6 @@ namespace TheLastCompact.Wakeup
 
             // 动态更新单曲 DSP 音频滤镜实时扭曲（随 phaseProgress 0→1 自动 Lerp 参数）
             UpdateAudioDynamics();
-
-            // 注视射线检测
-            ProcessGaze();
 
             // 音量平滑过渡
             AudioListener.volume = Mathf.Lerp(AudioListener.volume, _targetVolume, Time.deltaTime * 3f);
@@ -622,102 +596,16 @@ namespace TheLastCompact.Wakeup
             }
             else
             {
-                GameObject spawnerGo = new GameObject("ContentCardSpawner");
-                spawnerGo.transform.SetParent(transform, false);
-                _spawner = spawnerGo.AddComponent<ContentCardSpawner>();
-                _spawner.OnCardSpawned += OnCardSpawned;
-                _spawner.mediaDatabase = mediaDatabase;
+                Debug.Log("[Stage5] 未检测到 CustomCorridorBinder，场景请确保 Cube 走廊已手动配置。");
             }
-
-            GameObject envGo = new GameObject("FeedEnvironment");
-            envGo.transform.SetParent(transform, false);
-            _environment = envGo.AddComponent<FeedEnvironment>();
-
-            GameObject relicGo = new GameObject("Stage5RelicSpawner");
-            relicGo.transform.SetParent(transform, false);
-            relicGo.AddComponent<Stage5RelicSpawner>();
-
-            GameObject popGo = new GameObject("Stage5PopGeometryEffect");
-            popGo.transform.SetParent(transform, false);
-            Stage5PopGeometryEffect popEffect = popGo.AddComponent<Stage5PopGeometryEffect>();
-            popEffect.mediaDatabase = mediaDatabase;
-            Debug.Log("[Stage5] 自动挂载双向流动与视频投影 Pop 几何阵列。");
         }
 
-        private void OnCardSpawned(ContentCard card)
-        {
-            card.OnChoiceSelected += OnChoiceSelected;
-        }
 
-        private void ProcessGaze()
-        {
-            Camera cam = Camera.main;
-            if (cam == null) return;
-
-            Ray ray = new Ray(cam.transform.position, cam.transform.forward);
-            RaycastHit hit;
-
-            if (Physics.Raycast(ray, out hit, gazeRayDistance))
-            {
-                ContentCard card = hit.collider.GetComponentInParent<ContentCard>();
-                if (card != null)
-                {
-                    if (_currentGazedCard != card)
-                    {
-                        if (_currentGazedCard != null) _currentGazedCard.OnGazeExit();
-                        _currentGazedCard = card;
-                        _gazeTimer = 0f;
-                        _gazeTriggered = false;
-                    }
-
-                    _gazeTimer += Time.deltaTime;
-
-                    float requiredGazeTime = card.isChoiceCard ? 0.15f : gazeHoldTime;
-
-                    if (_gazeTimer >= requiredGazeTime && !_gazeTriggered)
-                    {
-                        _gazeTriggered = true;
-                        card.OnGazeEnter();
-
-                        // 播放卡片注视音效叠加 (Pitch Stacking)
-                        PlayGazeFeedbackSound();
-
-                        phaseProgress += progressPerGaze;
-                        phaseProgress = Mathf.Clamp01(phaseProgress);
-
-                        if (card.isPrivateDataCard)
-                        {
-                            _targetVolume = silenceVolume;
-                        }
-                        else
-                        {
-                            _targetVolume = _originalVolume;
-                        }
-
-                        LogPhase();
-                    }
-
-                    return;
-                }
-            }
-
-            if (_currentGazedCard != null)
-            {
-                _currentGazedCard.OnGazeExit();
-                _currentGazedCard = null;
-                _gazeTimer = 0f;
-                _gazeTriggered = false;
-            }
-
-            _targetVolume = _originalVolume;
-        }
 
         private void SpawnEndChoice()
         {
             _endChoiceSpawned = true;
-            Debug.Log("[Stage5] 进入 Phase 4 抉择时刻：抉择卡片开始与其他卡片一道，从远方源源不断飞向玩家。");
-
-            if (_spawner != null) _spawner.enabled = true;
+            Debug.Log("[Stage5] 进入 Phase 4 抉择时刻。");
         }
 
         private void OnChoiceSelected(string action)
@@ -731,17 +619,7 @@ namespace TheLastCompact.Wakeup
             }
             else if (action == "stay")
             {
-                Debug.Log("[Stage5] 玩家看中[INFINITE LOOP]抉择卡：重置进度至 Phase 1，无缝重置卡片流循环！");
-                
-                // 清理飞过的选择卡
-                ContentCard[] cards = FindObjectsOfType<ContentCard>();
-                foreach (var c in cards)
-                {
-                    if (c.isChoiceCard) Destroy(c.gameObject);
-                }
-
-                if (_spawner != null) _spawner.enabled = true;
-
+                Debug.Log("[Stage5] 玩家选择[INFINITE LOOP]：重置进度至 Phase 1。");
                 phaseProgress = 0.05f;
                 _endChoiceSpawned = false;
             }

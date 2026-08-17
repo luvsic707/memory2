@@ -21,8 +21,8 @@ namespace TheLastCompact.Wakeup
         [Tooltip("走廊尽头的正面墙/Quad（播放交替图像/视频）")]
         public Renderer frontWallRenderer;
 
-        [Tooltip("是否显示正面 Quad 墙面 (默认 false 彻底隐藏遮挡视野的巨型绿墙)")]
-        public bool showFrontWall = false;
+        [Tooltip("是否显示正面走廊前墙 (true = 显示贴图媒体墙，false = 隐藏)")]
+        public bool showFrontWall = true;
 
         [Tooltip("走廊四周的 4 面墙体 Cube（左、右、天花板、地面）")]
         public Renderer[] sideWallRenderers;
@@ -180,13 +180,6 @@ namespace TheLastCompact.Wakeup
                 mediaDatabase = FindObjectOfType<CardMediaDatabase>();
             }
 
-            ContentCardSpawner spawner = FindObjectOfType<ContentCardSpawner>();
-            if (spawner != null)
-            {
-                spawner.enabled = false;
-                Debug.Log("[CustomCorridorBinder] 已自动禁用散落卡片生成器，全面使用 5_Contemporary_1 专属 3D 走廊！");
-            }
-
             // 压暗环境背景与天空盒，防止缝隙露出发白的透明虚空
             RenderSettings.skybox = null;
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
@@ -212,7 +205,7 @@ namespace TheLastCompact.Wakeup
             {
                 frontWallRenderer.material = _frontMat;
                 _initialFrontScale = frontWallRenderer.transform.localScale;
-                frontWallRenderer.enabled = showFrontWall;
+                frontWallRenderer.enabled = true; // 始终显示正面墙
             }
 
             // 🌟 尊重你在 Inspector 里引用的 sideWallRenderers；仅在为空时在当前 Transform 父子层级中查找
@@ -397,12 +390,9 @@ namespace TheLastCompact.Wakeup
             // 正面墙 (Front Wall) 严格保持其原本封闭尽头的大尺寸，并基于初始 Scale 进行微呼吸！
             if (frontWallRenderer != null)
             {
-                frontWallRenderer.enabled = showFrontWall;
-                if (showFrontWall)
-                {
-                    float breathe = Mathf.Sin(time * 1.5f) * 0.02f;
-                    frontWallRenderer.transform.localScale = _initialFrontScale * (1.0f + breathe);
-                }
+                frontWallRenderer.enabled = true; // 始终显示正面墙
+                float breathe = Mathf.Sin(time * 1.5f) * 0.02f;
+                frontWallRenderer.transform.localScale = _initialFrontScale * (1.0f + breathe);
             }
 
             // 5. 驱动 Side Walls 四周墙面多维流体 (实时相应 Inspector 滑块)
