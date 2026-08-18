@@ -11,6 +11,7 @@ Shader "Wakeup/CorridorWallShader"
         _WaveWarp ("Wave Warp Distortion", Range(0, 2)) = 0.2
         
         _JellyAmount ("Jelly Soft Deformation", Range(0, 1)) = 0.4
+        _JellyScale ("Jelly Displacement Scale (meters)", Float) = 0.08
         _CuteWaveFreq ("Cute Wave Frequency", Float) = 3.14
         _FlowAngle ("Flow Diagonal Angle", Range(-3.14, 3.14)) = 0.0
         _VortexAmount ("Vortex Shear Amount", Range(0, 2)) = 0
@@ -59,6 +60,7 @@ Shader "Wakeup/CorridorWallShader"
                 float _RGBShift;
                 float _WaveWarp;
                 float _JellyAmount;
+                float _JellyScale;
                 float _CuteWaveFreq;
                 float _FlowAngle;
                 float _VortexAmount;
@@ -78,7 +80,7 @@ Shader "Wakeup/CorridorWallShader"
                 {
                     float waveX = sin(posOS.y * _CuteWaveFreq + time * 1.5) * cos(posOS.z * 1.2 + time * 1.2);
                     float waveY = cos(posOS.x * _CuteWaveFreq + time * 1.3) * sin(posOS.z * 1.5 + time * 1.1);
-                    posOS.xy += float2(waveX, waveY) * 0.08 * _JellyAmount;
+                    posOS.xy += float2(waveX, waveY) * _JellyScale * _JellyAmount;
                 }
 
                 output.positionWS = TransformObjectToWorld(posOS);

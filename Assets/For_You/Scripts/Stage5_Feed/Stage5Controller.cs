@@ -40,6 +40,17 @@ namespace TheLastCompact.Wakeup
         [Range(0f, 1f)]
         public float crowdNoiseVolume = 0.5f;
 
+        [Header("BGM spectral richness (so the LowPass filter has real high-frequency content to remove)")]
+        [Tooltip("Amount of high-frequency shimmer/noise texture layered on top of the chord tones (0 = pure clean chord, 1 = strong airy high-frequency texture). Needed because pure low-frequency sine tones give LowPass nothing audible to filter out.")]
+        [Range(0f, 1f)] public float bgmHighFreqTextureAmount = 0.35f;
+
+        [Header("Crowd noise procedural fallback (used only when crowdNoiseClip is left empty)")]
+        [Tooltip("Duration in seconds of the procedurally generated seamless-loop crowd murmur texture")]
+        public float crowdNoiseProceduralDuration = 4f;
+
+        [Tooltip("Density of the procedural crowd murmur layer (0 = sparse, 1 = dense overlapping voices)")]
+        [Range(0f, 1f)] public float crowdNoiseProceduralDensity = 0.5f;
+
         [Header("卡片注视与交互音效（香蕉/Pop 愉悦反馈）")]
         [Tooltip("注视看卡片时的愉悦反馈音效（留空将自动程序化生成 80ms Sine 叮音）")]
         public AudioClip gazePopClip;
@@ -103,6 +114,24 @@ namespace TheLastCompact.Wakeup
         private float _targetVolume = 1f;
         private TMPro.TextMeshProUGUI _phaseStatusText;
 
+                private void OnEnable()
+        {
+            Stage5AnnounceBus.OnPhaseEntered += HandlePhaseEntered;
+        }
+
+        private void OnDisable()
+        {
+            Stage5AnnounceBus.OnPhaseEntered -= HandlePhaseEntered;
+        }
+
+        // Called once whenever a new phase boundary is crossed (broadcast via Stage5AnnounceBus).
+        // Triggers a brief one-shot audio distortion pulse marking the transition moment.
+        private void HandlePhaseEntered(int phaseIndex)
+        {
+            _phaseTransitionPulseTimer = 1f;
+            Debug.Log("[Stage5 AnnounceBus] Audio system received phase transition broadcast: entering Phase " + phaseIndex);
+        }
+
         private void Awake()
         {
             if (Instance != null && Instance != this) { Destroy(gameObject); return; }
@@ -142,6 +171,12 @@ namespace TheLastCompact.Wakeup
 
             // 4. 创建子系统
             CreateSubsystems();
+
+            // 4b. 自动挂载 Phase4 献祭物体召唤系统 (Stage5ChaosOfferingSpawner)
+            EnsureChaosOfferingSpawner();
+
+            // 4c. 自动挂载全局色彩基调后处理系统 (Stage5PostProcessingController)
+            EnsurePostProcessingController();
 
             // 5. 初始化单曲 + DSP 动态滤镜音频系统
             SetupAudioSystem();
@@ -185,11 +220,19 @@ namespace TheLastCompact.Wakeup
             _crowdAudioSource.volume = 0f; // 初始静音
             _crowdAudioSource.spatialBlend = 0f;
 
+            // If no crowd noise clip was manually assigned, generate a procedural fallback
+            // (same pattern as the BGM and pop-click fallbacks below), so this layer is never silent.
+            if (crowdNoiseClip == null)
+            {
+                crowdNoiseClip = CreateProceduralCrowdNoiseClip();
+            }
+
             if (crowdNoiseClip != null)
             {
                 _crowdAudioSource.clip = crowdNoiseClip;
+                _crowdAudioSource.loop = true;
                 _crowdAudioSource.Play();
-                Debug.Log($"[Stage5] 嘈杂人声图层已挂载: {crowdNoiseClip.name}");
+                Debug.Log("[Stage5] Crowd noise layer mounted: " + crowdNoiseClip.name);
             }
 
             // 创建 SFX AudioSource
@@ -221,28 +264,49 @@ namespace TheLastCompact.Wakeup
         private AudioClip CreateProceduralAmbientBgmClip()
         {
             int sampleRate = 44100;
-            float duration = 6.0f; // 6秒无缝循环温润 Ambient 氛圈音轨
+            float duration = 6.0f; // 6-second seamless-loop warm ambient chord track
             int sampleCount = (int)(sampleRate * duration);
             float[] samples = new float[sampleCount];
 
             float[] freqs = { 110f, 164.81f, 220f, 277.18f, 329.63f, 440f }; // A Minor 9 / Ambient Chord
+
+            // Additional high-frequency overtone series and noise texture, so the LowPass DSP filter used across
+            // Phase 2/3/4 actually has real high-frequency energy to remove -- pure sub-440Hz sine tones give it
+            // nothing audible to filter, which is why the phase transitions used to sound almost identical.
+            float[] shimmerFreqs = { 880f, 1320f, 1760f, 2640f, 3520f };
+
+            System.Random rng = new System.Random(1234);
 
             for (int i = 0; i < sampleCount; i++)
             {
                 float t = (float)i / sampleRate;
                 float sampleVal = 0f;
 
-                // 柔和 LFO 慢速漫游包络
+                // Slow LFO wandering envelope
                 float lfo = 0.85f + 0.15f * Mathf.Sin(2f * Mathf.PI * 0.166f * t);
 
                 for (int f = 0; f < freqs.Length; f++)
                 {
                     float freq = freqs[f];
-                    float amp = 1f / (f + 1); // 高频渐弱
+                    float amp = 1f / (f + 1); // higher partials fade out
                     sampleVal += Mathf.Sin(2f * Mathf.PI * freq * t) * amp;
                 }
 
-                // 边缘无缝淡入淡出（防 Crossfade 爆音）
+                if (bgmHighFreqTextureAmount > 0.001f)
+                {
+                    float shimmer = 0f;
+                    for (int f = 0; f < shimmerFreqs.Length; f++)
+                    {
+                        float freq = shimmerFreqs[f];
+                        float amp = 0.5f / (f + 1);
+                        float slowMod = 0.6f + 0.4f * Mathf.Sin(2f * Mathf.PI * (0.05f + f * 0.02f) * t);
+                        shimmer += Mathf.Sin(2f * Mathf.PI * freq * t) * amp * slowMod;
+                    }
+                    float noise = ((float)rng.NextDouble() * 2f - 1f);
+                    sampleVal += (shimmer * 0.5f + noise * 0.15f) * bgmHighFreqTextureAmount;
+                }
+
+                // Seamless fade in/out at the loop edges to avoid crossfade pops
                 float fadeEnv = 1f;
                 float fadeLen = 0.1f;
                 if (t < fadeLen) fadeEnv = t / fadeLen;
@@ -276,6 +340,59 @@ namespace TheLastCompact.Wakeup
             return clip;
         }
 
+                private AudioClip CreateProceduralCrowdNoiseClip()
+        {
+            int sampleRate = 44100;
+            float duration = Mathf.Max(1f, crowdNoiseProceduralDuration);
+            int sampleCount = (int)(sampleRate * duration);
+            float[] samples = new float[sampleCount];
+
+            // Layered murmuring texture: several low-passed noise voices at slightly different
+            // pitches/phases, approximating distant indistinct crowd chatter. Density is tunable
+            // via crowdNoiseProceduralDensity so this fallback can be dialed from sparse to dense
+            // without touching code.
+            System.Random rng = new System.Random(5678);
+            int voiceCount = Mathf.Max(1, Mathf.RoundToInt(Mathf.Lerp(2f, 8f, crowdNoiseProceduralDensity)));
+            float[] voiceFreqs = new float[voiceCount];
+            float[] voicePhaseSpeeds = new float[voiceCount];
+            for (int v = 0; v < voiceCount; v++)
+            {
+                voiceFreqs[v] = 120f + (float)rng.NextDouble() * 260f;
+                voicePhaseSpeeds[v] = 0.3f + (float)rng.NextDouble() * 0.6f;
+            }
+
+            float prevNoise = 0f;
+
+            for (int i = 0; i < sampleCount; i++)
+            {
+                float t = (float)i / sampleRate;
+                float sampleVal = 0f;
+
+                for (int v = 0; v < voiceCount; v++)
+                {
+                    float murmurEnv = 0.5f + 0.5f * Mathf.Sin(2f * Mathf.PI * voicePhaseSpeeds[v] * t + v * 1.7f);
+                    sampleVal += Mathf.Sin(2f * Mathf.PI * voiceFreqs[v] * t) * murmurEnv * (1f / voiceCount);
+                }
+
+                // Cheap one-pole low-pass on raw noise so it reads as murmur texture rather than harsh static
+                float rawNoise = (float)rng.NextDouble() * 2f - 1f;
+                float filteredNoise = prevNoise + 0.15f * (rawNoise - prevNoise);
+                prevNoise = filteredNoise;
+                sampleVal += filteredNoise * 0.25f;
+
+                float fadeEnv = 1f;
+                float fadeLen = 0.15f;
+                if (t < fadeLen) fadeEnv = t / fadeLen;
+                else if (t > duration - fadeLen) fadeEnv = (duration - t) / fadeLen;
+
+                samples[i] = sampleVal * 0.3f * fadeEnv;
+            }
+
+            AudioClip clip = AudioClip.Create("ProceduralCrowdNoise", sampleCount, 1, sampleRate, false);
+            clip.SetData(samples, 0);
+            return clip;
+        }
+
         [Header("Phase 3 特效与可读性调校")]
         [Tooltip("Phase 3 最大音频失真度（降低失真以提高画面与声音的可读性）")]
         [Range(0f, 1f)] public float phase3MaxDistortion = 0.25f;
@@ -285,6 +402,47 @@ namespace TheLastCompact.Wakeup
 
         [Tooltip("Phase 3 音调 Pitch 下限")]
         public float phase3Pitch = 0.92f;
+
+        [Header("Phase 4 彻底混沌音频强度 (Total Chaos)")]
+        [Range(0f, 1f)] public float phase4MaxDistortion = 0.55f;
+        public float phase4MinLowPassCutoff = 900f;
+        public float phase4PitchMin = 0.75f;
+        public float phase4PitchMax = 1.15f;
+        public float phase4AudioHypnoticFrequency = 0.8f;
+        public float phase4AudioBurstInterval = 5f;
+        public float phase4AudioBurstDuration = 0.35f;
+
+        [Header("🎛️ Phase 音频强度曲线 (Data-Driven，与视觉系统对称设计，下面这套新系统已取代上方部分硬编码阶段分支公式)")]
+        [Tooltip("失真度 (0~1)")]
+        public PhaseCurveParam distortionCurve = new PhaseCurveParam { phase1 = 0f, phase2 = 0.2f, phase3 = 0.5f, phase4 = 0.7f };
+
+        [Tooltip("LowPass 截止频率 (Hz)，越低越闷")]
+        public PhaseCurveParam lowPassCurve = new PhaseCurveParam { phase1 = 22000f, phase2 = 6000f, phase3 = 2800f, phase4 = 900f };
+
+        [Tooltip("合唱/相位抖动深度 (0~1)")]
+        public PhaseCurveParam chorusDepthCurve = new PhaseCurveParam { phase1 = 0f, phase2 = 0.25f, phase3 = 0.45f, phase4 = 0.5f };
+
+        [Tooltip("混响衰减时间 (秒)")]
+        public PhaseCurveParam reverbDecayCurve = new PhaseCurveParam { phase1 = 0f, phase2 = 2.0f, phase3 = 3.0f, phase4 = 4.5f };
+
+        [Tooltip("BGM 音调 Pitch")]
+        public PhaseCurveParam pitchCurve = new PhaseCurveParam { phase1 = 1.0f, phase2 = 0.94f, phase3 = 0.90f, phase4 = 0.80f };
+
+        [Tooltip("环境噪声图层音量占 crowdNoiseVolume 的比例 (0~1)")]
+        public PhaseCurveParam crowdVolumeCurve = new PhaseCurveParam { phase1 = 0f, phase2 = 0.35f, phase3 = 0.55f, phase4 = 0.7f };
+
+        [Header("🔊 音画同步 (通过 Stage5AnnounceBus 读取视觉混沌强度，叠加调制失真/低通，无需引用视觉脚本)")]
+        [Tooltip("0=完全不受视觉影响，1=失真/低通最多可被视觉强度放大到 2 倍")]
+        [Range(0f, 1f)] public float audioVisualSyncStrength = 0.4f;
+
+        [Header("🔔 阶段切换音效强调 (通过 Stage5AnnounceBus 的 OnPhaseEntered 事件驱动，一次性脉冲)")]
+        [Tooltip("脉冲衰减速度 (越大越快恢复平静)")]
+        public float phaseTransitionPulseDecay = 3f;
+
+        [Tooltip("每次跨过阶段边界时，额外叠加的失真度脉冲峰值")]
+        public float phaseTransitionPulseDistortionBoost = 0.25f;
+
+        private float _phaseTransitionPulseTimer = 0f;
 
         [Tooltip("Phase 3 漩涡扭曲强度 (0 彻底关闭螺旋拉扯)")]
         [Range(0f, 1.5f)] public float maxVortexAmount = 0.0f;
@@ -302,64 +460,74 @@ namespace TheLastCompact.Wakeup
         /// 核心：夸张演变的单曲 BGM + DSP 音频滤镜扭曲系统 + 混响 + 嘈杂人声图层
         /// 随 phaseProgress (0→1) 极其显著地渐变，确保肉耳 100% 能听出阶段质变！
         /// </summary>
+        // Core: data-driven BGM + DSP audio filter distortion system + reverb + crowd noise layer.
+        // All intensity parameters are now driven by PhaseCurveParam (symmetric with the visual system),
+        // and additionally modulated by the visual chaos intensity published on Stage5AnnounceBus,
+        // so audio reacts to visuals without either script directly referencing the other.
         private void UpdateAudioDynamics()
         {
             if (_bgmAudioSource == null) return;
 
+            // Phase-transition one-shot pulse, decays over time (triggered by Stage5AnnounceBus.OnPhaseEntered)
+            if (_phaseTransitionPulseTimer > 0f)
+            {
+                _phaseTransitionPulseTimer = Mathf.Max(0f, _phaseTransitionPulseTimer - Time.deltaTime * phaseTransitionPulseDecay);
+            }
+            float transitionPulse = _phaseTransitionPulseTimer * phaseTransitionPulseDistortionBoost;
+
+            // Audio-visual sync: read the chaos intensity published by the visual system via the bus,
+            // with no direct reference to the visual script.
+            float visualSync = Stage5AnnounceBus.VisualChaosIntensity;
+            float syncMultiplier = Mathf.Lerp(1f, 1f + visualSync, audioVisualSyncStrength);
+
+            float baseDistortion = distortionCurve.Evaluate(phaseProgress);
+            float finalDistortion = Mathf.Clamp01(baseDistortion * syncMultiplier + transitionPulse);
+
+            float baseLowPass = lowPassCurve.Evaluate(phaseProgress);
+            float finalLowPass = Mathf.Max(200f, baseLowPass / syncMultiplier);
+
+            float baseChorus = chorusDepthCurve.Evaluate(phaseProgress);
+            float finalChorus = Mathf.Clamp01(baseChorus * syncMultiplier);
+
+            float basePitch = pitchCurve.Evaluate(phaseProgress);
+            float baseReverbDecay = reverbDecayCurve.Evaluate(phaseProgress);
+            float baseCrowdRatio = crowdVolumeCurve.Evaluate(phaseProgress);
+
+            _distortionFilter.distortionLevel = finalDistortion;
+            _lowPassFilter.cutoffFrequency = finalLowPass;
+            _chorusFilter.depth = finalChorus;
+            _bgmAudioSource.pitch = basePitch;
+
+            if (_crowdAudioSource != null)
+            {
+                _crowdAudioSource.volume = crowdNoiseVolume * baseCrowdRatio;
+            }
+
+            // Reverb preset switches discretely by phase (Off -> Room -> Room -> Cave); decay time stays continuous.
             if (phaseProgress < 0.35f)
             {
-                // Phase 1 (0.00 ~ 0.35): 干净甜美、全频通透、高保真、无混响、无嘈杂人声
-                float t = Mathf.InverseLerp(0f, 0.35f, phaseProgress);
-                _distortionFilter.distortionLevel = 0.0f;
-                _lowPassFilter.cutoffFrequency = 22000f; // 22kHz 全频段通透
-                _chorusFilter.depth = 0.0f;
                 _reverbFilter.reverbPreset = AudioReverbPreset.Off;
-                _bgmAudioSource.pitch = Mathf.Lerp(1.0f, 0.95f, t);
-
-                if (_crowdAudioSource != null) _crowdAudioSource.volume = 0f;
-            }
-            else if (phaseProgress < 0.70f)
-            {
-                // Phase 2 (0.35 ~ 0.70): 显著变闷压高频 + 电音失真 + 混响渐强 + 嘈杂人声渐入
-                float t = Mathf.InverseLerp(0.35f, 0.70f, phaseProgress);
-                _distortionFilter.distortionLevel = Mathf.Lerp(0.02f, 0.15f, t); // 温和失真
-                _lowPassFilter.cutoffFrequency = Mathf.Lerp(22000f, 6000f, t);   // 维持清晰通透
-                _chorusFilter.depth = Mathf.Lerp(0.0f, 0.25f, t);
-                _reverbFilter.reverbPreset = AudioReverbPreset.Room;
-                _reverbFilter.decayTime = Mathf.Lerp(1.0f, 2.0f, t);
-                _bgmAudioSource.pitch = Mathf.Lerp(0.98f, 0.94f, t);
-
-                if (_crowdAudioSource != null && crowdNoiseClip != null)
-                {
-                    _crowdAudioSource.volume = Mathf.Lerp(0f, crowdNoiseVolume * 0.35f, t);
-                }
             }
             else if (phaseProgress < 0.96f)
             {
-                // Phase 3 (0.70 ~ 0.96): 减轻特效重度，极大提升内容与文字的画面/声音可读性！
-                float t = Mathf.InverseLerp(0.70f, 0.96f, phaseProgress);
-                _distortionFilter.distortionLevel = Mathf.Lerp(0.15f, phase3MaxDistortion, t); // 轻微温和破音，绝不炸耳
-                _lowPassFilter.cutoffFrequency = Mathf.Lerp(6000f, phase3LowPassCutoff, t);     // 保持 3500Hz 清晰人声与视频音效
-                _chorusFilter.depth = Mathf.Lerp(0.25f, 0.40f, t);
-                _reverbFilter.reverbPreset = AudioReverbPreset.Room;                            // 使用自然房间混响取代恐怖洞穴
-                _reverbFilter.decayTime = Mathf.Lerp(2.0f, 2.8f, t);
-                _bgmAudioSource.pitch = Mathf.Lerp(0.94f, phase3Pitch, t);                      // 自然音乐步调
-
-                if (_crowdAudioSource != null && crowdNoiseClip != null)
-                {
-                    _crowdAudioSource.volume = Mathf.Lerp(crowdNoiseVolume * 0.35f, crowdNoiseVolume * 0.5f, t);
-                }
+                _reverbFilter.reverbPreset = AudioReverbPreset.Room;
+                _reverbFilter.decayTime = baseReverbDecay;
             }
             else
             {
-                // Phase 4 (0.96 ~ 1.00): 抉择时刻保持定格
-                _distortionFilter.distortionLevel = 0.10f;
-                _lowPassFilter.cutoffFrequency = 8000f;
-                _chorusFilter.depth = 0.1f;
-                _reverbFilter.reverbPreset = AudioReverbPreset.Off;
-                _bgmAudioSource.pitch = 1.0f;
+                // Phase4 total-chaos cult climax: dual-mode rhythm (slow hypnotic pulse + occasional violent burst),
+                // Cave reverb for ritual atmosphere, layered on top of the audio-visual sync values above.
+                float hypnotic = 0.6f + 0.4f * Mathf.Sin(Time.time * phase4AudioHypnoticFrequency);
+                bool inBurst = phase4AudioBurstInterval > 0.01f && (Time.time % phase4AudioBurstInterval) < phase4AudioBurstDuration;
+                float burstMul = inBurst ? 1.8f : 1f;
+                float chaos = Mathf.Clamp01(hypnotic * burstMul);
 
-                if (_crowdAudioSource != null) _crowdAudioSource.volume = 0f;
+                _reverbFilter.reverbPreset = AudioReverbPreset.Cave;
+                _reverbFilter.decayTime = baseReverbDecay * (0.6f + 0.4f * chaos);
+                _distortionFilter.distortionLevel = Mathf.Clamp01(finalDistortion * chaos);
+                _bgmAudioSource.pitch = inBurst
+                    ? Random.Range(phase4PitchMin, phase4PitchMax)
+                    : Mathf.Lerp(phase4PitchMin + 0.15f, phase4PitchMax - 0.1f, hypnotic);
             }
         }
 
@@ -460,7 +628,7 @@ namespace TheLastCompact.Wakeup
             }
             else
             {
-                _phaseStatusText.text = "<color=#AA55FF>PHASE 4</color>  —  Moment of Choice: Stay Here or Challenge Stage 6";
+                _phaseStatusText.text = "<color=#AA55FF>PHASE 4</color>  —  Total Chaos: Break Free or Be Consumed Forever";
             }
         }
 
@@ -542,21 +710,15 @@ namespace TheLastCompact.Wakeup
             // 取消固定硬编码时间自增！进度完全交由 CustomCorridorBinder 与内容交互驱动
             phaseProgress = Mathf.Clamp01(phaseProgress);
 
-            // 子系统进度同步（CustomCorridorBinder 直接由 Update 读取 phaseProgress）
-
-            CustomCorridorBinder binder = FindObjectOfType<CustomCorridorBinder>();
-            if (binder != null)
-            {
-                binder.maxVortexAmount = maxVortexAmount;
-                binder.maxOilSmearArc = maxOilSmearArc;
-                binder.maxSpeedTrails = maxSpeedTrails;
-                binder.maxGlitchAmount = maxGlitchAmount;
-            }
+            // 子系统进度同步（CustomCorridorBinder 直接由 Update 读取 phaseProgress，不再需要每帧从这里强制推送混沌参数——
+            // CustomCorridorBinder 现在自己完整拥有一套 PhaseCurveParam 曲线系统，不再依赖这里的 max前缀字段。
 
             // 动态更新顶部 Phase 阶段状态栏 HUD
             UpdatePhaseHUD();
 
             // 动态更新单曲 DSP 音频滤镜实时扭曲（随 phaseProgress 0→1 自动 Lerp 参数）
+            Stage5AnnounceBus.AnnouncePhase(phaseProgress);
+
             UpdateAudioDynamics();
 
             // 音量平滑过渡
@@ -572,6 +734,34 @@ namespace TheLastCompact.Wakeup
             if (Input.GetKeyDown(KeyCode.P) && !_isTransitioning)
             {
                 StartCoroutine(TransitionSequence());
+            }
+        }
+
+        private void EnsurePostProcessingController()
+        {
+#if UNITY_2023_1_OR_NEWER
+            if (FindAnyObjectByType<Stage5PostProcessingController>() == null)
+#else
+            if (FindObjectOfType<Stage5PostProcessingController>() == null)
+#endif
+            {
+                GameObject go = new GameObject("Stage5PostProcessingController_Auto");
+                go.AddComponent<Stage5PostProcessingController>();
+                Debug.Log("[Stage5] 自动创建全局色彩基调后处理系统 (Stage5PostProcessingController)。");
+            }
+        }
+
+        private void EnsureChaosOfferingSpawner()
+        {
+#if UNITY_2023_1_OR_NEWER
+            if (FindAnyObjectByType<Stage5ChaosOfferingSpawner>() == null)
+#else
+            if (FindObjectOfType<Stage5ChaosOfferingSpawner>() == null)
+#endif
+            {
+                GameObject go = new GameObject("Stage5ChaosOfferingSpawner_Auto");
+                go.AddComponent<Stage5ChaosOfferingSpawner>();
+                Debug.Log("[Stage5] 自动创建 Phase4 献祭物体召唤系统 (Stage5ChaosOfferingSpawner)。");
             }
         }
 
@@ -660,13 +850,14 @@ namespace TheLastCompact.Wakeup
             string phase = phaseProgress < 0.35f ? "1 (Sensory Liberation)"
                          : phaseProgress < 0.70f ? "2 (Compulsive Addiction)"
                          : phaseProgress < 0.96f ? "3 (Data Exposed)"
-                         : "4 (Moment of Choice)";
+                         : "4 (Total Chaos)";
             Debug.Log($"[Stage5] Phase {phase} | Progress: {phaseProgress:F3}");
         }
 
         private void OnDestroy()
         {
             AudioListener.volume = _originalVolume;
+            Stage5AnnounceBus.ResetState();
         }
     }
 }
