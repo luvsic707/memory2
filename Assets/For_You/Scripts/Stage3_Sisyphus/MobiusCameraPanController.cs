@@ -229,6 +229,22 @@ namespace TheLastCompact.Wakeup
 
         private void Update()
         {
+            // 🌟 小修复（仅限视觉，不影响其他机制）：在玩家还没有推过第一次石头之前，
+            // 每帧持续重新将巨石贴合到当前相机正前方，而不是只在 Start() 时对齐一次。
+            // 原因：场景切换时可能瞬间存在重复/过时的 Main Camera（由 Bootstrap 清理逻辑处理），
+            // 若 Start() 恰好在清理完成之前抓到了错误/旧的相机引用，就会导致巨石被对齐到一个遗留位置，
+            // 与真正的游戏相机脱节，看起来就像“手前面没有球”。
+            // 这里用每帧持续追踪来自愈，不需要猜具体延迟多久；一旦第一次推动发生，
+            // OnPushBoulder() 就会接管后续的每次推石对齐，与现有逻辑完全一致。
+            if (_currentPushCount == 0)
+            {
+                if (_mainCam == null) _mainCam = Camera.main;
+                if (boulderTransform != null && _mainCam != null)
+                {
+                    SnapBoulderToHandsFront();
+                }
+            }
+
             // 支持按 W / 长按 W / 点击鼠标左键 / 长按鼠标推进巨石
             bool isPushInput = Input.GetKeyDown(KeyCode.W) || Input.GetMouseButtonDown(0)
                             || Input.GetKey(KeyCode.W) || Input.GetMouseButton(0);
